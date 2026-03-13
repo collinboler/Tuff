@@ -1,0 +1,54 @@
+name: Tuff
+options:
+  bundleIdPrefix: com.collinboler
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  Tuff:
+    type: application
+    platform: iOS
+    sources:
+      - path: Tuff
+    settings:
+      base:
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: true
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        CODE_SIGN_ENTITLEMENTS: Tuff/Tuff.entitlements
+    entitlements:
+      path: Tuff/Tuff.entitlements
+      properties:
+        com.apple.developer.family-controls: true
+
+  TuffDeviceActivity:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: TuffDeviceActivity
+    settings:
+      base:
+        INFOPLIST_FILE: TuffDeviceActivity/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.collinboler.tuff.DeviceActivity
+    dependencies:
+      - target: Tuff
+
+  TuffShieldConfiguration:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: TuffShieldConfiguration
+    settings:
+      base:
+        INFOPLIST_FILE: TuffShieldConfiguration/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.collinboler.tuff.ShieldConfiguration
+    dependencies:
+      - target: Tuff
