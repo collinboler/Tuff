@@ -43,10 +43,6 @@ struct StatsView: View {
     private var statsContent: some View {
         VStack(spacing: 14) {
             #if !targetEnvironment(simulator)
-            Text("BEFORE REPORT EMBED")
-                .foregroundColor(.orange)
-                .font(.system(size: 14, weight: .bold))
-
             DeviceActivityReport(
                 DeviceActivityReport.Context("TuffDailyActivity"),
                 filter: DeviceActivityFilter(
@@ -58,12 +54,7 @@ struct StatsView: View {
                     )
                 )
             )
-            .frame(height: 200)
-            .background(Color.orange)
-
-            Text("AFTER REPORT EMBED")
-                .foregroundColor(.orange)
-                .font(.system(size: 14, weight: .bold))
+            .frame(height: 100)
             #endif
 
             HStack {
