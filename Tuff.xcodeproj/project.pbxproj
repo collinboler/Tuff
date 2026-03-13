@@ -52,6 +52,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0F3C99E12F63DCEE003E8BB7 /* TuffDeviceActivity.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TuffDeviceActivity.entitlements; sourceTree = "<group>"; };
 		146D5441632C22A67744C333 /* FriendCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendCarouselView.swift; sourceTree = "<group>"; };
 		2B20E94174CF30E8FFF26D8A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		349F7929AC5B7B6F327A0FF6 /* League.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = League.swift; sourceTree = "<group>"; };
@@ -171,6 +172,7 @@
 		8971905DB8D9EC96C9B954F6 /* TuffDeviceActivity */ = {
 			isa = PBXGroup;
 			children = (
+				0F3C99E12F63DCEE003E8BB7 /* TuffDeviceActivity.entitlements */,
 				F08CC8CFC059AD9A8AE9931A /* DeviceActivityMonitorExtension.swift */,
 				E96F63DD46B3821E1B7FDFFA /* Info.plist */,
 			);
@@ -543,6 +545,7 @@
 		8572F8C53C0822EEB5B71B15 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TuffDeviceActivity/TuffDeviceActivity.entitlements;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				INFOPLIST_FILE = TuffDeviceActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -559,6 +562,7 @@
 		A02562BA80ED45270B13EE5F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TuffDeviceActivity/TuffDeviceActivity.entitlements;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				INFOPLIST_FILE = TuffDeviceActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
