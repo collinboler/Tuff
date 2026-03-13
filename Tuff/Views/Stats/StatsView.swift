@@ -1,7 +1,13 @@
 import SwiftUI
+import DeviceActivity
+
+extension DeviceActivityReport.Context {
+    static let dailyActivity = Self("TuffDailyActivity")
+}
 
 struct StatsView: View {
     @StateObject private var viewModel = StatsViewModel()
+    @EnvironmentObject var screenTimeManager: ScreenTimeManager
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -12,6 +18,9 @@ struct StatsView: View {
             .padding(.bottom, 80)
         }
         .background(Color.white)
+        .task {
+            await viewModel.refreshData()
+        }
     }
 
     // MARK: - Top Bar
@@ -33,21 +42,36 @@ struct StatsView: View {
 
     private var statsContent: some View {
         VStack(spacing: 14) {
-            // Toggle
+            #if !targetEnvironment(simulator)
+            Text("BEFORE REPORT EMBED")
+                .foregroundColor(.orange)
+                .font(.system(size: 14, weight: .bold))
+
+            DeviceActivityReport(
+                DeviceActivityReport.Context("TuffDailyActivity"),
+                filter: DeviceActivityFilter(
+                    segment: .daily(
+                        during: DateInterval(
+                            start: Calendar.current.startOfDay(for: Date()),
+                            end: Calendar.current.startOfDay(for: Date()).addingTimeInterval(86400)
+                        )
+                    )
+                )
+            )
+            .frame(height: 200)
+            .background(Color.orange)
+
+            Text("AFTER REPORT EMBED")
+                .foregroundColor(.orange)
+                .font(.system(size: 14, weight: .bold))
+            #endif
+
             HStack {
                 Spacer()
                 periodToggle
             }
 
-            // Chart
-            ScreenTimeChartView(
-                data: viewModel.displayData,
-                period: viewModel.selectedPeriod
-            )
-            .frame(height: 140)
-            .padding(16)
-            .background(TuffColors.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            chartCard
 
             // Stat boxes
             HStack(spacing: 8) {
@@ -56,13 +80,25 @@ struct StatsView: View {
                 statBlock(label: "Worst Day", value: viewModel.stats.formattedWorst, isAccent: false)
             }
 
-            // Streak card
             streakCard
         }
         .padding(.horizontal, 20)
     }
 
-    // MARK: - Period Toggle (matches HTML toggle-pill)
+    // MARK: - Chart Card
+
+    private var chartCard: some View {
+        ScreenTimeChartView(
+            data: viewModel.displayData,
+            period: viewModel.selectedPeriod
+        )
+        .frame(height: 140)
+        .padding(16)
+        .background(TuffColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Period Toggle
 
     private var periodToggle: some View {
         HStack(spacing: 0) {
@@ -78,11 +114,7 @@ struct StatsView: View {
                         .tracking(0.06 * 12)
                         .padding(.horizontal, 18)
                         .padding(.vertical, 7)
-                        .background(
-                            viewModel.selectedPeriod == period
-                                ? TuffColors.accent
-                                : Color.clear
-                        )
+                        .background(viewModel.selectedPeriod == period ? TuffColors.accent : Color.clear)
                         .clipShape(Capsule())
                 }
             }
@@ -90,10 +122,7 @@ struct StatsView: View {
         .padding(2)
         .background(Color.white)
         .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(TuffColors.divider, lineWidth: 1)
-        )
+        .overlay(Capsule().stroke(TuffColors.divider, lineWidth: 1))
     }
 
     private func statBlock(label: String, value: String, isAccent: Bool) -> some View {
@@ -124,12 +153,10 @@ struct StatsView: View {
                 Text("DAY STREAK")
                     .font(TuffFonts.streakLabel())
                     .foregroundColor(.white)
-
                 Text("Under your \(viewModel.stats.formattedGoal) daily goal")
                     .font(TuffFonts.caption(11))
                     .foregroundColor(TuffColors.textSecondary)
             }
-
             Spacer()
         }
         .padding(18)
@@ -140,4 +167,5 @@ struct StatsView: View {
 
 #Preview {
     StatsView()
+        .environmentObject(ScreenTimeManager.shared)
 }

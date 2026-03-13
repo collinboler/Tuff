@@ -8,6 +8,19 @@
 
 /* Begin PBXBuildFile section */
 		020A7F4437034D638682A67C /* CreateLeagueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A99AC0FD5D7287ADDDBC164 /* CreateLeagueView.swift */; };
+		AA001122334455667788AABB /* SharedKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001122334455667788AABC /* SharedKeys.swift */; };
+		BB001122334455667788AA01 /* TuffActivityReportApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB001122334455667788AA02 /* TuffActivityReportApp.swift */; };
+		BB001122334455667788AA03 /* TuffDailyReportScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB001122334455667788AA04 /* TuffDailyReportScene.swift */; };
+		BB001122334455667788AA05 /* TuffDailyReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB001122334455667788AA06 /* TuffDailyReportView.swift */; };
+		BB001122334455667788AA07 /* SharedKeys.swift in Sources (ActivityReport) */ = {isa = PBXBuildFile; fileRef = AA001122334455667788AABC /* SharedKeys.swift */; };
+		CC001122334455667788AA01 /* TuffActivityReport.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BB001122334455667788AA0A /* TuffActivityReport.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CC001122334455667788AA02 /* TuffDeviceActivity.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CC001122334455667788AA03 /* TuffShieldConfiguration.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		DD001122334455667788AA01 /* DeviceActivity.framework in Frameworks (ActivityReport) */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA02 /* DeviceActivity.framework */; };
+		DD001122334455667788AA04 /* _DeviceActivity_SwiftUI.framework in Frameworks (ActivityReport) */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA05 /* _DeviceActivity_SwiftUI.framework */; };
+		DD001122334455667788AA06 /* ExtensionFoundation.framework in Frameworks (ActivityReport) */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA07 /* ExtensionFoundation.framework */; };
+		DD001122334455667788AA08 /* ExtensionKit.framework in Frameworks (ActivityReport) */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA09 /* ExtensionKit.framework */; };
+		DD001122334455667788AA10 /* SwiftUI.framework in Frameworks (ActivityReport) */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA11 /* SwiftUI.framework */; };
 		03EEA9C59A36A76A39E29AB3 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86CCBDA2CCE6E9715DA96805 /* User.swift */; };
 		0A186B889D36AC90DDFA6795 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3DFF1FB986855FACD264B942 /* Assets.xcassets */; };
 		1ABF6B47A1E2F9E5BE78DD21 /* ScreenTimeChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D20E98B5328CE88A5A35EDA /* ScreenTimeChartView.swift */; };
@@ -49,10 +62,37 @@
 			remoteGlobalIDString = AEFD1829843980916525923B;
 			remoteInfo = Tuff;
 		};
+		BB001122334455667788AA10 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CACFD2EBBD3ED61D67074E70 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AEFD1829843980916525923B;
+			remoteInfo = Tuff;
+		};
+		CC001122334455667788AA10 /* PBXContainerItemProxy (DeviceActivity) */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CACFD2EBBD3ED61D67074E70 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 307FFB2C2F6506A5A6126A08;
+			remoteInfo = TuffDeviceActivity;
+		};
+		CC001122334455667788AA11 /* PBXContainerItemProxy (ShieldConfig) */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CACFD2EBBD3ED61D67074E70 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 23D9EDF1650F12E136CD1A3C;
+			remoteInfo = TuffShieldConfiguration;
+		};
+		CC001122334455667788AA12 /* PBXContainerItemProxy (ActivityReport) */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CACFD2EBBD3ED61D67074E70 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BB001122334455667788AA0C;
+			remoteInfo = TuffActivityReport;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		0F3C99E12F63DCEE003E8BB7 /* TuffDeviceActivity.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TuffDeviceActivity.entitlements; sourceTree = "<group>"; };
 		146D5441632C22A67744C333 /* FriendCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendCarouselView.swift; sourceTree = "<group>"; };
 		2B20E94174CF30E8FFF26D8A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		349F7929AC5B7B6F327A0FF6 /* League.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = League.swift; sourceTree = "<group>"; };
@@ -65,14 +105,15 @@
 		7A99AC0FD5D7287ADDDBC164 /* CreateLeagueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateLeagueView.swift; sourceTree = "<group>"; };
 		7B516A2A618E866EAF76DE08 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		7F28A14A8186E15C301A1C9F /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
-		800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TuffShieldConfiguration.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffShieldConfiguration.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		86CCBDA2CCE6E9715DA96805 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
+		AA001122334455667788AABC /* SharedKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedKeys.swift; sourceTree = "<group>"; };
 		935D673557E80C6FE7B1CDF1 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		9ABAE5F4418FA24AF36A211B /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		9D20E98B5328CE88A5A35EDA /* ScreenTimeChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTimeChartView.swift; sourceTree = "<group>"; };
 		9DD638A63F049BFA07CDBF4E /* LeagueDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeagueDetailSheet.swift; sourceTree = "<group>"; };
 		BE3F64079496ED1962BD451E /* TuffApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuffApp.swift; sourceTree = "<group>"; };
-		BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TuffDeviceActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffDeviceActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		C7AFFCEB12E45B356774CED9 /* LeaderboardRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardRowView.swift; sourceTree = "<group>"; };
 		D172378BAEC9ADB0E3BC5BC9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D37C07E37121E0FAB17CA247 /* ShieldConfigurationExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldConfigurationExtension.swift; sourceTree = "<group>"; };
@@ -84,6 +125,17 @@
 		F23DF162A31993B916A581DB /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
 		F9F6A64B1B0C9B1E305E130E /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		FA742DE8F5095D68611C7FF9 /* LeagueCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeagueCardView.swift; sourceTree = "<group>"; };
+		BB001122334455667788AA02 /* TuffActivityReportApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuffActivityReportApp.swift; sourceTree = "<group>"; };
+		BB001122334455667788AA04 /* TuffDailyReportScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuffDailyReportScene.swift; sourceTree = "<group>"; };
+		BB001122334455667788AA06 /* TuffDailyReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuffDailyReportView.swift; sourceTree = "<group>"; };
+		BB001122334455667788AA08 /* Info.plist (ActivityReport) */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		BB001122334455667788AA09 /* TuffActivityReport.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TuffActivityReport.entitlements; sourceTree = "<group>"; };
+		BB001122334455667788AA0A /* TuffActivityReport.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffActivityReport.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD001122334455667788AA02 /* DeviceActivity.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = DeviceActivity.framework; path = System/Library/Frameworks/DeviceActivity.framework; sourceTree = SDKROOT; };
+		DD001122334455667788AA05 /* _DeviceActivity_SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = _DeviceActivity_SwiftUI.framework; path = "System/Library/Frameworks/_DeviceActivity_SwiftUI.framework"; sourceTree = SDKROOT; };
+		DD001122334455667788AA07 /* ExtensionFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ExtensionFoundation.framework; path = System/Library/Frameworks/ExtensionFoundation.framework; sourceTree = SDKROOT; };
+		DD001122334455667788AA09 /* ExtensionKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ExtensionKit.framework; path = System/Library/Frameworks/ExtensionKit.framework; sourceTree = SDKROOT; };
+		DD001122334455667788AA11 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -136,8 +188,21 @@
 				3A111654C6356B1BB1FFE270 /* Tuff */,
 				8971905DB8D9EC96C9B954F6 /* TuffDeviceActivity */,
 				06C52E49D012408CDECC5B24 /* TuffShieldConfiguration */,
+				BB001122334455667788AA0B /* TuffActivityReport */,
 				5C6CD904F0FCC3C1E192B78F /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		BB001122334455667788AA0B /* TuffActivityReport */ = {
+			isa = PBXGroup;
+			children = (
+				BB001122334455667788AA02 /* TuffActivityReportApp.swift */,
+				BB001122334455667788AA04 /* TuffDailyReportScene.swift */,
+				BB001122334455667788AA06 /* TuffDailyReportView.swift */,
+				BB001122334455667788AA08 /* Info.plist (ActivityReport) */,
+				BB001122334455667788AA09 /* TuffActivityReport.entitlements */,
+			);
+			path = TuffActivityReport;
 			sourceTree = "<group>";
 		};
 		5C6CD904F0FCC3C1E192B78F /* Products */ = {
@@ -146,6 +211,7 @@
 				6BA99A1335B787C8FC8504DE /* Tuff.app */,
 				BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */,
 				800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */,
+				BB001122334455667788AA0A /* TuffActivityReport.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -172,7 +238,6 @@
 		8971905DB8D9EC96C9B954F6 /* TuffDeviceActivity */ = {
 			isa = PBXGroup;
 			children = (
-				0F3C99E12F63DCEE003E8BB7 /* TuffDeviceActivity.entitlements */,
 				F08CC8CFC059AD9A8AE9931A /* DeviceActivityMonitorExtension.swift */,
 				E96F63DD46B3821E1B7FDFFA /* Info.plist */,
 			);
@@ -207,6 +272,7 @@
 				349F7929AC5B7B6F327A0FF6 /* League.swift */,
 				52D24FF406404BF607297917 /* ScreenTimeData.swift */,
 				86CCBDA2CCE6E9715DA96805 /* User.swift */,
+				AA001122334455667788AABC /* SharedKeys.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -257,7 +323,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				1851AC26D3BB25035179A2FC /* PBXTargetDependency */,
 			);
 			name = TuffShieldConfiguration;
 			packageProductDependencies = (
@@ -275,7 +340,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				ADA7CC73625664538F91163C /* PBXTargetDependency */,
 			);
 			name = TuffDeviceActivity;
 			packageProductDependencies = (
@@ -290,6 +354,7 @@
 			buildPhases = (
 				3F49573F3F86A94349DFD0DE /* Sources */,
 				93F6DDFE491B96452C9CC06A /* Resources */,
+				CC001122334455667788AA04 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
@@ -302,6 +367,24 @@
 			productReference = 6BA99A1335B787C8FC8504DE /* Tuff.app */;
 			productType = "com.apple.product-type.application";
 		};
+		BB001122334455667788AA0C /* TuffActivityReport */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB001122334455667788AA0D /* Build configuration list for PBXNativeTarget "TuffActivityReport" */;
+			buildPhases = (
+				DD001122334455667788AA03 /* Frameworks (ActivityReport) */,
+				BB001122334455667788AA0E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TuffActivityReport;
+			packageProductDependencies = (
+			);
+			productName = TuffActivityReport;
+			productReference = BB001122334455667788AA0A /* TuffActivityReport.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -310,6 +393,17 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					23D9EDF1650F12E136CD1A3C = {
+						DevelopmentTeam = U2ZQ5ZX9M5;
+					};
+					307FFB2C2F6506A5A6126A08 = {
+						DevelopmentTeam = U2ZQ5ZX9M5;
+					};
+					BB001122334455667788AA0C = {
+						DevelopmentTeam = U2ZQ5ZX9M5;
+					};
+				};
 			};
 			buildConfigurationList = D1E68F90D8C127D0AD24419C /* Build configuration list for PBXProject "Tuff" */;
 			developmentRegion = en;
@@ -328,9 +422,26 @@
 				AEFD1829843980916525923B /* Tuff */,
 				307FFB2C2F6506A5A6126A08 /* TuffDeviceActivity */,
 				23D9EDF1650F12E136CD1A3C /* TuffShieldConfiguration */,
+				BB001122334455667788AA0C /* TuffActivityReport */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		CC001122334455667788AA04 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				CC001122334455667788AA02 /* TuffDeviceActivity.appex in Embed App Extensions */,
+				CC001122334455667788AA03 /* TuffShieldConfiguration.appex in Embed App Extensions */,
+				CC001122334455667788AA01 /* TuffActivityReport.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXResourcesBuildPhase section */
 		93F6DDFE491B96452C9CC06A /* Resources */ = {
@@ -378,6 +489,7 @@
 				1C73FA4C2D92E1EA0EEF53D0 /* Theme.swift in Sources */,
 				50CA41844FAD99B6D9A9FC4D /* TuffApp.swift in Sources */,
 				03EEA9C59A36A76A39E29AB3 /* User.swift in Sources */,
+				AA001122334455667788AABB /* SharedKeys.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -386,6 +498,28 @@
 			buildActionMask = 2147483647;
 			files = (
 				96FA6E60F06A1E589E8B5328 /* DeviceActivityMonitorExtension.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BB001122334455667788AA0E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB001122334455667788AA01 /* TuffActivityReportApp.swift in Sources */,
+				BB001122334455667788AA03 /* TuffDailyReportScene.swift in Sources */,
+				BB001122334455667788AA05 /* TuffDailyReportView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DD001122334455667788AA03 /* Frameworks (ActivityReport) */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DD001122334455667788AA04 /* _DeviceActivity_SwiftUI.framework in Frameworks (ActivityReport) */,
+				DD001122334455667788AA01 /* DeviceActivity.framework in Frameworks (ActivityReport) */,
+				DD001122334455667788AA06 /* ExtensionFoundation.framework in Frameworks (ActivityReport) */,
+				DD001122334455667788AA08 /* ExtensionKit.framework in Frameworks (ActivityReport) */,
+				DD001122334455667788AA10 /* SwiftUI.framework in Frameworks (ActivityReport) */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -401,6 +535,26 @@
 			isa = PBXTargetDependency;
 			target = AEFD1829843980916525923B /* Tuff */;
 			targetProxy = 456C028B4767F48C9E6C06AB /* PBXContainerItemProxy */;
+		};
+		BB001122334455667788AA11 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AEFD1829843980916525923B /* Tuff */;
+			targetProxy = BB001122334455667788AA10 /* PBXContainerItemProxy */;
+		};
+		CC001122334455667788AA05 /* PBXTargetDependency (DeviceActivity) */ = {
+			isa = PBXTargetDependency;
+			target = 307FFB2C2F6506A5A6126A08 /* TuffDeviceActivity */;
+			targetProxy = CC001122334455667788AA10 /* PBXContainerItemProxy (DeviceActivity) */;
+		};
+		CC001122334455667788AA06 /* PBXTargetDependency (ShieldConfig) */ = {
+			isa = PBXTargetDependency;
+			target = 23D9EDF1650F12E136CD1A3C /* TuffShieldConfiguration */;
+			targetProxy = CC001122334455667788AA11 /* PBXContainerItemProxy (ShieldConfig) */;
+		};
+		CC001122334455667788AA07 /* PBXTargetDependency (ActivityReport) */ = {
+			isa = PBXTargetDependency;
+			target = BB001122334455667788AA0C /* TuffActivityReport */;
+			targetProxy = CC001122334455667788AA12 /* PBXContainerItemProxy (ActivityReport) */;
 		};
 /* End PBXTargetDependency section */
 
@@ -465,15 +619,21 @@
 		1280E02C693D4CDE3167839B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TuffShieldConfiguration/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff.ShieldConfiguration;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -545,16 +705,21 @@
 		8572F8C53C0822EEB5B71B15 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = TuffDeviceActivity/TuffDeviceActivity.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TuffDeviceActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff.DeviceActivity;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -562,16 +727,21 @@
 		A02562BA80ED45270B13EE5F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = TuffDeviceActivity/TuffDeviceActivity.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TuffDeviceActivity/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff.DeviceActivity;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -580,8 +750,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = Tuff/Tuff.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -592,6 +764,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -602,8 +775,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = Tuff/Tuff.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -614,6 +789,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -623,15 +799,72 @@
 		F54A3BC8AECE1DD7A4A4C428 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
+				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TuffShieldConfiguration/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
+				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff.ShieldConfiguration;
 				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		BB001122334455667788AA0F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = TuffActivityReport/TuffActivityReport.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TuffActivityReport/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff.ActivityReport;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BB001122334455667788BB0F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = TuffActivityReport/TuffActivityReport.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TuffActivityReport/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff.ActivityReport;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -671,6 +904,15 @@
 			buildConfigurations = (
 				786BDD3D426386686067D2CD /* Debug */,
 				0CAD7CE6AF28B1E8AF67C29D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BB001122334455667788AA0D /* Build configuration list for PBXNativeTarget "TuffActivityReport" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BB001122334455667788AA0F /* Debug */,
+				BB001122334455667788BB0F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
