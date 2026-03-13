@@ -1,10 +1,6 @@
 import SwiftUI
 import DeviceActivity
 
-extension DeviceActivityReport.Context {
-    static let dailyActivity = Self("TuffDailyActivity")
-}
-
 struct StatsView: View {
     @StateObject private var viewModel = StatsViewModel()
     @EnvironmentObject var screenTimeManager: ScreenTimeManager
@@ -48,13 +44,19 @@ struct StatsView: View {
                 filter: DeviceActivityFilter(
                     segment: .daily(
                         during: DateInterval(
-                            start: Calendar.current.startOfDay(for: Date()),
+                            start: Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: -29, to: Date())!),
                             end: Calendar.current.startOfDay(for: Date()).addingTimeInterval(86400)
                         )
                     )
                 )
             )
             .frame(height: 100)
+            .onAppear {
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    await viewModel.refreshData()
+                }
+            }
             #endif
 
             HStack {

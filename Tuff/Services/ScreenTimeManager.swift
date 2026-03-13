@@ -94,76 +94,72 @@ class ScreenTimeManager: ObservableObject {
         isMonitoring = false
     }
 
-    // MARK: - Screen Time Data
-    // Reads from App Group (written by TuffActivityReport extension) when available,
-    // falls back to sample data while the entitlement is pending.
+    // MARK: - Screen Time Data (reads from App Groups, written by TuffActivityReport extension)
 
-    func fetchTodayScreenTime() -> TimeInterval {
-        if let real = TuffSharedStore.todayScreenTime() {
-            print("[Tuff] Using real screen time: \(real)s")
-            return real
+    struct RealDayEntry: Codable {
+        let date: Date
+        let totalSeconds: TimeInterval
+    }
+
+    private func loadRealHistory() -> [RealDayEntry] {
+        guard let defaults = UserDefaults(suiteName: TuffSharedKeys.appGroupID),
+              let data = defaults.data(forKey: "realDailyHistory"),
+              let entries = try? JSONDecoder().decode([RealDayEntry].self, from: data) else {
+            return []
         }
-        return 9420 // sample: 2h 37m
+        return entries.sorted { $0.date < $1.date }
     }
 
     func fetchWeeklyData() -> [DailyScreenTime] {
-        let history = TuffSharedStore.dailyHistory()
+        let history = loadRealHistory()
         guard !history.isEmpty else { return DailyScreenTime.sampleWeek }
 
-        // Fill the last 7 days from real history, sample for any missing days
         let calendar = Calendar.current
         return (0..<7).reversed().map { daysAgo in
             let date = calendar.date(byAdding: .day, value: -daysAgo, to: Date())!
             let dayStart = calendar.startOfDay(for: date)
-
             if let record = history.first(where: { calendar.isDate($0.date, inSameDayAs: dayStart) }) {
-                return DailyScreenTime(
-                    date: record.date,
-                    totalSeconds: record.totalSeconds,
-                    appBreakdown: record.appBreakdown.map {
-                        AppUsage(appName: $0.displayName,
-                                 bundleIdentifier: $0.bundleID,
-                                 seconds: $0.totalSeconds,
-                                 category: .other)
-                    }
-                )
+                return DailyScreenTime(date: record.date, totalSeconds: record.totalSeconds, appBreakdown: [])
             }
-            // No data for this day yet — use sample
-            let samples: [TimeInterval] = [9000, 7200, 10800, 8400, 10200, 6000, 7800]
-            return DailyScreenTime(date: date, totalSeconds: samples[6 - daysAgo], appBreakdown: [])
+            return DailyScreenTime(date: date, totalSeconds: 0, appBreakdown: [])
         }
     }
 
     func fetchMonthlyData() -> [DailyScreenTime] {
-        let history = TuffSharedStore.dailyHistory()
+        let history = loadRealHistory()
         guard !history.isEmpty else { return DailyScreenTime.sampleMonth }
 
         let calendar = Calendar.current
         return (0..<30).reversed().map { daysAgo in
             let date = calendar.date(byAdding: .day, value: -daysAgo, to: Date())!
-            if let record = history.first(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
+            let dayStart = calendar.startOfDay(for: date)
+            if let record = history.first(where: { calendar.isDate($0.date, inSameDayAs: dayStart) }) {
                 return DailyScreenTime(date: record.date, totalSeconds: record.totalSeconds, appBreakdown: [])
             }
-            let base: TimeInterval = 8400
-            let variance = Double((daysAgo * 7) % 3600) - 1800
-            return DailyScreenTime(date: date, totalSeconds: max(3600, base + variance), appBreakdown: [])
+            return DailyScreenTime(date: date, totalSeconds: 0, appBreakdown: [])
         }
     }
 
-    func fetchStats() -> ScreenTimeStats {
-        let history = TuffSharedStore.dailyHistory()
-        guard history.count >= 3 else { return DailyScreenTime.sampleStats }
+    func fetchStats(for period: Int = 7) -> ScreenTimeStats {
+        let history = loadRealHistory()
+        guard !history.isEmpty else { return DailyScreenTime.sampleStats }
 
-        let times = history.map { $0.totalSeconds }
+        let calendar = Calendar.current
+        let cutoff = calendar.date(byAdding: .day, value: -(period), to: calendar.startOfDay(for: Date()))!
+        let periodEntries = history.filter { $0.date >= cutoff }
+        let withActivity = periodEntries.filter { $0.totalSeconds > 0 }
+        guard !withActivity.isEmpty else { return DailyScreenTime.sampleStats }
+
+        let times = withActivity.map { $0.totalSeconds }
         let avg = times.reduce(0, +) / Double(times.count)
         let best = times.min() ?? 0
         let worst = times.max() ?? 0
 
-        // Streak: consecutive days under 3h goal
         let goal: TimeInterval = 10800
         var streak = 0
         let sorted = history.sorted { $0.date > $1.date }
         for record in sorted {
+            guard record.totalSeconds > 0 else { continue }
             if record.totalSeconds < goal { streak += 1 } else { break }
         }
 

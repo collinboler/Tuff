@@ -64,7 +64,7 @@ struct ScreenTimeChartView: View {
                 }
             }
         }
-        .chartYScale(domain: 0...5)
+        .chartYScale(domain: 0...max(1, (data.map(\.hours).max() ?? 5) * 1.2))
         .chartPlotStyle { plotArea in
             plotArea
                 .background(Color.clear)

@@ -1,8 +1,19 @@
 import DeviceActivity
 import SwiftUI
+import Foundation
 
 extension DeviceActivityReport.Context {
     static let dailyActivity = Self("TuffDailyActivity")
+}
+
+struct ReportConfig: Codable {
+    let todayFormatted: String
+    let dailyTotals: [DayEntry]
+
+    struct DayEntry: Codable {
+        let date: Date
+        let totalSeconds: TimeInterval
+    }
 }
 
 struct TuffDailyReportScene: DeviceActivityReportScene {
@@ -13,21 +24,34 @@ struct TuffDailyReportScene: DeviceActivityReportScene {
     func makeConfiguration(
         representing data: DeviceActivityResults<DeviceActivityData>
     ) async -> String {
-        var totalDuration: TimeInterval = 0
+        let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: Date())
+        var dayTotals: [Date: TimeInterval] = [:]
 
         for await activityData in data {
-            var segments: [DeviceActivityData.ActivitySegment] = []
             for await segment in activityData.activitySegments {
-                segments.append(segment)
+                let segmentDay = calendar.startOfDay(for: segment.dateInterval.start)
+                dayTotals[segmentDay, default: 0] += segment.totalActivityDuration
             }
-            totalDuration += segments.reduce(0) { $0 + $1.totalActivityDuration }
         }
+
+        let entries = dayTotals
+            .map { ReportConfig.DayEntry(date: $0.key, totalSeconds: $0.value) }
+            .sorted { $0.date < $1.date }
+
+        if let defaults = UserDefaults(suiteName: "group.com.collinboler.tuff"),
+           let encoded = try? JSONEncoder().encode(entries) {
+            defaults.set(encoded, forKey: "realDailyHistory")
+            defaults.set(Date(), forKey: "realDataLastUpdated")
+        }
+
+        let todayTotal = dayTotals[todayStart] ?? 0
 
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute]
         formatter.unitsStyle = .abbreviated
         formatter.zeroFormattingBehavior = .dropLeading
 
-        return formatter.string(from: totalDuration) ?? "0m"
+        return formatter.string(from: todayTotal) ?? "0m"
     }
 }
