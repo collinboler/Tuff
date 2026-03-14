@@ -5,8 +5,8 @@ import SwiftUI
 @MainActor
 struct TuffActivityReportApp: DeviceActivityReportExtension {
     var body: some DeviceActivityReportScene {
-        TuffDailyReportScene { totalScreenTime in
-            TuffDailyReportView(totalScreenTime: totalScreenTime)
+        TuffDailyReportScene { reportData in
+            TuffDailyReportView(data: reportData)
         }
     }
 }

@@ -1,4 +1,5 @@
 import DeviceActivity
+import ManagedSettings
 import SwiftUI
 import Foundation
 
@@ -6,52 +7,83 @@ extension DeviceActivityReport.Context {
     static let dailyActivity = Self("TuffDailyActivity")
 }
 
-struct ReportConfig: Codable {
+struct ReportData {
     let todayFormatted: String
-    let dailyTotals: [DayEntry]
+    let days: [DayData]
 
-    struct DayEntry: Codable {
+    struct DayData: Identifiable {
+        let id = UUID()
         let date: Date
         let totalSeconds: TimeInterval
+        let apps: [AppEntry]
+
+        var hours: Double { totalSeconds / 3600.0 }
+    }
+
+    struct AppEntry: Identifiable {
+        let id = UUID()
+        let application: Application
+        let seconds: TimeInterval
     }
 }
 
 struct TuffDailyReportScene: DeviceActivityReportScene {
     let context: DeviceActivityReport.Context = .dailyActivity
 
-    let content: (String) -> TuffDailyReportView
+    let content: (ReportData) -> TuffDailyReportView
 
     func makeConfiguration(
         representing data: DeviceActivityResults<DeviceActivityData>
-    ) async -> String {
+    ) async -> ReportData {
         let calendar = Calendar.current
         let todayStart = calendar.startOfDay(for: Date())
-        var dayTotals: [Date: TimeInterval] = [:]
+
+        var dayMap: [Date: (total: TimeInterval, apps: [Application: TimeInterval])] = [:]
 
         for await activityData in data {
             for await segment in activityData.activitySegments {
                 let segmentDay = calendar.startOfDay(for: segment.dateInterval.start)
-                dayTotals[segmentDay, default: 0] += segment.totalActivityDuration
+                var entry = dayMap[segmentDay] ?? (total: 0, apps: [:])
+                entry.total = max(entry.total, segment.totalActivityDuration)
+
+                for await categoryActivity in segment.categories {
+                    for await appActivity in categoryActivity.applications {
+                        let app = appActivity.application
+                        let dur = appActivity.totalActivityDuration
+                        entry.apps[app] = max(entry.apps[app] ?? 0, dur)
+                    }
+                }
+                dayMap[segmentDay] = entry
             }
         }
 
-        let entries = dayTotals
-            .map { ReportConfig.DayEntry(date: $0.key, totalSeconds: $0.value) }
-            .sorted { $0.date < $1.date }
+        let days = dayMap
+            .sorted { $0.key < $1.key }
+            .map { date, info in
+                let sortedApps = info.apps
+                    .sorted { $0.value > $1.value }
+                    .prefix(8)
+                    .map { ReportData.AppEntry(application: $0.key, seconds: $0.value) }
+                return ReportData.DayData(
+                    date: date,
+                    totalSeconds: info.total,
+                    apps: Array(sortedApps)
+                )
+            }
 
-        if let defaults = UserDefaults(suiteName: "group.com.collinboler.tuff"),
-           let encoded = try? JSONEncoder().encode(entries) {
-            defaults.set(encoded, forKey: "realDailyHistory")
-            defaults.set(Date(), forKey: "realDataLastUpdated")
-        }
+        let todayTotal = dayMap[todayStart]?.total ?? 0
 
-        let todayTotal = dayTotals[todayStart] ?? 0
+        return ReportData(
+            todayFormatted: formatTime(todayTotal),
+            days: days
+        )
+    }
 
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute]
-        formatter.unitsStyle = .abbreviated
-        formatter.zeroFormattingBehavior = .dropLeading
-
-        return formatter.string(from: todayTotal) ?? "0m"
+    private func formatTime(_ seconds: TimeInterval) -> String {
+        let h = Int(seconds) / 3600
+        let m = (Int(seconds) % 3600) / 60
+        if h == 0 && m == 0 { return "0m" }
+        if h == 0 { return "\(m)m" }
+        return "\(h)h \(String(format: "%02d", m))m"
     }
 }
