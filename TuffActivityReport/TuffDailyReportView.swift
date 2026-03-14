@@ -208,11 +208,6 @@ struct TuffDailyReportView: View {
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                         }
 
-                        if let avgSeconds = averageSeconds {
-                            RuleMark(y: .value("Average", avgSeconds / 3600.0))
-                                .foregroundStyle(.white.opacity(0.22))
-                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [6, 4]))
-                        }
                     }
                     .chartXAxis {
                         AxisMarks(values: xAxisDates) { value in
@@ -258,15 +253,23 @@ struct TuffDailyReportView: View {
 
                                 if let avgSeconds = averageSeconds {
                                     let avgY = plotFrame.maxY - CGFloat((avgSeconds / 3600.0) / chartYMax) * plotFrame.height
-                                    Text("AVG \(fmt(avgSeconds))")
-                                        .font(.system(size: 10, weight: .bold).width(.condensed))
-                                        .foregroundColor(labelGray)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(surface.opacity(0.95))
-                                        .clipShape(Capsule())
+                                    let avgLabelX = geo.size.width - 10
+                                    let lineEndX = avgLabelX - 14
+
+                                    Path { path in
+                                        path.move(to: CGPoint(x: plotFrame.minX, y: avgY))
+                                        path.addLine(to: CGPoint(x: lineEndX, y: avgY))
+                                    }
+                                    .stroke(
+                                        accent.opacity(0.75),
+                                        style: StrokeStyle(lineWidth: 1, dash: [6, 4])
+                                    )
+
+                                    Text("avg")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(accent)
                                         .position(
-                                            x: max(plotFrame.minX + 38, plotFrame.maxX - 38),
+                                            x: avgLabelX,
                                             y: max(plotFrame.minY + 10, min(plotFrame.maxY - 10, avgY))
                                         )
                                 }
