@@ -4,6 +4,15 @@ import DeviceActivity
 struct StatsView: View {
     @EnvironmentObject var screenTimeManager: ScreenTimeManager
 
+    private let reportFilter: DeviceActivityFilter = {
+        let calendar = Calendar.current
+        let todayEnd = calendar.startOfDay(for: Date()).addingTimeInterval(86400)
+        let start = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -29, to: Date())!)
+        return DeviceActivityFilter(
+            segment: .daily(during: DateInterval(start: start, end: todayEnd))
+        )
+    }()
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
@@ -37,14 +46,7 @@ struct StatsView: View {
             #if !targetEnvironment(simulator)
             DeviceActivityReport(
                 DeviceActivityReport.Context("TuffDailyActivity"),
-                filter: DeviceActivityFilter(
-                    segment: .daily(
-                        during: DateInterval(
-                            start: Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: -29, to: Date())!),
-                            end: Calendar.current.startOfDay(for: Date()).addingTimeInterval(86400)
-                        )
-                    )
-                )
+                filter: reportFilter
             )
             .frame(minHeight: 750)
             #endif

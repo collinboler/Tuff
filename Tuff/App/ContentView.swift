@@ -11,17 +11,20 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Group {
-                switch selectedTab {
-                case .stats:
-                    StatsView()
-                case .home:
-                    HomeView()
-                case .profile:
-                    ProfileView()
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            StatsView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .opacity(selectedTab == .stats ? 1 : 0)
+                .allowsHitTesting(selectedTab == .stats)
+
+            HomeView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .opacity(selectedTab == .home ? 1 : 0)
+                .allowsHitTesting(selectedTab == .home)
+
+            ProfileView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .opacity(selectedTab == .profile ? 1 : 0)
+                .allowsHitTesting(selectedTab == .profile)
 
             bottomNav
         }
