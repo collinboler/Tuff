@@ -36,12 +36,19 @@ struct TuffDailyReportView: View {
         let calendar = Calendar.current
         let daysBack = showFullMonth ? 29 : 6
         let cutoff = calendar.date(byAdding: .day, value: -daysBack, to: todayStart)!
-        return data.days.filter { $0.date >= cutoff }
+        return (0...daysBack).compactMap { offset -> ReportData.DayData? in
+            guard let dayStart = calendar.date(byAdding: .day, value: offset, to: cutoff)
+                    .map({ calendar.startOfDay(for: $0) }) else { return nil }
+            // Try exact match first, then fuzzy same-day match
+            return data.days.first(where: { $0.date == dayStart })
+                ?? data.days.first(where: { calendar.isDate($0.date, inSameDayAs: dayStart) })
+                ?? ReportData.DayData(date: dayStart, totalSeconds: 0, apps: [])
+        }
     }
 
     private var activeDay: ReportData.DayData? {
         let target = selectedDate ?? todayStart
-        return data.days.first { Calendar.current.isDate($0.date, inSameDayAs: target) }
+        return chartData.first { Calendar.current.isDate($0.date, inSameDayAs: target) }
     }
 
     private var activeDayLabel: String {
@@ -59,7 +66,7 @@ struct TuffDailyReportView: View {
     private var chartXDomain: ClosedRange<Date>? {
         guard let first = chartData.first?.date,
               let last = chartData.last?.date else { return nil }
-        return first...last
+        return first...last.addingTimeInterval(43200)
     }
 
     private var xAxisDates: [Date] {
@@ -76,7 +83,7 @@ struct TuffDailyReportView: View {
         let calendar = Calendar.current
         let daysBack = showFullMonth ? 29 : 6
         let cutoff = calendar.date(byAdding: .day, value: -daysBack, to: todayStart)!
-        let filtered = data.days.filter {
+        let filtered = chartData.filter {
             $0.date >= cutoff && $0.date < todayStart && $0.hours > 0
         }
         guard !filtered.isEmpty else { return nil }
@@ -86,12 +93,17 @@ struct TuffDailyReportView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 12) {
-            periodToggle
-            interactiveChart
-            breakdownSection
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 12) {
+                periodToggle
+                interactiveChart
+                breakdownSection
+            }
+            .padding(.horizontal, 4)
+            .padding(.top, 2)
+            .padding(.bottom, 24)
         }
-        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     // MARK: - Period Toggle
@@ -205,7 +217,7 @@ struct TuffDailyReportView: View {
                         if let sel = selectedDate {
                             RuleMark(x: .value("Selected", sel, unit: .day))
                                 .foregroundStyle(.white.opacity(0.4))
-                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                                .lineStyle(StrokeStyle(lineWidth: 1))
                         }
 
                     }
@@ -242,9 +254,10 @@ struct TuffDailyReportView: View {
                                 Rectangle()
                                     .fill(Color.clear)
                                     .contentShape(Rectangle())
-                                    .gesture(
+                                    .simultaneousGesture(
                                         DragGesture(minimumDistance: 0)
                                             .onChanged { value in
+                                                guard abs(value.translation.width) >= abs(value.translation.height) else { return }
                                                 let x = value.location.x - plotFrame.origin.x
                                                 guard let rawDate: Date = proxy.value(atX: x) else { return }
                                                 snapToNearest(rawDate)

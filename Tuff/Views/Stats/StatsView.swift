@@ -14,13 +14,12 @@ struct StatsView: View {
     }()
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                topBar
-                statsContent
-            }
-            .padding(.bottom, 80)
+        VStack(spacing: 0) {
+            topBar
+            statsContent
         }
+        .padding(.bottom, 80)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.white)
     }
 
@@ -42,16 +41,17 @@ struct StatsView: View {
     // MARK: - Content
 
     private var statsContent: some View {
-        VStack(spacing: 14) {
+        Group {
             #if !targetEnvironment(simulator)
             DeviceActivityReport(
                 DeviceActivityReport.Context("TuffDailyActivity"),
                 filter: reportFilter
             )
-            .frame(minHeight: 860)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             #endif
         }
         .padding(.horizontal, 20)
+        .padding(.top, 2)
     }
 }
 

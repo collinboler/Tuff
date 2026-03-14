@@ -57,6 +57,14 @@ struct TuffDailyReportScene: DeviceActivityReportScene {
             }
         }
 
+        // Ensure today always has an entry even if no segment was keyed to it
+        let todayTotal = dayMap[todayStart]?.total
+            ?? dayMap.first(where: { calendar.isDate($0.key, inSameDayAs: todayStart) })?.value.total
+            ?? 0
+        if dayMap[todayStart] == nil {
+            dayMap[todayStart] = (total: todayTotal, apps: [:])
+        }
+
         let days = dayMap
             .sorted { $0.key < $1.key }
             .map { date, info in
@@ -70,8 +78,6 @@ struct TuffDailyReportScene: DeviceActivityReportScene {
                     apps: Array(sortedApps)
                 )
             }
-
-        let todayTotal = dayMap[todayStart]?.total ?? 0
 
         return ReportData(
             todayFormatted: formatTime(todayTotal),
