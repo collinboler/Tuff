@@ -52,18 +52,35 @@ struct TuffDailyReportView: View {
         return f.string(from: day.date).uppercased()
     }
 
-    private var periodStats: (avg: String, best: String, worst: String) {
+    private var chartYMax: Double {
+        max(1, (chartData.map(\.hours).max() ?? 1) * 1.2)
+    }
+
+    private var chartXDomain: ClosedRange<Date>? {
+        guard let first = chartData.first?.date,
+              let last = chartData.last?.date else { return nil }
+        return first...last
+    }
+
+    private var xAxisDates: [Date] {
+        if showFullMonth {
+            return chartData.enumerated().compactMap { index, point in
+                let isMajorTick = index % 5 == 0 || index == chartData.count - 1
+                return isMajorTick ? point.date : nil
+            }
+        }
+        return chartData.map(\.date)
+    }
+
+    private var averageSeconds: TimeInterval? {
         let calendar = Calendar.current
         let daysBack = showFullMonth ? 29 : 6
         let cutoff = calendar.date(byAdding: .day, value: -daysBack, to: todayStart)!
         let filtered = data.days.filter {
             $0.date >= cutoff && $0.date < todayStart && $0.hours > 0
         }
-        guard !filtered.isEmpty else { return ("0m", "0m", "0m") }
-        let avgSec = filtered.map(\.totalSeconds).reduce(0, +) / Double(filtered.count)
-        let bestSec = filtered.map(\.totalSeconds).min() ?? 0
-        let worstSec = filtered.map(\.totalSeconds).max() ?? 0
-        return (fmt(avgSec), fmt(bestSec), fmt(worstSec))
+        guard !filtered.isEmpty else { return nil }
+        return filtered.map(\.totalSeconds).reduce(0, +) / Double(filtered.count)
     }
 
     // MARK: - Body
@@ -72,7 +89,6 @@ struct TuffDailyReportView: View {
         VStack(spacing: 12) {
             periodToggle
             interactiveChart
-            statBoxes
             breakdownSection
         }
         .padding(.horizontal, 4)
@@ -131,10 +147,10 @@ struct TuffDailyReportView: View {
                         let time = day.map { fmt($0.totalSeconds) } ?? data.todayFormatted
 
                         Text(label)
-                            .font(.system(size: 16, weight: .bold).width(.condensed))
+                            .font(.system(size: 22, weight: .bold).width(.condensed))
                             .foregroundColor(accent)
                         Text(time)
-                            .font(.system(size: 28, weight: .black).width(.condensed))
+                            .font(.system(size: 22, weight: .black).width(.condensed))
                             .foregroundColor(.white)
                         Spacer()
                         if selectedDate != nil {
@@ -191,9 +207,15 @@ struct TuffDailyReportView: View {
                                 .foregroundStyle(.white.opacity(0.4))
                                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                         }
+
+                        if let avgSeconds = averageSeconds {
+                            RuleMark(y: .value("Average", avgSeconds / 3600.0))
+                                .foregroundStyle(.white.opacity(0.22))
+                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [6, 4]))
+                        }
                     }
                     .chartXAxis {
-                        AxisMarks(values: .stride(by: showFullMonth ? .weekOfYear : .day)) { value in
+                        AxisMarks(values: xAxisDates) { value in
                             AxisValueLabel {
                                 if let date = value.as(Date.self) {
                                     Text(xAxisLabel(date))
@@ -215,21 +237,40 @@ struct TuffDailyReportView: View {
                             }
                         }
                     }
-                    .chartYScale(domain: 0...max(1, (chartData.map(\.hours).max() ?? 1) * 1.2))
+                    .chartYScale(domain: 0...chartYMax)
+                    .chartXScale(domain: chartXDomain ?? todayStart...todayStart)
                     .chartOverlay { proxy in
                         GeometryReader { geo in
-                            Rectangle()
-                                .fill(Color.clear)
-                                .contentShape(Rectangle())
-                                .gesture(
-                                    DragGesture(minimumDistance: 0)
-                                        .onChanged { value in
-                                            let origin = geo[proxy.plotAreaFrame].origin
-                                            let x = value.location.x - origin.x
-                                            guard let rawDate: Date = proxy.value(atX: x) else { return }
-                                            snapToNearest(rawDate)
-                                        }
-                                )
+                            let plotFrame = geo[proxy.plotAreaFrame]
+
+                            ZStack(alignment: .topLeading) {
+                                Rectangle()
+                                    .fill(Color.clear)
+                                    .contentShape(Rectangle())
+                                    .gesture(
+                                        DragGesture(minimumDistance: 0)
+                                            .onChanged { value in
+                                                let x = value.location.x - plotFrame.origin.x
+                                                guard let rawDate: Date = proxy.value(atX: x) else { return }
+                                                snapToNearest(rawDate)
+                                            }
+                                    )
+
+                                if let avgSeconds = averageSeconds {
+                                    let avgY = plotFrame.maxY - CGFloat((avgSeconds / 3600.0) / chartYMax) * plotFrame.height
+                                    Text("AVG \(fmt(avgSeconds))")
+                                        .font(.system(size: 10, weight: .bold).width(.condensed))
+                                        .foregroundColor(labelGray)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(surface.opacity(0.95))
+                                        .clipShape(Capsule())
+                                        .position(
+                                            x: max(plotFrame.minX + 38, plotFrame.maxX - 38),
+                                            y: max(plotFrame.minY + 10, min(plotFrame.maxY - 10, avgY))
+                                        )
+                                }
+                            }
                         }
                     }
                     .frame(height: 140)
@@ -241,51 +282,24 @@ struct TuffDailyReportView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    // MARK: - Stat Boxes
-
-    private var statBoxes: some View {
-        let s = periodStats
-        return HStack(spacing: 8) {
-            statBlock(label: "Daily Avg", value: s.avg, color: accent)
-            statBlock(label: "Best Day", value: s.best, color: .white)
-            statBlock(label: "Worst Day", value: s.worst, color: .white)
-        }
-    }
-
-    private func statBlock(label: String, value: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            Text(label.uppercased())
-                .font(.system(size: 10, weight: .bold).width(.condensed))
-                .foregroundColor(.gray)
-                .tracking(1)
-            Text(value)
-                .font(.system(size: 20, weight: .black).width(.condensed))
-                .foregroundColor(color)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
     // MARK: - Breakdown Section
 
     private var breakdownSection: some View {
         VStack(spacing: 12) {
             HStack {
                 Text(activeDayLabel)
-                    .font(.system(size: 11, weight: .bold).width(.condensed))
+                    .font(.system(size: 16, weight: .bold).width(.condensed))
                     .foregroundColor(labelGray)
                     .tracking(1.2)
                 Spacer()
             }
 
             if let day = activeDay, !day.apps.isEmpty {
-                HStack(spacing: 20) {
+                VStack(spacing: 18) {
                     donutChart(apps: day.apps, total: day.totalSeconds)
                         .frame(width: 130, height: 130)
 
-                    appList(apps: day.apps, total: day.totalSeconds)
+                    appList(apps: day.apps)
                 }
                 .padding(.top, 4)
             } else {
@@ -336,7 +350,7 @@ struct TuffDailyReportView: View {
 
     // MARK: - App List
 
-    private func appList(apps: [ReportData.AppEntry], total: TimeInterval) -> some View {
+    private func appList(apps: [ReportData.AppEntry]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(apps.enumerated()), id: \.offset) { index, app in
                 HStack(spacing: 10) {
@@ -348,7 +362,8 @@ struct TuffDailyReportView: View {
                         .labelStyle(.titleOnly)
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Spacer()
 

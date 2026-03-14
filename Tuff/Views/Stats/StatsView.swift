@@ -48,35 +48,10 @@ struct StatsView: View {
                 DeviceActivityReport.Context("TuffDailyActivity"),
                 filter: reportFilter
             )
-            .frame(minHeight: 750)
+            .frame(minHeight: 860)
             #endif
-
-            streakCard
         }
         .padding(.horizontal, 20)
-    }
-
-    // MARK: - Streak Card
-
-    private var streakCard: some View {
-        HStack(spacing: 16) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: 32))
-                .foregroundColor(TuffColors.accent)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("STREAK")
-                    .font(TuffFonts.streakLabel())
-                    .foregroundColor(.white)
-                Text("Keep going — check back tomorrow!")
-                    .font(TuffFonts.caption(11))
-                    .foregroundColor(TuffColors.textSecondary)
-            }
-            Spacer()
-        }
-        .padding(18)
-        .background(TuffColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
