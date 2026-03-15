@@ -354,6 +354,7 @@ struct TuffDailyReportView: View {
                     appList(apps: day.apps)
                 }
                 .padding(.top, 4)
+                .id(activeDay?.date ?? Date.distantPast)
             } else {
                 Text("No app data")
                     .font(.system(size: 13, weight: .medium))
@@ -404,7 +405,7 @@ struct TuffDailyReportView: View {
 
     private func appList(apps: [ReportData.AppEntry]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(Array(apps.enumerated()), id: \.offset) { index, app in
+            ForEach(Array(apps.enumerated()), id: \.element.id) { index, app in
                 let appColor = colorForApp(app, at: index)
                 HStack(spacing: 10) {
                     Circle()
