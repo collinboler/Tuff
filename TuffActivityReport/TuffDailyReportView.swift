@@ -16,7 +16,7 @@ struct TuffDailyReportView: View {
     private let chartLine = Color(red: 0/255, green: 206/255, blue: 109/255)
     private let chartGrid = Color.white.opacity(0.08)
 
-    private let sliceColors: [Color] = [
+    private let fallbackColors: [Color] = [
         Color(red: 0/255, green: 206/255, blue: 109/255),
         Color(red: 88/255, green: 166/255, blue: 255/255),
         Color(red: 255/255, green: 149/255, blue: 0/255),
@@ -27,6 +27,75 @@ struct TuffDailyReportView: View {
         Color(red: 255/255, green: 105/255, blue: 180/255),
         Color(red: 120/255, green: 120/255, blue: 128/255),
     ]
+
+    private let brandColors: [String: Color] = [
+        // Social
+        "com.zhiliaoapp.musically":        Color(red: 254/255, green: 44/255, blue: 85/255),   // TikTok pink-red
+        "com.burbn.instagram":             Color(red: 225/255, green: 48/255, blue: 108/255),   // Instagram pink
+        "com.facebook.Facebook":           Color(red: 24/255, green: 119/255, blue: 242/255),   // Facebook blue
+        "com.facebook.Messenger":          Color(red: 6/255, green: 149/255, blue: 255/255),    // Messenger blue
+        "com.toyopagroup.picaboo":         Color(red: 255/255, green: 252/255, blue: 0/255),    // Snapchat yellow
+        "com.atebits.Tweetie2":            Color(red: 29/255, green: 161/255, blue: 242/255),   // X/Twitter blue
+        "com.reddit.Reddit":               Color(red: 255/255, green: 69/255, blue: 0/255),     // Reddit orange
+        "com.linkedin.LinkedIn":           Color(red: 10/255, green: 102/255, blue: 194/255),   // LinkedIn blue
+        "com.pinterest":                   Color(red: 230/255, green: 0/255, blue: 35/255),     // Pinterest red
+        "ph.telegra.Telegraph":            Color(red: 0/255, green: 136/255, blue: 204/255),    // Telegram blue
+        "net.whatsapp.WhatsApp":           Color(red: 37/255, green: 211/255, blue: 102/255),   // WhatsApp green
+        "com.hammerandchisel.discord":     Color(red: 88/255, green: 101/255, blue: 242/255),   // Discord blurple
+        "com.burbn.threads":               Color.white,                                          // Threads
+        "AlexisBarreyworthy.BeReal":       Color.white,                                          // BeReal
+        // Video & Streaming
+        "com.google.ios.youtube":          Color(red: 255/255, green: 0/255, blue: 0/255),      // YouTube red
+        "com.netflix.Netflix":             Color(red: 229/255, green: 9/255, blue: 20/255),     // Netflix red
+        "tv.twitch":                       Color(red: 145/255, green: 70/255, blue: 255/255),   // Twitch purple
+        "com.spotify.client":              Color(red: 29/255, green: 185/255, blue: 84/255),    // Spotify green
+        "com.apple.tv":                    Color(red: 45/255, green: 45/255, blue: 45/255),     // Apple TV+ dark
+        // Apple apps
+        "com.apple.MobileSMS":             Color(red: 52/255, green: 199/255, blue: 89/255),    // Messages green
+        "com.apple.mobilesafari":          Color(red: 0/255, green: 122/255, blue: 255/255),    // Safari blue
+        "com.apple.mobilemail":            Color(red: 0/255, green: 122/255, blue: 255/255),    // Mail blue
+        "com.apple.mobilephone":           Color(red: 52/255, green: 199/255, blue: 89/255),    // Phone green
+        "com.apple.facetime":              Color(red: 50/255, green: 215/255, blue: 75/255),    // FaceTime green
+        "com.apple.Music":                 Color(red: 252/255, green: 60/255, blue: 68/255),    // Apple Music red
+        "com.apple.Photos":               Color(red: 255/255, green: 159/255, blue: 10/255),    // Photos gradient (orange)
+        "com.apple.Maps":                  Color(red: 0/255, green: 122/255, blue: 255/255),    // Maps blue
+        "com.apple.mobilecal":             Color(red: 255/255, green: 59/255, blue: 48/255),    // Calendar red
+        "com.apple.mobilenotes":           Color(red: 255/255, green: 214/255, blue: 10/255),   // Notes yellow
+        "com.apple.AppStore":              Color(red: 0/255, green: 122/255, blue: 255/255),    // App Store blue
+        "com.apple.Preferences":           Color(red: 142/255, green: 142/255, blue: 147/255),  // Settings gray
+        "com.apple.camera":                Color(red: 142/255, green: 142/255, blue: 147/255),  // Camera gray
+        "com.apple.mobiletimer":           Color.white,                                          // Clock
+        "com.apple.weather":               Color(red: 0/255, green: 160/255, blue: 230/255),    // Weather blue
+        "com.apple.news":                  Color(red: 252/255, green: 60/255, blue: 68/255),    // News red
+        "com.apple.Health":                Color(red: 255/255, green: 59/255, blue: 48/255),    // Health red
+        "com.apple.Fitness":               Color(red: 0/255, green: 206/255, blue: 109/255),    // Fitness green
+        "com.apple.podcasts":              Color(red: 135/255, green: 60/255, blue: 195/255),   // Podcasts purple
+        // Google
+        "com.google.chrome.ios":           Color(red: 66/255, green: 133/255, blue: 244/255),   // Chrome blue
+        "com.google.Gmail":                Color(red: 234/255, green: 67/255, blue: 53/255),    // Gmail red
+        "com.google.Maps":                 Color(red: 52/255, green: 168/255, blue: 83/255),    // Google Maps green
+        // Shopping & Services
+        "com.amazon.Amazon":               Color(red: 255/255, green: 153/255, blue: 0/255),    // Amazon orange
+        "com.ubercab.UberClient":          Color.white,                                          // Uber
+        "com.ubereats.UberEats":           Color(red: 6/255, green: 164/255, blue: 81/255),    // Uber Eats green
+        "com.doordash.DoorDashConsumer":   Color(red: 255/255, green: 48/255, blue: 8/255),    // DoorDash red
+        // Finance
+        "com.venmo.Venmo":                 Color(red: 0/255, green: 141/255, blue: 210/255),    // Venmo blue
+        "com.squareup.cash":               Color(red: 0/255, green: 214/255, blue: 50/255),    // Cash App green
+        // Gaming
+        "com.roblox.robloxmobile":         Color(red: 226/255, green: 35/255, blue: 26/255),   // Roblox red
+        "com.mojang.minecraftpe":          Color(red: 98/255, green: 180/255, blue: 74/255),   // Minecraft green
+        // Productivity
+        "com.tinyspeck.chatlyio":          Color(red: 74/255, green: 21/255, blue: 75/255),    // Slack purple
+        "com.microsoft.teams":             Color(red: 75/255, green: 73/255, blue: 172/255),    // Teams purple
+        "com.instructure.icanvas":         Color(red: 212/255, green: 45/255, blue: 31/255),   // Canvas red
+        "com.zoom.VideoClient":            Color(red: 45/255, green: 140/255, blue: 255/255),   // Zoom blue
+    ]
+
+    private func colorForApp(_ app: ReportData.AppEntry, at index: Int) -> Color {
+        if let bid = app.bundleID, let c = brandColors[bid] { return c }
+        return fallbackColors[index % fallbackColors.count]
+    }
 
     // MARK: - Computed
 
@@ -309,7 +378,7 @@ struct TuffDailyReportView: View {
                 Circle()
                     .trim(from: CGFloat(start), to: CGFloat(end) - 0.005)
                     .stroke(
-                        sliceColors[i % sliceColors.count],
+                        colorForApp(apps[i], at: i),
                         style: StrokeStyle(
                             lineWidth: selectedSlice == i ? 22 : 18,
                             lineCap: .butt
@@ -336,9 +405,10 @@ struct TuffDailyReportView: View {
     private func appList(apps: [ReportData.AppEntry]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(apps.enumerated()), id: \.offset) { index, app in
+                let appColor = colorForApp(app, at: index)
                 HStack(spacing: 10) {
                     Circle()
-                        .fill(sliceColors[index % sliceColors.count])
+                        .fill(appColor)
                         .frame(width: 10, height: 10)
 
                     Label(app.application.token!)
@@ -358,7 +428,7 @@ struct TuffDailyReportView: View {
                     Text(fmt(app.seconds))
                         .font(.system(size: 14, weight: .heavy).width(.condensed))
                         .foregroundColor(
-                            selectedSlice == index ? sliceColors[index % sliceColors.count] : labelGray
+                            selectedSlice == index ? appColor : labelGray
                         )
                 }
                 .contentShape(Rectangle())

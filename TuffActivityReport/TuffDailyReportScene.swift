@@ -23,6 +23,7 @@ struct ReportData {
     struct AppEntry: Identifiable {
         let id = UUID()
         let application: Application
+        let bundleID: String?
         let seconds: TimeInterval
     }
 }
@@ -72,7 +73,7 @@ struct TuffDailyReportScene: DeviceActivityReportScene {
                 let sortedApps = info.apps.values
                     .sorted { $0.seconds > $1.seconds }
                     .prefix(8)
-                    .map { ReportData.AppEntry(application: $0.application, seconds: $0.seconds) }
+                    .map { ReportData.AppEntry(application: $0.application, bundleID: $0.application.bundleIdentifier, seconds: $0.seconds) }
                 return ReportData.DayData(
                     date: date,
                     totalSeconds: info.total,
