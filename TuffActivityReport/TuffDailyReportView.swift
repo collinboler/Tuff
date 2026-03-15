@@ -79,16 +79,16 @@ struct TuffDailyReportView: View {
         return chartData.map(\.date)
     }
 
-    private var averageSeconds: TimeInterval? {
-        let calendar = Calendar.current
-        let daysBack = showFullMonth ? 29 : 6
-        let cutoff = calendar.date(byAdding: .day, value: -daysBack, to: todayStart)!
-        let filtered = chartData.filter {
-            $0.date >= cutoff && $0.date < todayStart && $0.hours > 0
-        }
-        guard !filtered.isEmpty else { return nil }
-        return filtered.map(\.totalSeconds).reduce(0, +) / Double(filtered.count)
-    }
+    // private var averageSeconds: TimeInterval? {
+    //     let calendar = Calendar.current
+    //     let daysBack = showFullMonth ? 29 : 6
+    //     let cutoff = calendar.date(byAdding: .day, value: -daysBack, to: todayStart)!
+    //     let filtered = chartData.filter {
+    //         $0.date >= cutoff && $0.date < todayStart && $0.hours > 0
+    //     }
+    //     guard !filtered.isEmpty else { return nil }
+    //     return filtered.map(\.totalSeconds).reduce(0, +) / Double(filtered.count)
+    // }
 
     // MARK: - Body
 
@@ -100,16 +100,19 @@ struct TuffDailyReportView: View {
                 breakdownSection
             }
             .padding(.horizontal, 4)
-            .padding(.top, 2)
             .padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    // MARK: - Period Toggle
+    // MARK: - Header + Period Toggle
 
     private var periodToggle: some View {
         HStack {
+            Text("YOUR STATS")
+                .font(.system(size: 26, weight: .black).width(.condensed))
+                .foregroundColor(.black)
+                .tracking(0.06 * 26)
             Spacer()
             HStack(spacing: 0) {
                 toggleButton("7D", active: !showFullMonth) {
@@ -254,28 +257,10 @@ struct TuffDailyReportView: View {
                                             }
                                     )
 
-                                if let avgSeconds = averageSeconds {
-                                    let avgY = plotFrame.maxY - CGFloat((avgSeconds / 3600.0) / chartYMax) * plotFrame.height
-                                    let avgLabelX = geo.size.width - 10
-                                    let lineEndX = avgLabelX - 14
-
-                                    Path { path in
-                                        path.move(to: CGPoint(x: plotFrame.minX, y: avgY))
-                                        path.addLine(to: CGPoint(x: lineEndX, y: avgY))
-                                    }
-                                    .stroke(
-                                        accent.opacity(0.75),
-                                        style: StrokeStyle(lineWidth: 1, dash: [6, 4])
-                                    )
-
-                                    Text("avg")
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundColor(accent)
-                                        .position(
-                                            x: avgLabelX,
-                                            y: max(plotFrame.minY + 10, min(plotFrame.maxY - 10, avgY))
-                                        )
-                                }
+                                // Average line commented out for now
+                                // if let avgSeconds = averageSeconds {
+                                //     ...
+                                // }
                             }
                         }
                     }
@@ -355,6 +340,11 @@ struct TuffDailyReportView: View {
                     Circle()
                         .fill(sliceColors[index % sliceColors.count])
                         .frame(width: 10, height: 10)
+
+                    Label(app.application.token!)
+                        .labelStyle(.iconOnly)
+                        .scaleEffect(0.8)
+                        .frame(width: 28, height: 28)
 
                     Label(app.application.token!)
                         .labelStyle(.titleOnly)

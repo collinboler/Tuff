@@ -38,7 +38,7 @@ struct TuffDailyReportScene: DeviceActivityReportScene {
         let calendar = Calendar.current
         let todayStart = calendar.startOfDay(for: Date())
 
-        var dayMap: [Date: (total: TimeInterval, apps: [Application: TimeInterval])] = [:]
+        var dayMap: [Date: (total: TimeInterval, apps: [ApplicationToken: (application: Application, seconds: TimeInterval)])] = [:]
 
         for await activityData in data {
             for await segment in activityData.activitySegments {
@@ -50,28 +50,29 @@ struct TuffDailyReportScene: DeviceActivityReportScene {
                     for await appActivity in categoryActivity.applications {
                         let app = appActivity.application
                         let dur = appActivity.totalActivityDuration
-                        entry.apps[app] = max(entry.apps[app] ?? 0, dur)
+                        guard let token = app.token else { continue }
+                        let existing = entry.apps[token]?.seconds ?? 0
+                        entry.apps[token] = (application: app, seconds: max(existing, dur))
                     }
                 }
                 dayMap[segmentDay] = entry
             }
         }
 
-        // Ensure today always has an entry even if no segment was keyed to it
-        let todayTotal = dayMap[todayStart]?.total
-            ?? dayMap.first(where: { calendar.isDate($0.key, inSameDayAs: todayStart) })?.value.total
-            ?? 0
+        let fuzzyToday = dayMap.first(where: { calendar.isDate($0.key, inSameDayAs: todayStart) })
+        let todayTotal = dayMap[todayStart]?.total ?? fuzzyToday?.value.total ?? 0
         if dayMap[todayStart] == nil {
-            dayMap[todayStart] = (total: todayTotal, apps: [:])
+            let todayApps = fuzzyToday?.value.apps ?? [:]
+            dayMap[todayStart] = (total: todayTotal, apps: todayApps)
         }
 
         let days = dayMap
             .sorted { $0.key < $1.key }
             .map { date, info in
-                let sortedApps = info.apps
-                    .sorted { $0.value > $1.value }
+                let sortedApps = info.apps.values
+                    .sorted { $0.seconds > $1.seconds }
                     .prefix(8)
-                    .map { ReportData.AppEntry(application: $0.key, seconds: $0.value) }
+                    .map { ReportData.AppEntry(application: $0.application, seconds: $0.seconds) }
                 return ReportData.DayData(
                     date: date,
                     totalSeconds: info.total,
