@@ -76,31 +76,34 @@ class HomeViewModel: ObservableObject {
     func joinLeague(inviteCode: String) async -> String? {
         guard let uid = Auth.auth().currentUser?.uid else { return "Not signed in" }
         let db = Firestore.firestore()
-        let snap = try? await db.collection("leagues")
-            .whereField("inviteCode", isEqualTo: inviteCode.uppercased())
-            .limit(to: 1)
-            .getDocuments()
-        guard let doc = snap?.documents.first else { return "Invalid invite code" }
-        let leagueId = doc.documentID
+        do {
+            let snap = try await db.collection("leagues")
+                .whereField("inviteCode", isEqualTo: inviteCode.uppercased())
+                .limit(to: 1)
+                .getDocuments()
+            guard let doc = snap.documents.first else { return "No league found with that code" }
+            let leagueId = doc.documentID
 
-        // Fetch current user profile
-        let userDoc = try? await db.collection("users").document(uid).getDocument()
-        let userData = userDoc?.data()
-        let firstName = userData?["firstName"] as? String ?? ""
-        let lastName  = userData?["lastName"]  as? String ?? ""
-        let username  = userData?["username"]  as? String ?? ""
-        let memberProfile: [String: Any] = [
-            "uid": uid,
-            "name": "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces),
-            "username": username,
-            "screenTimeMinutes": 0
-        ]
+            let userDoc = try? await db.collection("users").document(uid).getDocument()
+            let userData = userDoc?.data()
+            let firstName = userData?["firstName"] as? String ?? ""
+            let lastName  = userData?["lastName"]  as? String ?? ""
+            let username  = userData?["username"]  as? String ?? ""
+            let memberProfile: [String: Any] = [
+                "uid": uid,
+                "name": "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces),
+                "username": username,
+                "screenTimeMinutes": 0
+            ]
 
-        try? await db.collection("leagues").document(leagueId).updateData([
-            "memberUids": FieldValue.arrayUnion([uid]),
-            "memberProfiles": FieldValue.arrayUnion([memberProfile])
-        ])
-        return nil
+            try await db.collection("leagues").document(leagueId).updateData([
+                "memberUids": FieldValue.arrayUnion([uid]),
+                "memberProfiles": FieldValue.arrayUnion([memberProfile])
+            ])
+            return nil
+        } catch {
+            return error.localizedDescription
+        }
     }
 
     // MARK: - Carousel

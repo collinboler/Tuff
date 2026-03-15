@@ -162,7 +162,7 @@ class AuthViewModel: ObservableObject {
         return UIImage(data: data)
     }
 
-    private static func profileImageURL(for uid: String) -> URL {
+    static func profileImageURL(for uid: String) -> URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("profile_\(uid).jpg")
     }

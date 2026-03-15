@@ -2,6 +2,78 @@ import SwiftUI
 import FirebaseCore
 import FirebaseAuth
 import FamilyControls
+import UserNotifications
+
+// MARK: - Permissions gate (shown when screen time not yet authorized after login)
+
+struct PermissionsGateView: View {
+    @EnvironmentObject private var screenTimeManager: ScreenTimeManager
+    @EnvironmentObject private var notificationManager: NotificationManager
+    @State private var isRequesting = false
+
+    var body: some View {
+        ZStack {
+            Color.white.ignoresSafeArea()
+            VStack(spacing: 28) {
+                Spacer()
+
+                Image(systemName: "hourglass.circle.fill")
+                    .font(.system(size: 64))
+                    .foregroundColor(TuffColors.accent)
+
+                VStack(spacing: 8) {
+                    Text("SCREEN TIME NEEDED")
+                        .font(.system(size: 26, weight: .black, design: .default).width(.condensed))
+                        .foregroundColor(.black)
+                        .tracking(1)
+                    Text("Tuff needs Screen Time access to track your usage and compete in leagues.")
+                        .font(.system(size: 15))
+                        .foregroundColor(TuffColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
+
+                Spacer()
+
+                VStack(spacing: 12) {
+                    Button {
+                        isRequesting = true
+                        Task {
+                            await screenTimeManager.requestAuthorization()
+                            await notificationManager.requestPermission()
+                            isRequesting = false
+                        }
+                    } label: {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(TuffColors.accent)
+                                .frame(height: 54)
+                            if isRequesting {
+                                ProgressView().tint(.black)
+                            } else {
+                                Text("Allow Screen Time")
+                                    .font(.system(size: 17, weight: .bold))
+                                    .foregroundColor(.black)
+                            }
+                        }
+                    }
+                    .disabled(isRequesting)
+
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(TuffColors.textSecondary)
+                }
+                .padding(.horizontal, 32)
+                .padding(.bottom, 40)
+            }
+        }
+        .colorScheme(.light)
+    }
+}
 
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
@@ -62,6 +134,8 @@ struct TuffApp: App {
                     PhoneSignInView()
                 } else if auth.needsOnboarding {
                     OnboardingView()
+                } else if !screenTimeManager.isAuthorized {
+                    PermissionsGateView()
                 } else {
                     ContentView()
                         .onAppear {
