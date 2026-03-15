@@ -50,6 +50,8 @@
 		FB001122334455667788AA01 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 0F8ECA6E2F67354D0030B373 /* FirebaseAuth */; };
 		FB001122334455667788AA02 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 0F8ECA6F2F67354D0030B373 /* FirebaseCore */; };
 		FB001122334455667788AA03 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 0F8ECA702F6735740030B373 /* FirebaseFirestore */; };
+		FA001122334455667788AA01 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA02 /* AuthViewModel.swift */; };
+		FA001122334455667788AA03 /* PhoneSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA04 /* PhoneSignInView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -116,6 +118,9 @@
 		F23DF162A31993B916A581DB /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
 		F9F6A64B1B0C9B1E305E130E /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		FA742DE8F5095D68611C7FF9 /* LeagueCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeagueCardView.swift; sourceTree = "<group>"; };
+		FA001122334455667788AA02 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
+		FA001122334455667788AA04 /* PhoneSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSignInView.swift; sourceTree = "<group>"; };
+		FA001122334455667788AA06 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FC001122334455667788AA03 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		FF001122334455667788AA01 /* TuffShieldConfiguration.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TuffShieldConfiguration.entitlements; sourceTree = "<group>"; };
 		FF001122334455667788AA02 /* TuffShieldAction.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TuffShieldAction.entitlements; sourceTree = "<group>"; };
@@ -232,6 +237,7 @@
 		6C2CB43262FB58F0014AD53C /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
+				FA001122334455667788AA02 /* AuthViewModel.swift */,
 				3D15B25B75621633E16BA8D3 /* HomeViewModel.swift */,
 				F23DF162A31993B916A581DB /* ProfileViewModel.swift */,
 				D89BE8CC594256ED05B0086C /* StatsViewModel.swift */,
@@ -243,6 +249,7 @@
 			isa = PBXGroup;
 			children = (
 				2B20E94174CF30E8FFF26D8A /* ContentView.swift */,
+				FA001122334455667788AA06 /* Info.plist */,
 				BE3F64079496ED1962BD451E /* TuffApp.swift */,
 			);
 			path = App;
@@ -257,9 +264,18 @@
 			path = TuffDeviceActivity;
 			sourceTree = "<group>";
 		};
+		FA001122334455667788AA05 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				FA001122334455667788AA04 /* PhoneSignInView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
 		94AB77CCA7E56422705A20D3 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				FA001122334455667788AA05 /* Auth */,
 				F6384DA9BC5DD584CADF88CD /* Components */,
 				036FF8E587CC20460024E270 /* Home */,
 				A7F3C6815C5CE76F6744DB73 /* League */,
@@ -538,6 +554,8 @@
 				50CA41844FAD99B6D9A9FC4D /* TuffApp.swift in Sources */,
 				03EEA9C59A36A76A39E29AB3 /* User.swift in Sources */,
 				AA001122334455667788AABB /* SharedKeys.swift in Sources */,
+				FA001122334455667788AA01 /* AuthViewModel.swift in Sources */,
+				FA001122334455667788AA03 /* PhoneSignInView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -820,11 +838,8 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Tuff/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -846,11 +861,8 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Tuff/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
