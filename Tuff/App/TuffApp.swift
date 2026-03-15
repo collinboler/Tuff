@@ -18,7 +18,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     // Forward APNs device token to Firebase Auth
     func application(_ application: UIApplication,
                      didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        Auth.auth().setAPNSToken(deviceToken, type: .unknown)
+        #if DEBUG
+        Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
+        #else
+        Auth.auth().setAPNSToken(deviceToken, type: .prod)
+        #endif
     }
 
     func application(_ application: UIApplication,
@@ -36,6 +40,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         }
         completionHandler(.noData)
     }
+
+    // Handle reCAPTCHA callback URL so Firebase phone auth can complete
+    func application(_ app: UIApplication, open url: URL,
+                     options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        return Auth.auth().canHandle(url)
+    }
 }
 
 @main
@@ -47,21 +57,21 @@ struct TuffApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if auth.isSignedIn {
-                ContentView()
-                    .environmentObject(screenTimeManager)
-                    .environmentObject(notificationManager)
-                    .environmentObject(auth)
-                    .task {
-                        await screenTimeManager.requestAuthorization()
-                        await notificationManager.requestPermission()
-                        notificationManager.registerNotificationCategories()
-                        screenTimeManager.startMonitoring()
-                    }
-            } else {
-                PhoneSignInView()
-                    .environmentObject(auth)
+            Group {
+                if !auth.isSignedIn {
+                    PhoneSignInView()
+                } else if auth.needsOnboarding {
+                    OnboardingView()
+                } else {
+                    ContentView()
+                        .onAppear {
+                            screenTimeManager.startMonitoring()
+                        }
+                }
             }
+            .environmentObject(auth)
+            .environmentObject(screenTimeManager)
+            .environmentObject(notificationManager)
         }
     }
 }

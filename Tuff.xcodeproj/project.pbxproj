@@ -32,6 +32,7 @@
 		C49F1D7AEB9CA0DF852771CC /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F28A14A8186E15C301A1C9F /* StatsView.swift */; };
 		C5CD3BD3D935F825A5CFD665 /* LeagueCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA742DE8F5095D68611C7FF9 /* LeagueCardView.swift */; };
 		CBAE30B8B55D133F7DB56CB3 /* ProfileImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF3671F1DD40875E13E116D /* ProfileImageView.swift */; };
+		FB001122334455667788AB09 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB001122334455667788AB08 /* ImagePicker.swift */; };
 		CC001122334455667788AA01 /* TuffActivityReport.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BB001122334455667788AA0A /* TuffActivityReport.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CC001122334455667788AA02 /* TuffDeviceActivity.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CC001122334455667788AA03 /* TuffShieldConfiguration.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -52,6 +53,7 @@
 		FB001122334455667788AA03 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 0F8ECA702F6735740030B373 /* FirebaseFirestore */; };
 		FA001122334455667788AA01 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA02 /* AuthViewModel.swift */; };
 		FA001122334455667788AA03 /* PhoneSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA04 /* PhoneSignInView.swift */; };
+		FA001122334455667788AA07 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA08 /* OnboardingView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -80,6 +82,7 @@
 		3EA453900CCC88739E566FB6 /* ScreenTimeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTimeManager.swift; sourceTree = "<group>"; };
 		52D24FF406404BF607297917 /* ScreenTimeData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTimeData.swift; sourceTree = "<group>"; };
 		5AF3671F1DD40875E13E116D /* ProfileImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileImageView.swift; sourceTree = "<group>"; };
+		FB001122334455667788AB08 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
 		6BA99A1335B787C8FC8504DE /* Tuff.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tuff.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7A99AC0FD5D7287ADDDBC164 /* CreateLeagueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateLeagueView.swift; sourceTree = "<group>"; };
 		7B516A2A618E866EAF76DE08 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -120,6 +123,7 @@
 		FA742DE8F5095D68611C7FF9 /* LeagueCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeagueCardView.swift; sourceTree = "<group>"; };
 		FA001122334455667788AA02 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
 		FA001122334455667788AA04 /* PhoneSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSignInView.swift; sourceTree = "<group>"; };
+		FA001122334455667788AA08 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		FA001122334455667788AA06 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		FC001122334455667788AA03 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		FF001122334455667788AA01 /* TuffShieldConfiguration.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TuffShieldConfiguration.entitlements; sourceTree = "<group>"; };
@@ -267,6 +271,7 @@
 		FA001122334455667788AA05 /* Auth */ = {
 			isa = PBXGroup;
 			children = (
+				FA001122334455667788AA08 /* OnboardingView.swift */,
 				FA001122334455667788AA04 /* PhoneSignInView.swift */,
 			);
 			path = Auth;
@@ -358,6 +363,7 @@
 			isa = PBXGroup;
 			children = (
 				5AF3671F1DD40875E13E116D /* ProfileImageView.swift */,
+				FB001122334455667788AB08 /* ImagePicker.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -543,6 +549,7 @@
 				ED17F9694E0EC6B5B0D9B5C9 /* LeagueHistoryRow.swift in Sources */,
 				A42D0096EC37EDF5B9FA65D5 /* NotificationManager.swift in Sources */,
 				CBAE30B8B55D133F7DB56CB3 /* ProfileImageView.swift in Sources */,
+				FB001122334455667788AB09 /* ImagePicker.swift in Sources */,
 				64345E8B3394DC7D010637EE /* ProfileView.swift in Sources */,
 				41D6B71DB24452F791025455 /* ProfileViewModel.swift in Sources */,
 				1ABF6B47A1E2F9E5BE78DD21 /* ScreenTimeChartView.swift in Sources */,
@@ -556,6 +563,7 @@
 				AA001122334455667788AABB /* SharedKeys.swift in Sources */,
 				FA001122334455667788AA01 /* AuthViewModel.swift in Sources */,
 				FA001122334455667788AA03 /* PhoneSignInView.swift in Sources */,
+				FA001122334455667788AA07 /* OnboardingView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

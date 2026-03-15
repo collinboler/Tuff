@@ -172,6 +172,7 @@ struct TuffDailyReportView: View {
             .padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .preferredColorScheme(.dark)
     }
 
     // MARK: - Header + Period Toggle

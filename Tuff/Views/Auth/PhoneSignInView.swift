@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct PhoneSignInView: View {
-    @StateObject private var auth = AuthViewModel()
+    @EnvironmentObject private var auth: AuthViewModel
     @FocusState private var focused: Bool
+    @State private var showResetConfirm = false
 
     var body: some View {
         ZStack {
@@ -11,16 +12,20 @@ struct PhoneSignInView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                // Logo
-                Text("TUFF")
-                    .font(.system(size: 52, weight: .black, design: .default).width(.condensed))
-                    .foregroundColor(.black)
-                    .tracking(4)
+                // Logo — long-press 1.5s to reset account for testing
+                VStack(spacing: 6) {
+                    Text("TUFF")
+                        .font(.system(size: 52, weight: .black, design: .default).width(.condensed))
+                        .foregroundColor(.black)
+                        .tracking(4)
+                        .onLongPressGesture(minimumDuration: 1.5) {
+                            showResetConfirm = true
+                        }
 
-                Text(auth.step == .phone ? "enter your number" : "check your texts")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(TuffColors.textSecondary)
-                    .padding(.top, 6)
+                    Text(auth.step == .phone ? "enter your number" : "check your texts")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(TuffColors.textSecondary)
+                }
 
                 Spacer().frame(height: 48)
 
@@ -33,6 +38,15 @@ struct PhoneSignInView: View {
                 Spacer()
             }
             .padding(.horizontal, 32)
+        }
+        .colorScheme(.light)
+        .confirmationDialog("Reset for Testing", isPresented: $showResetConfirm, titleVisibility: .visible) {
+            Button("Delete Account & Start Over", role: .destructive) {
+                Task { await auth.deleteAccountForTesting() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This deletes the Firebase account so this phone number can sign up again.")
         }
     }
 
@@ -129,8 +143,4 @@ struct PhoneSignInView: View {
         }
         .disabled(auth.isLoading)
     }
-}
-
-#Preview {
-    PhoneSignInView()
 }

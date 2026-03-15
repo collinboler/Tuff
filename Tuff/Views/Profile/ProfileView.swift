@@ -39,7 +39,8 @@ struct ProfileView: View {
                 imageName: viewModel.user.imageName,
                 size: 82,
                 borderColor: TuffColors.accent,
-                borderWidth: 3
+                borderWidth: 3,
+                uiImage: viewModel.profileImage
             )
 
             Text(viewModel.user.name.uppercased())
