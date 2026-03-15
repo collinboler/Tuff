@@ -16,6 +16,8 @@
 		CC001122334455667788AA01 /* TuffActivityReport.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BB001122334455667788AA0A /* TuffActivityReport.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CC001122334455667788AA02 /* TuffDeviceActivity.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CC001122334455667788AA03 /* TuffShieldConfiguration.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EE001122334455667788AA01 /* ShieldActionExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE001122334455667788AA02 /* ShieldActionExtension.swift */; };
+		EE001122334455667788AA04 /* TuffShieldAction.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = EE001122334455667788AA03 /* TuffShieldAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DD001122334455667788AA01 /* DeviceActivity.framework in Frameworks (ActivityReport) */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA02 /* DeviceActivity.framework */; };
 		DD001122334455667788AA04 /* _DeviceActivity_SwiftUI.framework in Frameworks (ActivityReport) */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA05 /* _DeviceActivity_SwiftUI.framework */; };
 		DD001122334455667788AA06 /* ExtensionFoundation.framework in Frameworks (ActivityReport) */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA07 /* ExtensionFoundation.framework */; };
@@ -106,6 +108,9 @@
 		7B516A2A618E866EAF76DE08 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		7F28A14A8186E15C301A1C9F /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffShieldConfiguration.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EE001122334455667788AA02 /* ShieldActionExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldActionExtension.swift; sourceTree = "<group>"; };
+		EE001122334455667788AA03 /* TuffShieldAction.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffShieldAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EE001122334455667788AA05 /* Info.plist (ShieldAction) */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		86CCBDA2CCE6E9715DA96805 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
 		AA001122334455667788AABC /* SharedKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedKeys.swift; sourceTree = "<group>"; };
 		935D673557E80C6FE7B1CDF1 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
@@ -149,6 +154,15 @@
 			path = Home;
 			sourceTree = "<group>";
 		};
+		EE001122334455667788AA06 /* TuffShieldAction */ = {
+			isa = PBXGroup;
+			children = (
+				EE001122334455667788AA02 /* ShieldActionExtension.swift */,
+				EE001122334455667788AA05 /* Info.plist (ShieldAction) */,
+			);
+			path = TuffShieldAction;
+			sourceTree = "<group>";
+		};
 		06C52E49D012408CDECC5B24 /* TuffShieldConfiguration */ = {
 			isa = PBXGroup;
 			children = (
@@ -186,8 +200,9 @@
 			isa = PBXGroup;
 			children = (
 				3A111654C6356B1BB1FFE270 /* Tuff */,
-				8971905DB8D9EC96C9B954F6 /* TuffDeviceActivity */,
-				06C52E49D012408CDECC5B24 /* TuffShieldConfiguration */,
+			8971905DB8D9EC96C9B954F6 /* TuffDeviceActivity */,
+			06C52E49D012408CDECC5B24 /* TuffShieldConfiguration */,
+			EE001122334455667788AA06 /* TuffShieldAction */,
 				BB001122334455667788AA0B /* TuffActivityReport */,
 				5C6CD904F0FCC3C1E192B78F /* Products */,
 			);
@@ -209,8 +224,9 @@
 			isa = PBXGroup;
 			children = (
 				6BA99A1335B787C8FC8504DE /* Tuff.app */,
-				BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */,
-				800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */,
+			BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */,
+			800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */,
+			EE001122334455667788AA03 /* TuffShieldAction.appex */,
 				BB001122334455667788AA0A /* TuffActivityReport.appex */,
 			);
 			name = Products;
@@ -314,6 +330,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		EE001122334455667788AA07 /* TuffShieldAction */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EE001122334455667788AA11 /* Build configuration list for PBXNativeTarget "TuffShieldAction" */;
+			buildPhases = (
+				EE001122334455667788AA08 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TuffShieldAction;
+			packageProductDependencies = (
+			);
+			productName = TuffShieldAction;
+			productReference = EE001122334455667788AA03 /* TuffShieldAction.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		23D9EDF1650F12E136CD1A3C /* TuffShieldConfiguration */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = BBEC75B04DBB0595D168890D /* Build configuration list for PBXNativeTarget "TuffShieldConfiguration" */;
@@ -403,6 +436,9 @@
 					BB001122334455667788AA0C = {
 						DevelopmentTeam = U2ZQ5ZX9M5;
 					};
+					EE001122334455667788AA07 = {
+						DevelopmentTeam = U2ZQ5ZX9M5;
+					};
 				};
 			};
 			buildConfigurationList = D1E68F90D8C127D0AD24419C /* Build configuration list for PBXProject "Tuff" */;
@@ -423,6 +459,7 @@
 				307FFB2C2F6506A5A6126A08 /* TuffDeviceActivity */,
 				23D9EDF1650F12E136CD1A3C /* TuffShieldConfiguration */,
 				BB001122334455667788AA0C /* TuffActivityReport */,
+				EE001122334455667788AA07 /* TuffShieldAction */,
 			);
 		};
 /* End PBXProject section */
@@ -437,6 +474,7 @@
 				CC001122334455667788AA02 /* TuffDeviceActivity.appex in Embed App Extensions */,
 				CC001122334455667788AA03 /* TuffShieldConfiguration.appex in Embed App Extensions */,
 				CC001122334455667788AA01 /* TuffActivityReport.appex in Embed App Extensions */,
+				EE001122334455667788AA04 /* TuffShieldAction.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -460,6 +498,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				63432C1875B9698339930F04 /* ShieldConfigurationExtension.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EE001122334455667788AA08 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EE001122334455667788AA01 /* ShieldActionExtension.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -613,6 +659,50 @@
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		EE001122334455667788AA09 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TuffShieldAction/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff.ShieldAction;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		EE001122334455667788AA10 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TuffShieldAction/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff.ShieldAction;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -880,6 +970,15 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
+		};
+		EE001122334455667788AA11 /* Build configuration list for PBXNativeTarget "TuffShieldAction" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EE001122334455667788AA09 /* Debug */,
+				EE001122334455667788AA10 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		BBEC75B04DBB0595D168890D /* Build configuration list for PBXNativeTarget "TuffShieldConfiguration" */ = {
 			isa = XCConfigurationList;

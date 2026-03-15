@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var screenTime = ScreenTimeManager.shared
+    @State private var isBlocking = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -125,6 +127,36 @@ struct HomeView: View {
         .animation(.easeInOut(duration: 0.2), value: user.id)
     }
 
+    // MARK: - Blocking Toggle (test)
+
+    private var blockingToggle: some View {
+        Button {
+            if isBlocking {
+                screenTime.unblockAllApps()
+                isBlocking = false
+            } else {
+                screenTime.blockSocialMedia()
+                isBlocking = true
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isBlocking ? "lock.shield.fill" : "lock.shield")
+                    .font(.system(size: 15, weight: .bold))
+                Text(isBlocking ? "BLOCKING: ON  (tap to disable)" : "TEST BLOCKER (tap to block all apps)")
+                    .font(TuffFonts.sectionHeader())
+                    .tracking(0.5)
+            }
+            .foregroundColor(isBlocking ? .white : TuffColors.textSecondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(isBlocking ? TuffColors.accent : TuffColors.tagBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
     private var divider: some View {
         Rectangle()
             .fill(TuffColors.divider)
@@ -167,6 +199,8 @@ struct HomeView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 4)
+
+            blockingToggle
         }
     }
 }

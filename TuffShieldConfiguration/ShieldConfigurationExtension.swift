@@ -25,11 +25,11 @@ class TuffShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "Ask a friend for the 2FA code or complete your challenge to unlock.",
+                text: "Tap below and wait 5 seconds to open this app.",
                 color: UIColor.lightGray
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
-                text: "Enter Code",
+                text: "Wait 5 Seconds to Open",
                 color: .white
             ),
             primaryButtonBackgroundColor: tuffGreen,
