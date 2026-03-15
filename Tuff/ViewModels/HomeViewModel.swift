@@ -4,6 +4,7 @@ import Combine
 @MainActor
 class HomeViewModel: ObservableObject {
     @Published var currentUser: TuffUser = .currentUser
+    @Published var selectedCarouselUser: TuffUser = .currentUser
     @Published var leagues: [League] = League.sampleLeagues
     @Published var selectedLeague: League?
     @Published var showLeagueDetail = false
@@ -39,6 +40,12 @@ class HomeViewModel: ObservableObject {
 
     func refreshData() async {
         // In production, fetch real screen time here
+    }
+
+    func selectCarouselUser(at index: Int) {
+        let users = carouselUsers
+        guard index >= 0 && index < users.count else { return }
+        selectedCarouselUser = users[index]
     }
 
     func selectLeague(_ league: League) {

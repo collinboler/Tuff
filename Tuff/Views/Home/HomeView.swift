@@ -50,7 +50,10 @@ struct HomeView: View {
         VStack(spacing: 0) {
             FriendCarouselView(
                 users: viewModel.carouselUsers,
-                currentUserId: viewModel.currentUser.id
+                currentUserId: viewModel.currentUser.id,
+                onActiveIndexChanged: { idx in
+                    viewModel.selectCarouselUser(at: idx)
+                }
             )
             .frame(height: 190)
 
@@ -66,30 +69,40 @@ struct HomeView: View {
     // MARK: - Member Panel
 
     private var memberPanel: some View {
-        HStack(alignment: .center, spacing: 12) {
+        let user = viewModel.selectedCarouselUser
+        let isYou = user.id == viewModel.currentUser.id
+        let allUsers = viewModel.carouselUsers
+        let rank = (allUsers.firstIndex(where: { $0.id == user.id }) ?? 0) + 1
+        let leagueNames = viewModel.leagues
+            .filter { $0.members.contains(where: { $0.user.id == user.id }) }
+            .map { $0.name.uppercased() }
+
+        return HStack(alignment: .center, spacing: 12) {
             ProfileImageView(
-                imageName: viewModel.currentUser.imageName,
+                imageName: user.imageName,
                 size: 44,
                 borderColor: TuffColors.accent,
                 borderWidth: 2
             )
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(viewModel.currentUser.name.uppercased()) (YOU)")
+                Text(isYou ? "\(user.name.uppercased()) (YOU)" : user.name.uppercased())
                     .font(TuffFonts.panelName())
                     .foregroundColor(.black)
                     .tracking(0.04 * 18)
 
-                HStack(spacing: 5) {
-                    ForEach(viewModel.leagueNames, id: \.self) { name in
-                        Text(name)
-                            .font(TuffFonts.tag())
-                            .foregroundColor(TuffColors.tagText)
-                            .tracking(0.05 * 10)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(TuffColors.tagBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                if !leagueNames.isEmpty {
+                    HStack(spacing: 5) {
+                        ForEach(leagueNames, id: \.self) { name in
+                            Text(name)
+                                .font(TuffFonts.tag())
+                                .foregroundColor(TuffColors.tagText)
+                                .tracking(0.05 * 10)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .background(TuffColors.tagBackground)
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                        }
                     }
                 }
             }
@@ -97,11 +110,11 @@ struct HomeView: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text(viewModel.currentUser.formattedScreenTime)
+                Text(user.formattedScreenTime)
                     .font(TuffFonts.panelTime())
                     .foregroundColor(TuffColors.accent)
 
-                Text("RANK \(viewModel.overallRank) OF \(viewModel.totalParticipants)")
+                Text("RANK \(rank) OF \(allUsers.count)")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundColor(TuffColors.textSecondary)
                     .tracking(0.5)
@@ -109,6 +122,7 @@ struct HomeView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 9)
+        .animation(.easeInOut(duration: 0.2), value: user.id)
     }
 
     private var divider: some View {
