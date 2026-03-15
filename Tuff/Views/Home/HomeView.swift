@@ -1,9 +1,11 @@
 import SwiftUI
+import FamilyControls
 
 struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel()
     @StateObject private var screenTime = ScreenTimeManager.shared
     @State private var isBlocking = false
+    @State private var showAppPicker = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -28,6 +30,17 @@ struct HomeView: View {
             CreateLeagueView()
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .familyActivityPicker(
+            isPresented: $showAppPicker,
+            selection: $screenTime.selectedAppsToBlock
+        )
+        .onChange(of: screenTime.selectedAppsToBlock) { _ in
+            if !screenTime.selectedAppsToBlock.applicationTokens.isEmpty
+                || !screenTime.selectedAppsToBlock.categoryTokens.isEmpty {
+                screenTime.blockSelectedApps()
+                isBlocking = true
+            }
         }
     }
 
@@ -130,27 +143,45 @@ struct HomeView: View {
     // MARK: - Blocking Toggle (test)
 
     private var blockingToggle: some View {
-        Button {
+        VStack(spacing: 8) {
+            // Turn off button (when active)
             if isBlocking {
-                screenTime.unblockAllApps()
-                isBlocking = false
+                Button {
+                    screenTime.unblockAllApps()
+                    isBlocking = false
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 15, weight: .bold))
+                        Text("BLOCKING ACTIVE — TAP TO DISABLE")
+                            .font(TuffFonts.sectionHeader())
+                            .tracking(0.5)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(TuffColors.accent)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
             } else {
-                screenTime.blockSocialMedia()
-                isBlocking = true
+                // Pick apps to block
+                Button {
+                    showAppPicker = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.shield")
+                            .font(.system(size: 15, weight: .bold))
+                        Text("SELECT APPS TO BLOCK (TEST)")
+                            .font(TuffFonts.sectionHeader())
+                            .tracking(0.5)
+                    }
+                    .foregroundColor(TuffColors.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(TuffColors.tagBackground)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
             }
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: isBlocking ? "lock.shield.fill" : "lock.shield")
-                    .font(.system(size: 15, weight: .bold))
-                Text(isBlocking ? "BLOCKING: ON  (tap to disable)" : "TEST BLOCKER (tap to block all apps)")
-                    .font(TuffFonts.sectionHeader())
-                    .tracking(0.5)
-            }
-            .foregroundColor(isBlocking ? .white : TuffColors.textSecondary)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(isBlocking ? TuffColors.accent : TuffColors.tagBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)

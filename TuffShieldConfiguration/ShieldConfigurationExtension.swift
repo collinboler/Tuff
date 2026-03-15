@@ -2,31 +2,56 @@ import ManagedSettings
 import ManagedSettingsUI
 import UIKit
 
-/// Customizes the shield UI shown when a user tries to open a blocked app.
-/// This is what makes Tuff's blocking feel branded rather than generic.
-///
-/// To set up in Xcode:
-/// 1. File > New > Target > Shield Configuration Extension
-/// 2. Name it "TuffShieldConfiguration"
-/// 3. Add ManagedSettings capability
 class TuffShieldConfigurationExtension: ShieldConfigurationDataSource {
 
+    // ── Brand colors ──────────────────────────────────────────────────────────
+    private let tuffGreen    = UIColor(red: 0.176, green: 0.478, blue: 0.310, alpha: 1)   // #2D7A4F
+    private let tuffGreenBright = UIColor(red: 0.227, green: 0.678, blue: 0.416, alpha: 1) // #3AAD6A
+    private let offWhite     = UIColor(red: 0.92, green: 0.92, blue: 0.92, alpha: 1)
+    private let subtitleGray = UIColor(red: 0.62, green: 0.62, blue: 0.62, alpha: 1)
+
+    // ── Application shield ────────────────────────────────────────────────────
     override func configuration(
         shielding application: Application
     ) -> ShieldConfiguration {
-        let tuffGreen = UIColor(red: 0.11, green: 0.42, blue: 0.18, alpha: 1.0)
+        appShield()
+    }
 
-        return ShieldConfiguration(
+    override func configuration(
+        shielding application: Application,
+        in category: ActivityCategory
+    ) -> ShieldConfiguration {
+        appShield()
+    }
+
+    // ── Web domain shield ─────────────────────────────────────────────────────
+    override func configuration(
+        shielding webDomain: WebDomain
+    ) -> ShieldConfiguration {
+        webShield()
+    }
+
+    override func configuration(
+        shielding webDomain: WebDomain,
+        in category: ActivityCategory
+    ) -> ShieldConfiguration {
+        webShield()
+    }
+
+    // MARK: - Shield builders
+
+    private func appShield() -> ShieldConfiguration {
+        ShieldConfiguration(
             backgroundBlurStyle: .systemUltraThinMaterialDark,
-            backgroundColor: UIColor.black.withAlphaComponent(0.9),
-            icon: UIImage(systemName: "lock.shield.fill"),
+            backgroundColor: UIColor.black.withAlphaComponent(0.65),
+            icon: tuffIcon(),
             title: ShieldConfiguration.Label(
                 text: "Blocked by Tuff",
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "Tap below and wait 5 seconds to open this app.",
-                color: UIColor.lightGray
+                text: "Tap the button below — after 5 seconds the app will open.",
+                color: subtitleGray
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
                 text: "Wait 5 Seconds to Open",
@@ -35,51 +60,60 @@ class TuffShieldConfigurationExtension: ShieldConfigurationDataSource {
             primaryButtonBackgroundColor: tuffGreen,
             secondaryButtonLabel: ShieldConfiguration.Label(
                 text: "Stay Focused",
-                color: UIColor.lightGray
+                color: subtitleGray
             )
         )
     }
 
-    override func configuration(
-        shielding application: Application,
-        in category: ActivityCategory
-    ) -> ShieldConfiguration {
-        configuration(shielding: application)
-    }
-
-    override func configuration(
-        shielding webDomain: WebDomain
-    ) -> ShieldConfiguration {
-        let tuffGreen = UIColor(red: 0.11, green: 0.42, blue: 0.18, alpha: 1.0)
-
-        return ShieldConfiguration(
+    private func webShield() -> ShieldConfiguration {
+        ShieldConfiguration(
             backgroundBlurStyle: .systemUltraThinMaterialDark,
-            backgroundColor: UIColor.black.withAlphaComponent(0.9),
-            icon: UIImage(systemName: "globe.badge.chevron.backward"),
+            backgroundColor: UIColor.black.withAlphaComponent(0.65),
+            icon: tuffIcon(),
             title: ShieldConfiguration.Label(
                 text: "Site Blocked by Tuff",
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "This website is blocked during your league hours.",
-                color: UIColor.lightGray
+                text: "Tap the button below — after 5 seconds the site will open.",
+                color: subtitleGray
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
-                text: "Enter Code",
+                text: "Wait 5 Seconds to Open",
                 color: .white
             ),
             primaryButtonBackgroundColor: tuffGreen,
             secondaryButtonLabel: ShieldConfiguration.Label(
                 text: "Go Back",
-                color: UIColor.lightGray
+                color: subtitleGray
             )
         )
     }
 
-    override func configuration(
-        shielding webDomain: WebDomain,
-        in category: ActivityCategory
-    ) -> ShieldConfiguration {
-        configuration(shielding: webDomain)
+    // MARK: - Tuff logo icon rendered as UIImage
+
+    private func tuffIcon() -> UIImage {
+        let size = CGSize(width: 120, height: 120)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { ctx in
+            let rect = CGRect(origin: .zero, size: size)
+            let cgCtx = ctx.cgContext
+
+            // Circle background
+            cgCtx.setFillColor(tuffGreen.cgColor)
+            cgCtx.fillEllipse(in: rect)
+
+            // "T" letter centered
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 64, weight: .black),
+                .foregroundColor: UIColor.white,
+            ]
+            let str = NSAttributedString(string: "T", attributes: attrs)
+            let strSize = str.size()
+            str.draw(at: CGPoint(
+                x: (size.width - strSize.width) / 2,
+                y: (size.height - strSize.height) / 2
+            ))
+        }
     }
 }

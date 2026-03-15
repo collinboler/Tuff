@@ -11,17 +11,22 @@ class TuffShieldActionExtension: ShieldActionDelegate {
     ) {
         switch action {
         case .primaryButtonPressed:
-            // Wait 5 seconds, then remove shields and let the app open
+            // Wait 5 seconds, then unblock ONLY this specific app
             Task {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
                 let store = ManagedSettingsStore()
-                store.shield.applications = nil
-                store.shield.applicationCategories = nil
+                // Remove just this app from the blocked set, keep others blocked
+                if var blocked = store.shield.applications {
+                    blocked.remove(application)
+                    store.shield.applications = blocked.isEmpty ? nil : blocked
+                }
                 completionHandler(.close)
             }
+
         case .secondaryButtonPressed:
-            // "Stay Focused" — keep app blocked, go back
+            // "Stay Focused" — keep blocked, return to home screen
             completionHandler(.close)
+
         @unknown default:
             completionHandler(.close)
         }
@@ -36,6 +41,7 @@ class TuffShieldActionExtension: ShieldActionDelegate {
         case .primaryButtonPressed:
             Task {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
+                // For category-level blocks, clear all shields after the wait
                 let store = ManagedSettingsStore()
                 store.shield.applications = nil
                 store.shield.applicationCategories = nil
@@ -56,7 +62,10 @@ class TuffShieldActionExtension: ShieldActionDelegate {
             Task {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
                 let store = ManagedSettingsStore()
-                store.shield.webDomains = nil
+                if var blocked = store.shield.webDomains {
+                    blocked.remove(webDomain)
+                    store.shield.webDomains = blocked.isEmpty ? nil : blocked
+                }
                 completionHandler(.close)
             }
         default:

@@ -63,15 +63,6 @@ class ScreenTimeManager: ObservableObject {
         store?.shield.applicationCategories = nil
     }
 
-    /// Blocks all Social Networking apps for testing the shield flow.
-    func blockSocialMedia() {
-        guard let store else { return }
-        store.shield.applicationCategories = .all()
-    }
-
-    var isSocialMediaBlocked: Bool {
-        store?.shield.applicationCategories != nil
-    }
 
     func unblockWithFriend2FA(code: String, expectedCode: String) -> Bool {
         guard code == expectedCode else { return false }
