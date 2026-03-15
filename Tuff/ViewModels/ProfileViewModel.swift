@@ -7,7 +7,7 @@ import UIKit
 @MainActor
 class ProfileViewModel: ObservableObject {
     @Published var user: TuffUser = .currentUser
-    @Published var leagueHistory: [LeagueHistoryEntry] = LeagueHistoryEntry.sampleHistory
+    @Published var leagueHistory: [LeagueHistoryEntry] = []
     @Published var profileImage: UIImage? = nil
 
     var totalEarningsFormatted: String {

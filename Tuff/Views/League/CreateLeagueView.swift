@@ -39,6 +39,7 @@ struct CreateLeagueView: View {
             .background(Color.white)
             .navigationTitle("New League")
             .navigationBarTitleDisplayMode(.large)
+            .colorScheme(.light)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { dismiss() }
@@ -306,6 +307,7 @@ struct JoinLeagueView: View {
             .padding(24)
             .navigationTitle("Join a League")
             .navigationBarTitleDisplayMode(.inline)
+            .colorScheme(.light)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { dismiss() }

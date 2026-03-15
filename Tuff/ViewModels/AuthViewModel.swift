@@ -38,12 +38,11 @@ class AuthViewModel: ObservableObject {
     init() {
         if let user = Auth.auth().currentUser {
             if onboardingComplete(for: user.uid) {
-                // Returning user — go straight to main app
                 isSignedIn = true
                 needsOnboarding = false
             } else {
-                // Firebase keychain token survived a reinstall but UserDefaults was wiped.
-                // Sign out so they go through phone verification first.
+                // Firebase keychain token survived reinstall but UserDefaults was wiped.
+                // Force re-authentication so the user always signs in after reinstall.
                 try? Auth.auth().signOut()
                 isSignedIn = false
                 needsOnboarding = false
@@ -52,14 +51,30 @@ class AuthViewModel: ObservableObject {
         Auth.auth().addStateDidChangeListener { [weak self] _, user in
             Task { @MainActor in
                 guard let self else { return }
-                if let user {
-                    self.isSignedIn = true
-                    self.needsOnboarding = !self.onboardingComplete(for: user.uid)
-                } else {
+                guard let user else {
                     self.isSignedIn = false
                     self.needsOnboarding = false
+                    return
                 }
+                if self.onboardingComplete(for: user.uid) {
+                    self.isSignedIn = true
+                    self.needsOnboarding = false
+                }
+                // Otherwise let verifyCode / resolveOnboardingStatus handle it
             }
+        }
+    }
+
+    // Checks Firestore to decide if onboarding is needed.
+    // setSignedIn=true is used during init (keychain token still valid).
+    private func resolveOnboardingStatus(for uid: String) async {
+        let db = Firestore.firestore()
+        let doc = try? await db.collection("users").document(uid).getDocument()
+        if let data = doc?.data(), data["firstName"] != nil {
+            markOnboardingComplete(for: uid)
+            needsOnboarding = false
+        } else {
+            needsOnboarding = true
         }
     }
 
@@ -97,11 +112,16 @@ class AuthViewModel: ObservableObject {
         )
         do {
             let result = try await Auth.auth().signIn(with: credential)
+            let uid = result.user.uid
             let isNew = result.additionalUserInfo?.isNewUser ?? false
             if isNew {
                 needsOnboarding = true
+            } else if onboardingComplete(for: uid) {
+                needsOnboarding = false
             } else {
-                needsOnboarding = !onboardingComplete(for: result.user.uid)
+                // Returning user but UserDefaults cleared (reinstall) — check Firestore
+                await resolveOnboardingStatus(for: uid)
+                isSignedIn = true
             }
         } catch {
             errorMessage = error.localizedDescription

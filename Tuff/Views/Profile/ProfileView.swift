@@ -49,9 +49,11 @@ struct ProfileView: View {
                 .tracking(0.05 * 26)
                 .padding(.top, 4)
 
-            Text("@\(viewModel.user.username)")
-                .font(TuffFonts.caption(13))
-                .foregroundColor(TuffColors.textSecondary)
+            if !viewModel.user.username.isEmpty {
+                Text("@\(viewModel.user.username)")
+                    .font(TuffFonts.caption(13))
+                    .foregroundColor(TuffColors.textSecondary)
+            }
         }
         .padding(.top, 12)
         .padding(.bottom, 20)
@@ -87,20 +89,24 @@ struct ProfileView: View {
     // MARK: - League History
 
     private var leagueHistory: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("LEAGUE HISTORY")
-                .font(TuffFonts.sectionHeader())
-                .foregroundColor(TuffColors.textSecondary)
-                .tracking(0.15 * 12)
-                .padding(.horizontal, 22)
-                .padding(.top, 20)
+        Group {
+            if !viewModel.leagueHistory.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("LEAGUE HISTORY")
+                        .font(TuffFonts.sectionHeader())
+                        .foregroundColor(TuffColors.textSecondary)
+                        .tracking(0.15 * 12)
+                        .padding(.horizontal, 22)
+                        .padding(.top, 20)
 
-            VStack(spacing: 6) {
-                ForEach(viewModel.leagueHistory) { entry in
-                    LeagueHistoryRow(entry: entry)
+                    VStack(spacing: 6) {
+                        ForEach(viewModel.leagueHistory) { entry in
+                            LeagueHistoryRow(entry: entry)
+                        }
+                    }
+                    .padding(.horizontal, 20)
                 }
             }
-            .padding(.horizontal, 20)
         }
     }
 }
