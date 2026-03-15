@@ -7,7 +7,7 @@ struct TuffDailyReportView: View {
     let data: ReportData
 
     @State private var showFullMonth = false
-    @State private var selectedDate: Date? = nil
+    @State private var selectedDate: Date? = Calendar.current.startOfDay(for: Date())
     @State private var selectedSlice: Int? = nil
 
     private let surface = Color(red: 26/255, green: 26/255, blue: 26/255)
@@ -114,11 +114,13 @@ struct TuffDailyReportView: View {
             HStack(spacing: 0) {
                 toggleButton("7D", active: !showFullMonth) {
                     showFullMonth = false
-                    selectedDate = nil
+                    selectedDate = todayStart
+                    selectedSlice = nil
                 }
                 toggleButton("30D", active: showFullMonth) {
                     showFullMonth = true
-                    selectedDate = nil
+                    selectedDate = todayStart
+                    selectedSlice = nil
                 }
             }
             .padding(2)
@@ -165,16 +167,6 @@ struct TuffDailyReportView: View {
                             .font(.system(size: 22, weight: .black).width(.condensed))
                             .foregroundColor(.white)
                         Spacer()
-                        if selectedDate != nil {
-                            Button {
-                                selectedDate = nil
-                                selectedSlice = nil
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(labelGray)
-                            }
-                        }
                     }
                     .padding(.horizontal, 4)
 
@@ -205,20 +197,18 @@ struct TuffDailyReportView: View {
                                 y: .value("Hours", point.hours)
                             )
                             .foregroundStyle(
-                                selectedDate != nil && Calendar.current.isDate(point.date, inSameDayAs: selectedDate!)
+                                selectedDate.map { Calendar.current.isDate(point.date, inSameDayAs: $0) } == true
                                     ? Color.white : chartLine
                             )
                             .symbolSize(
-                                selectedDate != nil && Calendar.current.isDate(point.date, inSameDayAs: selectedDate!)
+                                selectedDate.map { Calendar.current.isDate(point.date, inSameDayAs: $0) } == true
                                     ? 50 : 20
                             )
                         }
 
-                        if let sel = selectedDate {
-                            RuleMark(x: .value("Selected", sel, unit: .day))
-                                .foregroundStyle(.white.opacity(0.4))
-                                .lineStyle(StrokeStyle(lineWidth: 1))
-                        }
+                        RuleMark(x: .value("Selected", selectedDate ?? todayStart, unit: .day))
+                            .foregroundStyle(.white.opacity(0.4))
+                            .lineStyle(StrokeStyle(lineWidth: 1))
 
                     }
                     .chartXAxis {
@@ -302,14 +292,6 @@ struct TuffDailyReportView: View {
 
     private var breakdownSection: some View {
         VStack(spacing: 12) {
-            HStack {
-                Text(activeDayLabel)
-                    .font(.system(size: 16, weight: .bold).width(.condensed))
-                    .foregroundColor(labelGray)
-                    .tracking(1.2)
-                Spacer()
-            }
-
             if let day = activeDay, !day.apps.isEmpty {
                 VStack(spacing: 18) {
                     donutChart(apps: day.apps, total: day.totalSeconds)
