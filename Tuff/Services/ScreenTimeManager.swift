@@ -37,13 +37,22 @@ class ScreenTimeManager: ObservableObject {
     // MARK: - Authorization
 
     func requestAuthorization() async {
+        let status = AuthorizationCenter.shared.authorizationStatus
+        print("[Tuff] Current auth status: \(status)")
+
+        if status == .approved {
+            isAuthorized = true
+            print("[Tuff] Already authorized ✓")
+            return
+        }
+
         do {
             try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
             isAuthorized = true
             startMonitoring()
             print("[Tuff] Screen Time authorized ✓")
         } catch {
-            print("[Tuff] Screen Time auth failed (needs Family Controls entitlement): \(error.localizedDescription)")
+            print("[Tuff] Screen Time auth failed: \(error)")
             isAuthorized = false
         }
     }
@@ -51,16 +60,24 @@ class ScreenTimeManager: ObservableObject {
     // MARK: - App Blocking
 
     func blockSelectedApps() {
-        guard isAuthorized, let store else { return }
-        store.shield.applications = selectedAppsToBlock.applicationTokens.isEmpty
-            ? nil : selectedAppsToBlock.applicationTokens
-        store.shield.applicationCategories = selectedAppsToBlock.categoryTokens.isEmpty
-            ? nil : .specific(selectedAppsToBlock.categoryTokens)
+        guard let store else {
+            print("[Tuff] blockSelectedApps: store is nil")
+            return
+        }
+
+        let appTokens = selectedAppsToBlock.applicationTokens
+        let catTokens = selectedAppsToBlock.categoryTokens
+        print("[Tuff] blockSelectedApps: \(appTokens.count) apps, \(catTokens.count) categories, authorized=\(isAuthorized)")
+
+        store.shield.applications = appTokens.isEmpty ? nil : appTokens
+        store.shield.applicationCategories = catTokens.isEmpty ? nil : .specific(catTokens)
+
+        print("[Tuff] Shield applied — apps: \(store.shield.applications?.count ?? 0), categories: \(store.shield.applicationCategories != nil)")
     }
 
     func unblockAllApps() {
-        store?.shield.applications = nil
-        store?.shield.applicationCategories = nil
+        store?.clearAllSettings()
+        print("[Tuff] All shields cleared")
     }
 
 

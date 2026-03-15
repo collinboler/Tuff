@@ -111,6 +111,8 @@
 		EE001122334455667788AA02 /* ShieldActionExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldActionExtension.swift; sourceTree = "<group>"; };
 		EE001122334455667788AA03 /* TuffShieldAction.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffShieldAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		EE001122334455667788AA05 /* Info.plist (ShieldAction) */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		FF001122334455667788AA01 /* TuffShieldConfiguration.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TuffShieldConfiguration.entitlements; sourceTree = "<group>"; };
+		FF001122334455667788AA02 /* TuffShieldAction.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TuffShieldAction.entitlements; sourceTree = "<group>"; };
 		86CCBDA2CCE6E9715DA96805 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
 		AA001122334455667788AABC /* SharedKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedKeys.swift; sourceTree = "<group>"; };
 		935D673557E80C6FE7B1CDF1 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
@@ -159,6 +161,7 @@
 			children = (
 				EE001122334455667788AA02 /* ShieldActionExtension.swift */,
 				EE001122334455667788AA05 /* Info.plist (ShieldAction) */,
+				FF001122334455667788AA02 /* TuffShieldAction.entitlements */,
 			);
 			path = TuffShieldAction;
 			sourceTree = "<group>";
@@ -168,6 +171,7 @@
 			children = (
 				D172378BAEC9ADB0E3BC5BC9 /* Info.plist */,
 				D37C07E37121E0FAB17CA247 /* ShieldConfigurationExtension.swift */,
+				FF001122334455667788AA01 /* TuffShieldConfiguration.entitlements */,
 			);
 			path = TuffShieldConfiguration;
 			sourceTree = "<group>";
@@ -665,12 +669,15 @@
 		EE001122334455667788AA09 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = TuffShieldAction/TuffShieldAction.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TuffShieldAction/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -687,12 +694,15 @@
 		EE001122334455667788AA10 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = TuffShieldAction/TuffShieldAction.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TuffShieldAction/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -709,12 +719,15 @@
 		1280E02C693D4CDE3167839B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = TuffShieldConfiguration/TuffShieldConfiguration.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TuffShieldConfiguration/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -889,12 +902,15 @@
 		F54A3BC8AECE1DD7A4A4C428 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = TuffShieldConfiguration/TuffShieldConfiguration.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TuffShieldConfiguration/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

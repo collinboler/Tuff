@@ -35,9 +35,11 @@ struct HomeView: View {
             isPresented: $showAppPicker,
             selection: $screenTime.selectedAppsToBlock
         )
-        .onChange(of: screenTime.selectedAppsToBlock) { _ in
-            if !screenTime.selectedAppsToBlock.applicationTokens.isEmpty
-                || !screenTime.selectedAppsToBlock.categoryTokens.isEmpty {
+        .onChange(of: screenTime.selectedAppsToBlock) { newValue in
+            let apps = newValue.applicationTokens
+            let cats = newValue.categoryTokens
+            print("[Tuff] Picker changed: \(apps.count) apps, \(cats.count) categories")
+            if !apps.isEmpty || !cats.isEmpty {
                 screenTime.blockSelectedApps()
                 isBlocking = true
             }

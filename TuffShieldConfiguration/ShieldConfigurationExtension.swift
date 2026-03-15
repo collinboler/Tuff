@@ -50,11 +50,11 @@ class TuffShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "Tap the button below — after 5 seconds the app will open.",
+                text: "This app is blocked by Tuff to help you stay focused.",
                 color: subtitleGray
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
-                text: "Wait 5 Seconds to Open",
+                text: "Open Anyway",
                 color: .white
             ),
             primaryButtonBackgroundColor: tuffGreen,
@@ -75,16 +75,16 @@ class TuffShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "Tap the button below — after 5 seconds the site will open.",
+                text: "This site is blocked by Tuff to help you stay focused.",
                 color: subtitleGray
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
-                text: "Wait 5 Seconds to Open",
+                text: "Open Anyway",
                 color: .white
             ),
             primaryButtonBackgroundColor: tuffGreen,
             secondaryButtonLabel: ShieldConfiguration.Label(
-                text: "Go Back",
+                text: "Stay Focused",
                 color: subtitleGray
             )
         )

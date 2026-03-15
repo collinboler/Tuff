@@ -19,7 +19,7 @@
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>
-		<string>com.apple.ManagedSettings.shield-configuration</string>
+		<string>com.apple.ManagedSettingsUI.shield-configuration-service</string>
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).TuffShieldConfigurationExtension</string>
 	</dict>
