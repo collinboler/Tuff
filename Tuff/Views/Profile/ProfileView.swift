@@ -11,7 +11,7 @@ struct ProfileView: View {
                 statsRow
                 leagueHistory
             }
-            .padding(.bottom, 80)
+            .padding(.bottom, 16)
         }
         .background(Color.white)
     }

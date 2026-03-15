@@ -16,7 +16,7 @@ struct HomeView: View {
                 divider
                 leaguesSection
             }
-            .padding(.bottom, 80)
+            .padding(.bottom, 16)
         }
         .background(Color.white)
         .sheet(isPresented: $viewModel.showLeagueDetail) {

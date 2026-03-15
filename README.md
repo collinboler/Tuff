@@ -62,6 +62,18 @@ Tuff/
 
 5. Build and run on a physical device (Screen Time APIs require a real device)
 
+### Firebase
+
+- `GoogleService-Info.plist` is in the repo root and is added to the **Tuff** target (copy bundle resources).
+- Firebase is initialized in `TuffApp` via `AppDelegate` and `FirebaseApp.configure()`.
+- **Linking (per [Firebase iOS setup](https://firebase.google.com/docs/ios/setup)):** Add the SDK via **File → Add Package Dependencies** → `https://github.com/firebase/firebase-ios-sdk`. When choosing libraries, add **FirebaseCore** (and FirebaseAuth, FirebaseFirestore if needed) and set **Add to Target** to **Tuff**. The **Tuff** target has **Other Linker Flags** `-ObjC` set (required by Firebase).
+- **If you still see "No such module 'FirebaseCore'":**
+  1. In Xcode: **File → Packages → Reset Package Caches**.
+  2. **Product → Clean Build Folder** (⇧⌘K).
+  3. Quit Xcode, delete DerivedData for this project:  
+     `rm -rf ~/Library/Developer/Xcode/DerivedData/Tuff-*`
+  4. Reopen the project and build again (⌘B).
+
 ### Option B: Manual Xcode Setup
 
 1. Open Xcode → File → New → Project → iOS App

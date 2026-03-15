@@ -71,12 +71,14 @@ class ScreenTimeManager: ObservableObject {
 
         store.shield.applications = appTokens.isEmpty ? nil : appTokens
         store.shield.applicationCategories = catTokens.isEmpty ? nil : .specific(catTokens)
+        store.shield.webDomainCategories = .all()
 
-        print("[Tuff] Shield applied — apps: \(store.shield.applications?.count ?? 0), categories: \(store.shield.applicationCategories != nil)")
+        print("[Tuff] Shield applied — apps: \(store.shield.applications?.count ?? 0), categories: \(store.shield.applicationCategories != nil), webDomains: all")
     }
 
     func unblockAllApps() {
         store?.clearAllSettings()
+        store?.shield.webDomainCategories = nil
         print("[Tuff] All shields cleared")
     }
 

@@ -62,10 +62,7 @@ class TuffShieldActionExtension: ShieldActionDelegate {
             Task {
                 try? await Task.sleep(nanoseconds: 5_000_000_000)
                 let store = ManagedSettingsStore()
-                if var blocked = store.shield.webDomains {
-                    blocked.remove(webDomain)
-                    store.shield.webDomains = blocked.isEmpty ? nil : blocked
-                }
+                store.shield.webDomainCategories = nil
                 completionHandler(.close)
             }
         default:

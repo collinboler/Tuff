@@ -24,7 +24,6 @@ struct StatsView: View {
             #endif
         }
         .padding(.horizontal, 20)
-        .padding(.bottom, 80)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.white)
     }
