@@ -110,7 +110,7 @@ class AuthViewModel: ObservableObject {
 
     // MARK: - Onboarding
 
-    func completeOnboarding(firstName: String, lastName: String, profileImage: UIImage? = nil) {
+    func completeOnboarding(firstName: String, lastName: String, username: String, profileImage: UIImage? = nil) {
         guard let user = Auth.auth().currentUser else { return }
         markOnboardingComplete(for: user.uid)
         needsOnboarding = false
@@ -129,6 +129,7 @@ class AuthViewModel: ObservableObject {
             try? await db.collection("users").document(uid).setData([
                 "firstName": firstName,
                 "lastName": lastName,
+                "username": username,
                 "phone": phone,
                 "createdAt": FieldValue.serverTimestamp()
             ], merge: true)

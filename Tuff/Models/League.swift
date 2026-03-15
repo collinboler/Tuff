@@ -1,27 +1,19 @@
 import Foundation
+import FirebaseFirestore
+import FirebaseAuth
 
 struct League: Identifiable {
-    let id: UUID
+    let id: String
     var name: String
-    var key: String
+    var createdBy: String   // Firebase uid
     var startDate: Date
     var endDate: Date
-    var potAmount: Double
     var costPerPerson: Double
+    var inviteCode: String
     var isActive: Bool
+    var members: [LeagueMember]
 
-    var members: [LeagueMember] {
-        let users = TuffUser.users(forLeague: key)
-        return users.enumerated().map { i, user in
-            LeagueMember(
-                id: user.id,
-                user: user,
-                currentScreenTime: Double(user.screenTimeMinutes * 60),
-                rank: i + 1,
-                lastUpdated: Date()
-            )
-        }
-    }
+    var potAmount: Double { costPerPerson * Double(members.count) }
 
     var dateRangeText: String {
         let formatter = DateFormatter()
@@ -37,8 +29,51 @@ struct League: Identifiable {
         ]
     }
 
-    var sortedMembers: [LeagueMember] {
-        members
+    var sortedMembers: [LeagueMember] { members }
+
+    // MARK: - Firestore parsing
+
+    static func from(_ data: [String: Any], id: String) -> League? {
+        guard let name = data["name"] as? String,
+              let startTs = data["startDate"] as? Timestamp,
+              let endTs = data["endDate"] as? Timestamp else { return nil }
+
+        let currentUID = Auth.auth().currentUser?.uid ?? ""
+        let memberProfiles = data["memberProfiles"] as? [[String: Any]] ?? []
+        let members: [LeagueMember] = memberProfiles.enumerated().map { i, profile in
+            let uid = profile["uid"] as? String ?? ""
+            let memberUser = TuffUser(
+                id: UUID(),
+                uid: uid,
+                name: profile["name"] as? String ?? "Unknown",
+                username: profile["username"] as? String ?? "",
+                imageName: "",
+                isCurrentUser: uid == currentUID,
+                screenTimeMinutes: profile["screenTimeMinutes"] as? Int ?? 0,
+                totalLeagues: 0,
+                leaguesWon: 0,
+                totalEarnings: 0
+            )
+            return LeagueMember(
+                id: UUID(),
+                user: memberUser,
+                currentScreenTime: Double((profile["screenTimeMinutes"] as? Int ?? 0) * 60),
+                rank: i + 1,
+                lastUpdated: Date()
+            )
+        }
+
+        return League(
+            id: id,
+            name: name,
+            createdBy: data["createdBy"] as? String ?? "",
+            startDate: startTs.dateValue(),
+            endDate: endTs.dateValue(),
+            costPerPerson: data["costPerPerson"] as? Double ?? 0,
+            inviteCode: data["inviteCode"] as? String ?? "",
+            isActive: data["isActive"] as? Bool ?? true,
+            members: members
+        )
     }
 }
 
@@ -57,14 +92,11 @@ struct LeagueHistoryEntry: Identifiable {
     }
 
     var earningsText: String {
-        if earnings >= 0 {
-            return "+$\(Int(earnings))"
-        }
-        return "-$\(Int(abs(earnings)))"
+        earnings >= 0 ? "+$\(Int(earnings))" : "-$\(Int(abs(earnings)))"
     }
 }
 
-extension League {
+extension LeagueHistoryEntry {
     static func makeSampleDate(month: Int, day: Int, year: Int = 2026) -> Date {
         var components = DateComponents()
         components.year = year
@@ -73,69 +105,20 @@ extension League {
         return Calendar.current.date(from: components) ?? Date()
     }
 
-    static var sampleLeagues: [League] {
-        [
-            League(
-                id: UUID(),
-                name: "Tiger Inn",
-                key: "tiger",
-                startDate: makeSampleDate(month: 3, day: 1),
-                endDate: makeSampleDate(month: 3, day: 7),
-                potAmount: 78,
-                costPerPerson: 1,
-                isActive: true
-            ),
-            League(
-                id: UUID(),
-                name: "Work Squad",
-                key: "work",
-                startDate: makeSampleDate(month: 3, day: 1),
-                endDate: makeSampleDate(month: 3, day: 31),
-                potAmount: 50,
-                costPerPerson: 5,
-                isActive: true
-            ),
-            League(
-                id: UUID(),
-                name: "Fam Bam",
-                key: "fam",
-                startDate: makeSampleDate(month: 2, day: 24),
-                endDate: makeSampleDate(month: 3, day: 2),
-                potAmount: 30,
-                costPerPerson: 10,
-                isActive: true
-            )
-        ]
-    }
-}
-
-extension LeagueHistoryEntry {
     static var sampleHistory: [LeagueHistoryEntry] {
         [
             LeagueHistoryEntry(id: UUID(), leagueName: "Frosh Floor",
-                startDate: League.makeSampleDate(month: 2, day: 17),
-                endDate: League.makeSampleDate(month: 2, day: 23),
+                startDate: makeSampleDate(month: 2, day: 17),
+                endDate: makeSampleDate(month: 2, day: 23),
                 placement: 1, earnings: 45),
             LeagueHistoryEntry(id: UUID(), leagueName: "Winter Break",
-                startDate: League.makeSampleDate(month: 12, day: 20, year: 2025),
-                endDate: League.makeSampleDate(month: 1, day: 2),
+                startDate: makeSampleDate(month: 12, day: 20, year: 2025),
+                endDate: makeSampleDate(month: 1, day: 2),
                 placement: 2, earnings: 28),
-            LeagueHistoryEntry(id: UUID(), leagueName: "Work Squad",
-                startDate: League.makeSampleDate(month: 2, day: 1),
-                endDate: League.makeSampleDate(month: 2, day: 28),
-                placement: 4, earnings: -5),
             LeagueHistoryEntry(id: UUID(), leagueName: "Tiger Inn",
-                startDate: League.makeSampleDate(month: 1, day: 20),
-                endDate: League.makeSampleDate(month: 1, day: 26),
+                startDate: makeSampleDate(month: 1, day: 20),
+                endDate: makeSampleDate(month: 1, day: 26),
                 placement: 1, earnings: 39),
-            LeagueHistoryEntry(id: UUID(), leagueName: "Fam Bam",
-                startDate: League.makeSampleDate(month: 1, day: 1),
-                endDate: League.makeSampleDate(month: 1, day: 7),
-                placement: 3, earnings: -10),
-            LeagueHistoryEntry(id: UUID(), leagueName: "New Year Challenge",
-                startDate: League.makeSampleDate(month: 1, day: 1),
-                endDate: League.makeSampleDate(month: 1, day: 14),
-                placement: 1, earnings: 36),
         ]
     }
 }

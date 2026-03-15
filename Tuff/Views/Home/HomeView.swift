@@ -31,6 +31,11 @@ struct HomeView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $viewModel.showJoinLeague) {
+            JoinLeagueView(viewModel: viewModel)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+        }
         .familyActivityPicker(
             isPresented: $showAppPicker,
             selection: $screenTime.selectedAppsToBlock
@@ -90,8 +95,12 @@ struct HomeView: View {
         let isYou = user.id == viewModel.currentUser.id
         let allUsers = viewModel.carouselUsers
         let rank = (allUsers.firstIndex(where: { $0.id == user.id }) ?? 0) + 1
+        let userKey = user.uid.isEmpty ? user.id.uuidString : user.uid
         let leagueNames = viewModel.leagues
-            .filter { $0.members.contains(where: { $0.user.id == user.id }) }
+            .filter { $0.members.contains(where: {
+                let k = $0.user.uid.isEmpty ? $0.user.id.uuidString : $0.user.uid
+                return k == userKey
+            })}
             .map { $0.name.uppercased() }
 
         return HStack(alignment: .center, spacing: 12) {
@@ -218,17 +227,31 @@ struct HomeView: View {
             }
             .padding(.horizontal, 16)
 
-            Button {
-                viewModel.showCreateLeague = true
-            } label: {
-                Text("+ NEW LEAGUE")
-                    .font(TuffFonts.newButton())
-                    .foregroundColor(.black)
-                    .tracking(0.09 * 17)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(TuffColors.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            HStack(spacing: 8) {
+                Button {
+                    viewModel.showCreateLeague = true
+                } label: {
+                    Text("+ NEW LEAGUE")
+                        .font(TuffFonts.newButton())
+                        .foregroundColor(.black)
+                        .tracking(0.09 * 17)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(TuffColors.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                Button {
+                    viewModel.showJoinLeague = true
+                } label: {
+                    Text("JOIN")
+                        .font(TuffFonts.newButton())
+                        .foregroundColor(TuffColors.accent)
+                        .tracking(0.09 * 17)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(TuffColors.accent.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
             }
             .padding(.horizontal, 16)
             .padding(.top, 4)

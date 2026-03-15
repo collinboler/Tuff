@@ -41,12 +41,12 @@ class ProfileViewModel: ObservableObject {
             var updated = self.user
             updated = TuffUser(
                 id: updated.id,
+                uid: firebaseUser.uid,
                 name: fullName.isEmpty ? "You" : fullName,
-                username: phone,
-                imageName: "",          // handled via profileImage
+                username: data["username"] as? String ?? phone,
+                imageName: "",
                 isCurrentUser: true,
                 screenTimeMinutes: updated.screenTimeMinutes,
-                leagueKeys: updated.leagueKeys,
                 totalLeagues: updated.totalLeagues,
                 leaguesWon: updated.leaguesWon,
                 totalEarnings: updated.totalEarnings

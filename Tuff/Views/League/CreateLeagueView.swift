@@ -1,8 +1,12 @@
 import SwiftUI
 import FamilyControls
+import FirebaseAuth
+import FirebaseFirestore
 
 struct CreateLeagueView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var screenTimeManager: ScreenTimeManager
+
     @State private var leagueName = ""
     @State private var startDate = Date()
     @State private var endDate = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: Date()) ?? Date()
@@ -10,15 +14,8 @@ struct CreateLeagueView: View {
     @State private var inviteCode = ""
     @State private var showAppPicker = false
     @State private var selectedApps = FamilyActivitySelection()
-    @State private var blockingMode: BlockingMode = .none
-
-    @EnvironmentObject var screenTimeManager: ScreenTimeManager
-
-    enum BlockingMode: String, CaseIterable {
-        case none = "None"
-        case friend2FA = "Friend 2FA"
-        case customChallenge = "Custom Challenge"
-    }
+    @State private var isCreating = false
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -28,7 +25,13 @@ struct CreateLeagueView: View {
                     datesRow
                     buyInField
                     appBlocking
-                    inviteField
+                    inviteSection
+                    if let err = errorMessage {
+                        Text(err)
+                            .font(.system(size: 13))
+                            .foregroundColor(.red)
+                            .padding(.horizontal, 4)
+                    }
                     createButton
                 }
                 .padding(20)
@@ -103,14 +106,13 @@ struct CreateLeagueView: View {
     private var appBlocking: some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionLabel("APP BLOCKING (OPTIONAL)")
-
             Button {
                 showAppPicker = true
             } label: {
                 HStack {
                     Image(systemName: "apps.iphone")
                         .font(.system(size: 16))
-                    Text("Choose Apps to Block")
+                    Text(selectedApps.applicationTokens.isEmpty ? "Choose Apps to Block" : "\(selectedApps.applicationTokens.count) app(s) selected")
                         .font(TuffFonts.body(14))
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -122,59 +124,21 @@ struct CreateLeagueView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .familyActivityPicker(isPresented: $showAppPicker, selection: $selectedApps)
-
-            ForEach(BlockingMode.allCases.filter { $0 != .none }, id: \.rawValue) { mode in
-                blockingOption(mode: mode)
-            }
         }
     }
 
-    private func blockingOption(mode: BlockingMode) -> some View {
-        Button {
-            blockingMode = mode
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: mode == .friend2FA ? "person.2.fill" : "sparkles")
-                    .font(.system(size: 14))
-                    .foregroundColor(TuffColors.accent)
-                    .frame(width: 28)
+    // MARK: - Invite Code
 
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(mode.rawValue)
-                        .font(TuffFonts.body(13))
-                        .foregroundColor(.black)
-                    Text(mode == .friend2FA
-                         ? "A friend must send you a code to unblock"
-                         : "Complete a task to earn screen time")
-                        .font(TuffFonts.caption(10))
-                        .foregroundColor(TuffColors.textSecondary)
-                }
-
-                Spacer()
-
-                Image(systemName: blockingMode == mode ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(blockingMode == mode ? TuffColors.accent : TuffColors.navInactive)
-            }
-            .padding(10)
-            .background(blockingMode == mode ? TuffColors.accent.opacity(0.08) : TuffColors.tagBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(blockingMode == mode ? TuffColors.accent.opacity(0.3) : Color.clear, lineWidth: 1)
-            )
-        }
-    }
-
-    // MARK: - Invite
-
-    private var inviteField: some View {
+    private var inviteSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            sectionLabel("INVITE FRIENDS")
+            sectionLabel("INVITE CODE")
             HStack {
                 Image(systemName: "link")
                     .foregroundColor(TuffColors.textSecondary)
-                TextField("Tap Generate for an invite code", text: $inviteCode)
+                TextField("Auto-generated on create", text: $inviteCode)
                     .font(TuffFonts.body(13))
+                    .autocapitalization(.allCharacters)
+                    .autocorrectionDisabled()
                 Button {
                     inviteCode = String((0..<6).map { _ in "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".randomElement()! })
                 } label: {
@@ -190,6 +154,9 @@ struct CreateLeagueView: View {
             .padding(12)
             .background(TuffColors.tagBackground)
             .clipShape(RoundedRectangle(cornerRadius: 8))
+            Text("Share this code with friends to invite them")
+                .font(TuffFonts.caption(11))
+                .foregroundColor(TuffColors.textSecondary)
         }
     }
 
@@ -197,20 +164,75 @@ struct CreateLeagueView: View {
 
     private var createButton: some View {
         Button {
-            screenTimeManager.selectedAppsToBlock = selectedApps
-            screenTimeManager.blockSelectedApps()
-            dismiss()
+            Task { await createLeague() }
         } label: {
-            Text("+ CREATE LEAGUE")
-                .font(TuffFonts.newButton())
-                .foregroundColor(.black)
-                .tracking(0.09 * 17)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(TuffColors.accent)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(leagueName.trimmingCharacters(in: .whitespaces).isEmpty ? Color(hex: "E0E0E0") : TuffColors.accent)
+                    .frame(height: 54)
+                if isCreating {
+                    ProgressView().tint(.black)
+                } else {
+                    Text("+ CREATE LEAGUE")
+                        .font(TuffFonts.newButton())
+                        .foregroundColor(.black)
+                        .tracking(0.09 * 17)
+                }
+            }
         }
+        .disabled(leagueName.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
         .padding(.top, 6)
+    }
+
+    // MARK: - Firestore save
+
+    private func createLeague() async {
+        guard let uid = Auth.auth().currentUser?.uid else { return }
+        isCreating = true
+        errorMessage = nil
+
+        let code = inviteCode.isEmpty
+            ? String((0..<6).map { _ in "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".randomElement()! })
+            : inviteCode.uppercased()
+
+        let db = Firestore.firestore()
+        let userDoc = try? await db.collection("users").document(uid).getDocument()
+        let userData = userDoc?.data()
+        let firstName = userData?["firstName"] as? String ?? ""
+        let lastName  = userData?["lastName"]  as? String ?? ""
+        let username  = userData?["username"]  as? String ?? ""
+        let memberProfile: [String: Any] = [
+            "uid": uid,
+            "name": "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces),
+            "username": username,
+            "screenTimeMinutes": 0
+        ]
+
+        let docRef = db.collection("leagues").document()
+        do {
+            try await docRef.setData([
+                "name": leagueName.trimmingCharacters(in: .whitespaces),
+                "createdBy": uid,
+                "startDate": Timestamp(date: startDate),
+                "endDate": Timestamp(date: endDate),
+                "costPerPerson": Double(costPerPerson) ?? 0,
+                "inviteCode": code,
+                "memberUids": [uid],
+                "memberProfiles": [memberProfile],
+                "isActive": true,
+                "createdAt": FieldValue.serverTimestamp()
+            ])
+
+            if !selectedApps.applicationTokens.isEmpty {
+                screenTimeManager.selectedAppsToBlock = selectedApps
+                screenTimeManager.blockSelectedApps()
+            }
+
+            dismiss()
+        } catch {
+            errorMessage = error.localizedDescription
+            isCreating = false
+        }
     }
 
     private func sectionLabel(_ text: String) -> some View {
@@ -218,5 +240,78 @@ struct CreateLeagueView: View {
             .font(TuffFonts.sectionHeader())
             .foregroundColor(TuffColors.textSecondary)
             .tracking(0.15 * 12)
+    }
+}
+
+// MARK: - Join League Sheet
+
+struct JoinLeagueView: View {
+    @ObservedObject var viewModel: HomeViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var code = ""
+    @State private var isJoining = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Enter the invite code shared by the league creator.")
+                    .font(.system(size: 15))
+                    .foregroundColor(TuffColors.textSecondary)
+
+                TextField("INVITE CODE", text: $code)
+                    .font(.system(size: 22, weight: .bold))
+                    .multilineTextAlignment(.center)
+                    .autocapitalization(.allCharacters)
+                    .autocorrectionDisabled()
+                    .padding(14)
+                    .background(Color(hex: "F5F5F5"))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                if let err = errorMessage {
+                    Text(err)
+                        .font(.system(size: 13))
+                        .foregroundColor(.red)
+                }
+
+                Button {
+                    Task {
+                        isJoining = true
+                        errorMessage = nil
+                        if let err = await viewModel.joinLeague(inviteCode: code) {
+                            errorMessage = err
+                        } else {
+                            dismiss()
+                        }
+                        isJoining = false
+                    }
+                } label: {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(code.isEmpty ? Color(hex: "E0E0E0") : TuffColors.accent)
+                            .frame(height: 54)
+                        if isJoining {
+                            ProgressView().tint(.black)
+                        } else {
+                            Text("JOIN LEAGUE")
+                                .font(TuffFonts.newButton())
+                                .foregroundColor(.black)
+                        }
+                    }
+                }
+                .disabled(code.isEmpty || isJoining)
+
+                Spacer()
+            }
+            .padding(24)
+            .navigationTitle("Join a League")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(TuffColors.textSecondary)
+                }
+            }
+        }
     }
 }

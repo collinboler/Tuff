@@ -32,6 +32,7 @@ class ScreenTimeManager: ObservableObject {
     private init() {
         store = ManagedSettingsStore()
         center = DeviceActivityCenter()
+        isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
     }
 
     // MARK: - Authorization

@@ -1,46 +1,135 @@
 import Foundation
 import Combine
+import FirebaseAuth
+import FirebaseFirestore
 
 @MainActor
 class HomeViewModel: ObservableObject {
     @Published var currentUser: TuffUser = .currentUser
     @Published var selectedCarouselUser: TuffUser = .currentUser
-    @Published var leagues: [League] = League.sampleLeagues
+    @Published var leagues: [League] = []
     @Published var selectedLeague: League?
     @Published var showLeagueDetail = false
     @Published var showCreateLeague = false
+    @Published var showJoinLeague = false
 
-    private let screenTimeManager = ScreenTimeManager.shared
+    private var leaguesListener: ListenerRegistration?
+
+    init() {
+        loadCurrentUser()
+        startLeaguesListener()
+    }
+
+    // MARK: - Load real user
+
+    private func loadCurrentUser() {
+        guard let firebaseUser = Auth.auth().currentUser else { return }
+        let uid = firebaseUser.uid
+        Task {
+            let db = Firestore.firestore()
+            guard let doc = try? await db.collection("users").document(uid).getDocument(),
+                  let data = doc.data() else { return }
+            let firstName = data["firstName"] as? String ?? ""
+            let lastName  = data["lastName"]  as? String ?? ""
+            let fullName  = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+            let username  = data["username"]  as? String ?? firebaseUser.phoneNumber ?? ""
+            let user = TuffUser(
+                id: UUID(),
+                uid: uid,
+                name: fullName.isEmpty ? "You" : fullName,
+                username: username,
+                imageName: "",
+                isCurrentUser: true,
+                screenTimeMinutes: data["screenTimeMinutes"] as? Int ?? 0,
+                totalLeagues: data["totalLeagues"] as? Int ?? 0,
+                leaguesWon: data["leaguesWon"] as? Int ?? 0,
+                totalEarnings: data["totalEarnings"] as? Double ?? 0
+            )
+            self.currentUser = user
+            if self.selectedCarouselUser.isCurrentUser {
+                self.selectedCarouselUser = user
+            }
+        }
+    }
+
+    // MARK: - Firestore leagues listener
+
+    private func startLeaguesListener() {
+        guard let uid = Auth.auth().currentUser?.uid else { return }
+        let db = Firestore.firestore()
+        leaguesListener = db.collection("leagues")
+            .whereField("memberUids", arrayContains: uid)
+            .addSnapshotListener { [weak self] snapshot, _ in
+                guard let self, let docs = snapshot?.documents else { return }
+                Task { @MainActor in
+                    self.leagues = docs.compactMap { League.from($0.data(), id: $0.documentID) }
+                }
+            }
+    }
+
+    deinit {
+        leaguesListener?.remove()
+    }
+
+    // MARK: - Join by invite code
+
+    func joinLeague(inviteCode: String) async -> String? {
+        guard let uid = Auth.auth().currentUser?.uid else { return "Not signed in" }
+        let db = Firestore.firestore()
+        let snap = try? await db.collection("leagues")
+            .whereField("inviteCode", isEqualTo: inviteCode.uppercased())
+            .limit(to: 1)
+            .getDocuments()
+        guard let doc = snap?.documents.first else { return "Invalid invite code" }
+        let leagueId = doc.documentID
+
+        // Fetch current user profile
+        let userDoc = try? await db.collection("users").document(uid).getDocument()
+        let userData = userDoc?.data()
+        let firstName = userData?["firstName"] as? String ?? ""
+        let lastName  = userData?["lastName"]  as? String ?? ""
+        let username  = userData?["username"]  as? String ?? ""
+        let memberProfile: [String: Any] = [
+            "uid": uid,
+            "name": "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces),
+            "username": username,
+            "screenTimeMinutes": 0
+        ]
+
+        try? await db.collection("leagues").document(leagueId).updateData([
+            "memberUids": FieldValue.arrayUnion([uid]),
+            "memberProfiles": FieldValue.arrayUnion([memberProfile])
+        ])
+        return nil
+    }
+
+    // MARK: - Carousel
+
+    var carouselUsers: [TuffUser] {
+        var seen = Set<String>()
+        var result: [TuffUser] = []
+        // Current user always first
+        let key = currentUser.uid.isEmpty ? currentUser.id.uuidString : currentUser.uid
+        seen.insert(key)
+        result.append(currentUser)
+        // Add league members
+        for league in leagues {
+            for member in league.members {
+                let k = member.user.uid.isEmpty ? member.user.id.uuidString : member.user.uid
+                if seen.insert(k).inserted {
+                    result.append(member.user)
+                }
+            }
+        }
+        return result.sorted { $0.screenTimeMinutes < $1.screenTimeMinutes }
+    }
 
     var overallRank: Int {
-        let sorted = TuffUser.allUsers.sorted { $0.screenTimeMinutes < $1.screenTimeMinutes }
+        let sorted = carouselUsers.sorted { $0.screenTimeMinutes < $1.screenTimeMinutes }
         return (sorted.firstIndex(where: { $0.isCurrentUser }) ?? 0) + 1
     }
 
-    var totalParticipants: Int {
-        TuffUser.allUsers.count
-    }
-
-    var leagueNames: [String] {
-        leagues.filter { $0.members.contains(where: { $0.user.isCurrentUser }) }
-            .map { $0.name.uppercased() }
-    }
-
-    /// All unique users across leagues, sorted by screen time (lowest first)
-    var carouselUsers: [TuffUser] {
-        var seen = Set<UUID>()
-        var result: [TuffUser] = []
-        for user in TuffUser.allUsers.sorted(by: { $0.screenTimeMinutes < $1.screenTimeMinutes }) {
-            if seen.insert(user.id).inserted {
-                result.append(user)
-            }
-        }
-        return result
-    }
-
-    func refreshData() async {
-        // In production, fetch real screen time here
-    }
+    var totalParticipants: Int { carouselUsers.count }
 
     func selectCarouselUser(at index: Int) {
         let users = carouselUsers

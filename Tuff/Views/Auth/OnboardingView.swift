@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import FamilyControls
+import FirebaseFirestore
 
 struct OnboardingView: View {
     @EnvironmentObject private var auth: AuthViewModel
@@ -10,6 +11,9 @@ struct OnboardingView: View {
     @State private var step: Step = .name
     @State private var firstName = ""
     @State private var lastName = ""
+    @State private var username = ""
+    @State private var usernameError: String? = nil
+    @State private var isCheckingUsername = false
     @State private var profileImage: UIImage? = nil
     @State private var showSourcePicker = false
     @State private var showCamera = false
@@ -18,10 +22,10 @@ struct OnboardingView: View {
     @State private var screenTimeGranted = false
     @FocusState private var focusedField: Field?
 
-    private enum Step: Int { case name, photo, screenTime, notifications }
-    private enum Field { case firstName, lastName }
+    private enum Step: Int { case name, username, photo, screenTime, notifications }
+    private enum Field { case firstName, lastName, username }
 
-    private let totalSteps = 4
+    private let totalSteps = 5
 
     var body: some View {
         ZStack {
@@ -36,6 +40,7 @@ struct OnboardingView: View {
 
                 switch step {
                 case .name:          nameStep
+                case .username:      usernameStep
                 case .photo:         photoStep
                 case .screenTime:    screenTimeStep
                 case .notifications: notificationsStep
@@ -127,8 +132,79 @@ struct OnboardingView: View {
 
             continueButton(title: "Continue",
                            disabled: firstName.trimmingCharacters(in: .whitespaces).isEmpty) {
-                step = .photo
+                step = .username
             }
+        }
+    }
+
+    // MARK: - Username step
+
+    private var usernameStep: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("PICK A USERNAME")
+                    .font(.system(size: 28, weight: .black, design: .default).width(.condensed))
+                    .foregroundColor(.black)
+                    .tracking(1)
+                Text("Your unique @handle for leagues.")
+                    .font(.system(size: 15))
+                    .foregroundColor(TuffColors.textSecondary)
+            }
+
+            HStack(spacing: 0) {
+                Text("@")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.black)
+                    .padding(.leading, 16)
+                Rectangle()
+                    .fill(Color(hex: "E0E0E0"))
+                    .frame(width: 1, height: 22)
+                    .padding(.horizontal, 10)
+                TextField("username", text: $username)
+                    .font(.system(size: 17))
+                    .autocapitalization(.none)
+                    .autocorrectionDisabled()
+                    .focused($focusedField, equals: .username)
+                    .padding(.trailing, 16)
+            }
+            .frame(height: 54)
+            .background(Color(hex: "F5F5F5"))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .onAppear { focusedField = .username }
+
+            if let err = usernameError {
+                Text(err)
+                    .font(.system(size: 13))
+                    .foregroundColor(TuffColors.negative)
+            }
+
+            continueButton(
+                title: isCheckingUsername ? "Checking..." : "Continue",
+                disabled: username.trimmingCharacters(in: .whitespaces).isEmpty || isCheckingUsername
+            ) {
+                Task { await checkAndAdvanceFromUsername() }
+            }
+        }
+    }
+
+    private func checkAndAdvanceFromUsername() async {
+        let trimmed = username.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !trimmed.isEmpty else { return }
+        isCheckingUsername = true
+        usernameError = nil
+
+        let db = Firestore.firestore()
+        let snap = try? await db.collection("users")
+            .whereField("username", isEqualTo: trimmed)
+            .limit(to: 1)
+            .getDocuments()
+
+        isCheckingUsername = false
+        if let docs = snap?.documents, !docs.isEmpty {
+            usernameError = "@\(trimmed) is already taken"
+        } else {
+            username = trimmed
+            step = .photo
         }
     }
 
@@ -272,6 +348,7 @@ struct OnboardingView: View {
         auth.completeOnboarding(
             firstName: firstName.trimmingCharacters(in: .whitespaces),
             lastName: lastName.trimmingCharacters(in: .whitespaces),
+            username: username,
             profileImage: profileImage
         )
         screenTimeManager.startMonitoring()
