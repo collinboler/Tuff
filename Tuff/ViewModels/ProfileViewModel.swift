@@ -10,6 +10,7 @@ class ProfileViewModel: ObservableObject {
     @Published var user: TuffUser = .currentUser
     @Published var leagueHistory: [LeagueHistoryEntry] = []
     @Published var profileImage: UIImage? = nil
+    @Published var friendsCount: Int = 0
 
     var totalEarningsFormatted: String {
         let val = Int(user.totalEarnings)
@@ -108,6 +109,20 @@ class ProfileViewModel: ObservableObject {
                 totalEarnings: updated.totalEarnings
             )
             self.user = updated
+        }
+
+        // Load friends count from leagues
+        Task {
+            let db = Firestore.firestore()
+            guard let snap = try? await db.collection("leagues")
+                .whereField("memberUids", arrayContains: uid)
+                .getDocuments() else { return }
+            var friendUids = Set<String>()
+            for doc in snap.documents {
+                let uids = doc.data()["memberUids"] as? [String] ?? []
+                for u in uids where u != uid { friendUids.insert(u) }
+            }
+            self.friendsCount = friendUids.count
         }
     }
 }

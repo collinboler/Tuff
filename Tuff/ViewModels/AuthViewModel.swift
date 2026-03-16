@@ -142,6 +142,16 @@ class AuthViewModel: ObservableObject {
             try? data.write(to: url)
         }
 
+        // Seed yesterday's screen time so new users see a post on the home feed
+        let calendar = Calendar.current
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: Date()))!
+        let existing = TuffSharedStore.dailyHistory()
+        if !existing.contains(where: { calendar.isDate($0.date, inSameDayAs: yesterday) }) {
+            let seedSeconds = TimeInterval(Int.random(in: 5400...21600)) // 1.5h – 6h
+            let seedRecord = DailyRecord(id: UUID(), date: yesterday, totalSeconds: seedSeconds, appBreakdown: [])
+            TuffSharedStore.saveDailyHistory(existing + [seedRecord])
+        }
+
         let uid = user.uid
         let phone = user.phoneNumber ?? ""
         Task.detached {

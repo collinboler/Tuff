@@ -24,6 +24,16 @@
 				<string>app-1-978185933040-ios-b9792078fecc580ba9f235</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.tuff.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>tuff</string>
+			</array>
+		</dict>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
@@ -36,6 +46,10 @@
 	<string>Tuff uses your camera to set a profile photo.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Tuff accesses your photo library to set a profile photo.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

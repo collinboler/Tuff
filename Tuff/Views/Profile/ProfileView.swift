@@ -8,6 +8,7 @@ struct ProfileView: View {
     @State private var showEdit = false
     @State private var showSettings = false
     @State private var showSearch = false
+    @State private var showFriends = false
 
     private let reportFilter: DeviceActivityFilter = {
         let calendar = Calendar.current
@@ -20,18 +21,12 @@ struct ProfileView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            topBar
+            // Combined header: profile info + icons all top-aligned
+            profileHeader
 
-            // Profile header (compact, no inner scroll)
-            VStack(spacing: 0) {
-                profileHero
-                if !viewModel.leagueHistory.isEmpty {
-                    leagueHistory
-                }
+            if !viewModel.leagueHistory.isEmpty {
+                leagueHistory
             }
-
-            Divider()
-                .padding(.top, 8)
 
             // Stats section fills the rest
             Group {
@@ -64,21 +59,65 @@ struct ProfileView: View {
         .sheet(isPresented: $showSearch) {
             UserSearchView()
         }
+        .sheet(isPresented: $showFriends) {
+            FriendsListView()
+        }
     }
 
-    // MARK: - Top Bar
+    // MARK: - Combined Profile Header
 
-    private var topBar: some View {
-        HStack {
+    private var profileHeader: some View {
+        HStack(alignment: .top, spacing: 14) {
+            ProfileImageView(
+                imageName: viewModel.user.imageName,
+                size: 56,
+                borderColor: TuffColors.accent,
+                borderWidth: 2.5,
+                uiImage: viewModel.profileImage
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(viewModel.user.name.uppercased())
+                    .font(TuffFonts.profileName())
+                    .foregroundColor(.black)
+                    .tracking(0.05 * 22)
+
+                if !viewModel.user.username.isEmpty {
+                    Text("@\(viewModel.user.username)")
+                        .font(TuffFonts.caption(13))
+                        .foregroundColor(TuffColors.textSecondary)
+                }
+
+                // Friends + Edit in same row
+                HStack(spacing: 10) {
+                    Button { showFriends = true } label: {
+                        Text("\(viewModel.friendsCount) friends")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(TuffColors.textSecondary)
+                    }
+
+                    Button { showEdit = true } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text("Edit")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundColor(TuffColors.accent)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 5)
+                        .overlay(Capsule().stroke(TuffColors.accent, lineWidth: 1.5))
+                    }
+                }
+                .padding(.top, 2)
+            }
+
             Spacer()
+
+            // Search + Settings — top-aligned with profile image top
             HStack(spacing: 16) {
                 Button { showSearch = true } label: {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.black)
-                }
-                Button { showEdit = true } label: {
-                    Image(systemName: "pencil")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(.black)
                 }
@@ -90,34 +129,6 @@ struct ProfileView: View {
             }
         }
         .padding(.horizontal, 22)
-        .padding(.top, 8)
-        .padding(.bottom, 8)
-    }
-
-    // MARK: - Profile Hero
-
-    private var profileHero: some View {
-        VStack(spacing: 6) {
-            ProfileImageView(
-                imageName: viewModel.user.imageName,
-                size: 72,
-                borderColor: TuffColors.accent,
-                borderWidth: 3,
-                uiImage: viewModel.profileImage
-            )
-
-            Text(viewModel.user.name.uppercased())
-                .font(TuffFonts.profileName())
-                .foregroundColor(.black)
-                .tracking(0.05 * 26)
-                .padding(.top, 4)
-
-            if !viewModel.user.username.isEmpty {
-                Text("@\(viewModel.user.username)")
-                    .font(TuffFonts.caption(13))
-                    .foregroundColor(TuffColors.textSecondary)
-            }
-        }
         .padding(.top, 10)
         .padding(.bottom, 14)
     }

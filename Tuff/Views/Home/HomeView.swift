@@ -187,13 +187,31 @@ struct LeagueView: View {
                 Button { viewModel.showCreateLeague = true } label: {
                     Text("+ NEW LEAGUE")
                         .font(TuffFonts.newButton())
-                        .foregroundColor(.black)
+                        .foregroundColor(.white)
                         .tracking(0.09 * 17)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(TuffColors.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .background(
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(TuffColors.accent.opacity(0.5))
+                                    .offset(y: 4)
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(LinearGradient(
+                                        colors: [TuffColors.accent.opacity(0.95), TuffColors.accent],
+                                        startPoint: .top, endPoint: .bottom
+                                    ))
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(LinearGradient(
+                                        colors: [Color.white.opacity(0.22), Color.white.opacity(0)],
+                                        startPoint: .top, endPoint: .center
+                                    ))
+                            }
+                        )
+                        .shadow(color: TuffColors.accent.opacity(0.4), radius: 10, x: 0, y: 5)
                 }
+                .buttonStyle(PressableButtonStyle())
+
                 Button { viewModel.showJoinLeague = true } label: {
                     Text("JOIN")
                         .font(TuffFonts.newButton())
@@ -201,9 +219,25 @@ struct LeagueView: View {
                         .tracking(0.09 * 17)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(TuffColors.accent.opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .background(
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(TuffColors.accent.opacity(0.06))
+                                    .offset(y: 3)
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(TuffColors.accent.opacity(0.10))
+                                    .overlay(RoundedRectangle(cornerRadius: 12)
+                                        .stroke(TuffColors.accent.opacity(0.45), lineWidth: 1.5))
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(LinearGradient(
+                                        colors: [Color.white.opacity(0.18), Color.white.opacity(0)],
+                                        startPoint: .top, endPoint: .center
+                                    ))
+                            }
+                        )
+                        .shadow(color: Color.black.opacity(0.14), radius: 6, x: 0, y: 4)
                 }
+                .buttonStyle(PressableButtonStyle())
             }
             .padding(.horizontal, 16)
             .padding(.top, 4)

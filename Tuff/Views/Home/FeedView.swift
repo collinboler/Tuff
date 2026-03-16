@@ -206,22 +206,73 @@ struct FeedPostCard: View {
 
 struct NotificationsView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var requests: [FriendRequest] = []
+    @State private var isLoading = true
+
+    struct FriendRequest: Identifiable {
+        let id: String
+        let fromUid: String
+        let fromName: String
+        let fromUsername: String
+    }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Spacer()
-                Image(systemName: "bell.slash")
-                    .font(.system(size: 52))
-                    .foregroundColor(Color(hex: "E0E0E0"))
-                Text("No notifications")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.black)
-                Text("League activity and friend requests\nwill appear here.")
-                    .font(.system(size: 14))
-                    .foregroundColor(TuffColors.textSecondary)
-                    .multilineTextAlignment(.center)
-                Spacer()
+            Group {
+                if isLoading {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if requests.isEmpty {
+                    VStack(spacing: 16) {
+                        Spacer()
+                        Image(systemName: "bell.slash")
+                            .font(.system(size: 52))
+                            .foregroundColor(Color(hex: "E0E0E0"))
+                        Text("No notifications")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.black)
+                        Text("Friend requests will appear here.")
+                            .font(.system(size: 14))
+                            .foregroundColor(TuffColors.textSecondary)
+                            .multilineTextAlignment(.center)
+                        Spacer()
+                    }
+                } else {
+                    List(requests) { req in
+                        HStack(spacing: 12) {
+                            ProfileImageView(imageName: "", size: 40,
+                                            borderColor: TuffColors.accent, borderWidth: 1.5)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(req.fromName.uppercased())
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.black)
+                                    .tracking(0.3)
+                                if !req.fromUsername.isEmpty {
+                                    Text("@\(req.fromUsername)")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(TuffColors.textSecondary)
+                                }
+                                Text("Sent you a friend request")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(TuffColors.textSecondary)
+                            }
+                            Spacer()
+                            Button { acceptRequest(req) } label: {
+                                Text("Accept")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(TuffColors.accent)
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.white)
+                        .padding(.vertical, 4)
+                    }
+                    .listStyle(.plain)
+                    .background(Color.white)
+                }
             }
             .background(Color.white)
             .navigationTitle("Notifications")
@@ -233,6 +284,46 @@ struct NotificationsView: View {
                         .foregroundColor(TuffColors.accent)
                 }
             }
+        }
+        .onAppear { loadRequests() }
+    }
+
+    private func loadRequests() {
+        guard let myUid = Auth.auth().currentUser?.uid else { isLoading = false; return }
+        Task {
+            let db = Firestore.firestore()
+            let snap = try? await db.collection("friendRequests")
+                .whereField("toUid", isEqualTo: myUid)
+                .whereField("status", isEqualTo: "pending")
+                .getDocuments()
+            let reqs: [FriendRequest] = snap?.documents.compactMap { doc in
+                let d = doc.data()
+                guard let fromUid = d["fromUid"] as? String else { return nil }
+                return FriendRequest(
+                    id: doc.documentID,
+                    fromUid: fromUid,
+                    fromName: d["fromName"] as? String ?? "Unknown",
+                    fromUsername: d["fromUsername"] as? String ?? ""
+                )
+            } ?? []
+            await MainActor.run {
+                requests = reqs
+                isLoading = false
+            }
+        }
+    }
+
+    private func acceptRequest(_ req: FriendRequest) {
+        guard let myUid = Auth.auth().currentUser?.uid else { return }
+        requests.removeAll { $0.id == req.id }
+        Task {
+            let db = Firestore.firestore()
+            try? await db.collection("friendRequests").document(req.id)
+                .updateData(["status": "accepted"])
+            try? await db.collection("users").document(myUid)
+                .collection("friends").document(req.fromUid).setData(["uid": req.fromUid])
+            try? await db.collection("users").document(req.fromUid)
+                .collection("friends").document(myUid).setData(["uid": myUid])
         }
     }
 }

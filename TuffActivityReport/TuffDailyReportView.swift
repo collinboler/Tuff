@@ -164,7 +164,6 @@ struct TuffDailyReportView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 12) {
-                periodToggle
                 interactiveChart
                 breakdownSection
             }
@@ -175,38 +174,33 @@ struct TuffDailyReportView: View {
         .preferredColorScheme(.dark)
     }
 
-    // MARK: - Header + Period Toggle
-
     private var periodToggle: some View {
-        HStack {
-            Spacer()
-            HStack(spacing: 0) {
-                toggleButton("7D", active: !showFullMonth) {
-                    showFullMonth = false
-                    selectedDate = todayStart
-                    selectedSlice = nil
-                }
-                toggleButton("30D", active: showFullMonth) {
-                    showFullMonth = true
-                    selectedDate = todayStart
-                    selectedSlice = nil
-                }
+        HStack(spacing: 0) {
+            toggleButton("7D", active: !showFullMonth) {
+                showFullMonth = false
+                selectedDate = todayStart
+                selectedSlice = nil
             }
-            .padding(2)
-            .background(Color.white)
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(Color.gray.opacity(0.25), lineWidth: 1))
+            toggleButton("30D", active: showFullMonth) {
+                showFullMonth = true
+                selectedDate = todayStart
+                selectedSlice = nil
+            }
         }
+        .padding(2)
+        .background(Color.white.opacity(0.12))
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 1))
     }
 
     private func toggleButton(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 12, weight: .heavy).width(.condensed))
-                .foregroundColor(active ? .white : .gray)
+                .font(.system(size: 11, weight: .heavy).width(.condensed))
+                .foregroundColor(active ? .white : Color.white.opacity(0.45))
                 .tracking(0.7)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 7)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
                 .background(active ? accent : Color.clear)
                 .clipShape(Capsule())
         }
@@ -222,7 +216,7 @@ struct TuffDailyReportView: View {
                     .frame(maxWidth: .infinity, minHeight: 140)
             } else {
                 VStack(spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
+                    HStack(alignment: .center) {
                         let day = selectedDate.flatMap({ sel in
                             chartData.first(where: { Calendar.current.isDate($0.date, inSameDayAs: sel) })
                         })
@@ -230,12 +224,13 @@ struct TuffDailyReportView: View {
                         let time = day.map { fmt($0.totalSeconds) } ?? data.todayFormatted
 
                         Text(label)
-                            .font(.system(size: 22, weight: .bold).width(.condensed))
+                            .font(.system(size: 20, weight: .bold).width(.condensed))
                             .foregroundColor(accent)
                         Text(time)
-                            .font(.system(size: 22, weight: .black).width(.condensed))
+                            .font(.system(size: 20, weight: .black).width(.condensed))
                             .foregroundColor(.white)
                         Spacer()
+                        periodToggle
                     }
                     .padding(.horizontal, 4)
 

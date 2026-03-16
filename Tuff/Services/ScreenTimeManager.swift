@@ -3,6 +3,10 @@ import FamilyControls
 import DeviceActivity
 import ManagedSettings
 import Combine
+import ActivityKit
+
+// BlockTimerAttributes is defined in BlockTimerAttributes.swift (compiled in both
+// the main Tuff target and the TuffLiveActivity widget extension target).
 
 @MainActor
 class ScreenTimeManager: ObservableObject {
@@ -12,6 +16,11 @@ class ScreenTimeManager: ObservableObject {
     @Published var selectedAppsToBlock: FamilyActivitySelection = FamilyActivitySelection()
     @Published var isMonitoring = false
     @Published var todayMinutes: Int = 0
+    @Published var blockTimerEndDate: Date? = nil
+    @Published var isActivelyBlocking: Bool = false
+
+    private var blockTimerTask: Task<Void, Never>?
+    private var liveActivity: Activity<BlockTimerAttributes>?
 
     /// Filter used when requesting the DeviceActivityReport in StatsView
     var reportFilter: DeviceActivityFilter {
@@ -48,6 +57,76 @@ class ScreenTimeManager: ObservableObject {
     /// Call this when the app becomes active so the status is always fresh.
     func recheckAuthorization() {
         isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+        // Auto-unblock if timer expired while app was backgrounded
+        if let end = blockTimerEndDate, Date() >= end {
+            blockTimerTask?.cancel()
+            blockTimerTask = nil
+            blockTimerEndDate = nil
+            unblockAllApps()
+        }
+    }
+
+    // MARK: - Block Timer
+
+    func startBlockTimer(duration: TimeInterval) {
+        // Cancel any previous timer cleanly first
+        blockTimerTask?.cancel()
+        blockTimerTask = nil
+
+        let end = Date().addingTimeInterval(duration)
+        blockTimerEndDate = end
+        // Caller is responsible for calling blockSelectedApps() before this
+
+        blockTimerTask = Task {
+            let delay = end.timeIntervalSince(Date())
+            if delay > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            }
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self.blockTimerEndDate = nil
+                self.unblockAllApps()
+            }
+        }
+        startLiveActivity(endDate: end)
+    }
+
+    func cancelBlockTimer() {
+        blockTimerTask?.cancel()
+        blockTimerTask = nil
+        blockTimerEndDate = nil
+        unblockAllApps()
+    }
+
+    // MARK: - Live Activity
+
+    private func startLiveActivity(endDate: Date) {
+        let info = ActivityAuthorizationInfo()
+        guard info.areActivitiesEnabled else {
+            print("[Tuff] Live Activities disabled by system")
+            return
+        }
+        endLiveActivity()
+        let appCount = selectedAppsToBlock.applicationTokens.count
+            + selectedAppsToBlock.categoryTokens.count
+        let attrs = BlockTimerAttributes(appCount: appCount)
+        let state = BlockTimerAttributes.ContentState(endDate: endDate, appCount: appCount)
+        let content = ActivityContent(state: state, staleDate: endDate.addingTimeInterval(60))
+        do {
+            liveActivity = try Activity.request(attributes: attrs, content: content, pushType: nil)
+            print("[Tuff] Live Activity started: \(liveActivity?.id ?? "?")")
+        } catch {
+            print("[Tuff] Live Activity failed: \(error)")
+        }
+    }
+
+    private func endLiveActivity() {
+        guard let activity = liveActivity else { return }
+        liveActivity = nil
+        Task {
+            let noContent: ActivityContent<BlockTimerAttributes.ContentState>? = nil
+            await activity.end(noContent, dismissalPolicy: ActivityUIDismissalPolicy.immediate)
+        }
     }
 
     // MARK: - Authorization
@@ -88,6 +167,7 @@ class ScreenTimeManager: ObservableObject {
         store.shield.applications = appTokens.isEmpty ? nil : appTokens
         store.shield.applicationCategories = catTokens.isEmpty ? nil : .specific(catTokens)
         store.shield.webDomainCategories = .all()
+        isActivelyBlocking = true
 
         print("[Tuff] Shield applied — apps: \(store.shield.applications?.count ?? 0), categories: \(store.shield.applicationCategories != nil), webDomains: all")
     }
@@ -95,6 +175,8 @@ class ScreenTimeManager: ObservableObject {
     func unblockAllApps() {
         store?.clearAllSettings()
         store?.shield.webDomainCategories = nil
+        isActivelyBlocking = false
+        endLiveActivity()
         print("[Tuff] All shields cleared")
     }
 
