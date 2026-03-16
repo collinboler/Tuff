@@ -1,19 +1,12 @@
 import SwiftUI
 import FamilyControls
 
-struct HomeView: View {
+struct LeagueView: View {
     @StateObject private var viewModel = HomeViewModel()
-    @StateObject private var screenTime = ScreenTimeManager.shared
-    @State private var isBlocking = false
-    @State private var showAppPicker = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 0) {
-                topBar
-                wheelSection
-                memberPanel
-                divider
                 leaguesSection
             }
             .padding(.bottom, 16)
@@ -28,6 +21,7 @@ struct HomeView: View {
         }
         .sheet(isPresented: $viewModel.showCreateLeague) {
             CreateLeagueView()
+                .environmentObject(ScreenTimeManager.shared)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
@@ -36,29 +30,16 @@ struct HomeView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
-        .familyActivityPicker(
-            isPresented: $showAppPicker,
-            selection: $screenTime.selectedAppsToBlock
-        )
-        .onChange(of: screenTime.selectedAppsToBlock) { newValue in
-            let apps = newValue.applicationTokens
-            let cats = newValue.categoryTokens
-            print("[Tuff] Picker changed: \(apps.count) apps, \(cats.count) categories")
-            if !apps.isEmpty || !cats.isEmpty {
-                screenTime.blockSelectedApps()
-                isBlocking = true
-            }
-        }
     }
 
-    // MARK: - Top Bar (padding 52 22 8 from HTML)
+    // MARK: - Top Bar
 
     private var topBar: some View {
         HStack {
-            Text("TUFF")
-                .font(TuffFonts.logo())
-                .foregroundColor(TuffColors.accent)
-                .tracking(0.09 * 30)
+            Text("LEAGUES")
+                .font(TuffFonts.pageTitle())
+                .foregroundColor(.black)
+                .tracking(0.06 * 26)
             Spacer()
         }
         .padding(.horizontal, 22)
@@ -79,7 +60,6 @@ struct HomeView: View {
             )
             .frame(height: 190)
 
-            // Gold pointer triangle
             Triangle()
                 .fill(TuffColors.goldBright)
                 .frame(width: 18, height: 14)
@@ -151,52 +131,30 @@ struct HomeView: View {
         .animation(.easeInOut(duration: 0.2), value: user.id)
     }
 
-    // MARK: - Blocking Toggle (test)
+    // MARK: - Earnings Summary Row
 
-    private var blockingToggle: some View {
-        VStack(spacing: 8) {
-            // Turn off button (when active)
-            if isBlocking {
-                Button {
-                    screenTime.unblockAllApps()
-                    isBlocking = false
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "lock.shield.fill")
-                            .font(.system(size: 15, weight: .bold))
-                        Text("BLOCKING ACTIVE — TAP TO DISABLE")
-                            .font(TuffFonts.sectionHeader())
-                            .tracking(0.5)
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(TuffColors.accent)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-            } else {
-                // Pick apps to block
-                Button {
-                    showAppPicker = true
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "lock.shield")
-                            .font(.system(size: 15, weight: .bold))
-                        Text("SELECT APPS TO BLOCK (TEST)")
-                            .font(TuffFonts.sectionHeader())
-                            .tracking(0.5)
-                    }
-                    .foregroundColor(TuffColors.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(TuffColors.tagBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-            }
+    private var earningsRow: some View {
+        HStack(spacing: 0) {
+            earningsStat(value: "$\(Int(viewModel.currentUser.totalEarnings))", label: "TOTAL EARNED")
+            Divider().frame(height: 36)
+            earningsStat(value: "\(viewModel.currentUser.leaguesWon)", label: "LEAGUES WON")
+            Divider().frame(height: 36)
+            earningsStat(value: "\(viewModel.currentUser.totalLeagues)", label: "LEAGUES")
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
+        .padding(.vertical, 12)
+    }
+
+    private func earningsStat(value: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 18, weight: .black, design: .default).width(.condensed))
+                .foregroundColor(TuffColors.accent)
+            Text(label)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundColor(TuffColors.textSecondary)
+                .tracking(0.5)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var divider: some View {
@@ -211,26 +169,22 @@ struct HomeView: View {
     private var leaguesSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("LEAGUES")
-                .font(TuffFonts.sectionHeader())
-                .foregroundColor(TuffColors.textSecondary)
-                .tracking(0.15 * 12)
+                .font(TuffFonts.logo())
+                .foregroundColor(.black)
+                .tracking(0.09 * 30)
                 .padding(.horizontal, 22)
-                .padding(.top, 14)
+                .padding(.top, 16)
 
             VStack(spacing: 8) {
                 ForEach(viewModel.leagues) { league in
                     LeagueCardView(league: league)
-                        .onTapGesture {
-                            viewModel.selectLeague(league)
-                        }
+                        .onTapGesture { viewModel.selectLeague(league) }
                 }
             }
             .padding(.horizontal, 16)
 
             HStack(spacing: 8) {
-                Button {
-                    viewModel.showCreateLeague = true
-                } label: {
+                Button { viewModel.showCreateLeague = true } label: {
                     Text("+ NEW LEAGUE")
                         .font(TuffFonts.newButton())
                         .foregroundColor(.black)
@@ -240,9 +194,7 @@ struct HomeView: View {
                         .background(TuffColors.accent)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                Button {
-                    viewModel.showJoinLeague = true
-                } label: {
+                Button { viewModel.showJoinLeague = true } label: {
                     Text("JOIN")
                         .font(TuffFonts.newButton())
                         .foregroundColor(TuffColors.accent)
@@ -255,8 +207,6 @@ struct HomeView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 4)
-
-            blockingToggle
         }
     }
 }
@@ -272,9 +222,4 @@ struct Triangle: Shape {
         path.closeSubpath()
         return path
     }
-}
-
-#Preview {
-    HomeView()
-        .environmentObject(ScreenTimeManager.shared)
 }

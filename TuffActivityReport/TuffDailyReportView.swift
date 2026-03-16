@@ -179,10 +179,6 @@ struct TuffDailyReportView: View {
 
     private var periodToggle: some View {
         HStack {
-            Text("YOUR STATS")
-                .font(.system(size: 26, weight: .black).width(.condensed))
-                .foregroundColor(.black)
-                .tracking(0.06 * 26)
             Spacer()
             HStack(spacing: 0) {
                 toggleButton("7D", active: !showFullMonth) {

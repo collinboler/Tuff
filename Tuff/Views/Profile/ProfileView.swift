@@ -1,19 +1,56 @@
 import SwiftUI
 import PhotosUI
+import DeviceActivity
 
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
+    @EnvironmentObject var screenTimeManager: ScreenTimeManager
     @State private var showEdit = false
+    @State private var showSettings = false
+    @State private var showSearch = false
+
+    private let reportFilter: DeviceActivityFilter = {
+        let calendar = Calendar.current
+        let todayEnd = calendar.startOfDay(for: Date()).addingTimeInterval(86400)
+        let start = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -29, to: Date())!)
+        return DeviceActivityFilter(
+            segment: .daily(during: DateInterval(start: start, end: todayEnd))
+        )
+    }()
 
     var body: some View {
-        ScrollView(showsIndicators: false) {
+        VStack(spacing: 0) {
+            topBar
+
+            // Profile header (compact, no inner scroll)
             VStack(spacing: 0) {
-                topBar
                 profileHero
-                statsRow
-                leagueHistory
+                if !viewModel.leagueHistory.isEmpty {
+                    leagueHistory
+                }
             }
-            .padding(.bottom, 16)
+
+            Divider()
+                .padding(.top, 8)
+
+            // Stats section fills the rest
+            Group {
+                if screenTimeManager.isAuthorized {
+                    #if !targetEnvironment(simulator)
+                    DeviceActivityReport(
+                        DeviceActivityReport.Context("TuffDailyActivity"),
+                        filter: reportFilter
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.horizontal, 20)
+                    #else
+                    statsPlaceholder
+                    #endif
+                } else {
+                    screenTimeGate
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(Color.white)
         .sheet(isPresented: $showEdit) {
@@ -21,20 +58,36 @@ struct ProfileView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+        }
+        .sheet(isPresented: $showSearch) {
+            UserSearchView()
+        }
     }
 
     // MARK: - Top Bar
 
     private var topBar: some View {
         HStack {
-            Text("PROFILE")
-                .font(TuffFonts.pageTitle())
-                .foregroundColor(.black)
-                .tracking(0.06 * 26)
             Spacer()
-            Button("Edit") { showEdit = true }
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(TuffColors.accent)
+            HStack(spacing: 16) {
+                Button { showSearch = true } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.black)
+                }
+                Button { showEdit = true } label: {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.black)
+                }
+                Button { showSettings = true } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(.black)
+                }
+            }
         }
         .padding(.horizontal, 22)
         .padding(.top, 8)
@@ -47,7 +100,7 @@ struct ProfileView: View {
         VStack(spacing: 6) {
             ProfileImageView(
                 imageName: viewModel.user.imageName,
-                size: 82,
+                size: 72,
                 borderColor: TuffColors.accent,
                 borderWidth: 3,
                 uiImage: viewModel.profileImage
@@ -65,8 +118,8 @@ struct ProfileView: View {
                     .foregroundColor(TuffColors.textSecondary)
             }
         }
-        .padding(.top, 12)
-        .padding(.bottom, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 14)
     }
 
     // MARK: - Stats Row
@@ -91,7 +144,7 @@ struct ProfileView: View {
                 .tracking(0.08 * 10)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
+        .padding(.vertical, 14)
         .background(TuffColors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
@@ -99,30 +152,63 @@ struct ProfileView: View {
     // MARK: - League History
 
     private var leagueHistory: some View {
-        Group {
-            if !viewModel.leagueHistory.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("LEAGUE HISTORY")
-                        .font(TuffFonts.sectionHeader())
-                        .foregroundColor(TuffColors.textSecondary)
-                        .tracking(0.15 * 12)
-                        .padding(.horizontal, 22)
-                        .padding(.top, 20)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("LEAGUE HISTORY")
+                .font(TuffFonts.sectionHeader())
+                .foregroundColor(TuffColors.textSecondary)
+                .tracking(0.15 * 12)
+                .padding(.horizontal, 22)
+                .padding(.top, 16)
 
-                    VStack(spacing: 6) {
-                        ForEach(viewModel.leagueHistory) { entry in
-                            LeagueHistoryRow(entry: entry)
-                        }
-                    }
-                    .padding(.horizontal, 20)
+            VStack(spacing: 6) {
+                ForEach(viewModel.leagueHistory) { entry in
+                    LeagueHistoryRow(entry: entry)
                 }
             }
+            .padding(.horizontal, 20)
         }
     }
-}
 
-#Preview {
-    ProfileView()
+    // MARK: - Screen Time Gate
+
+    private var screenTimeGate: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: "hourglass.circle")
+                .font(.system(size: 52))
+                .foregroundColor(TuffColors.textSecondary)
+            Text("Screen Time Not Granted")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(.black)
+            Text("Allow Screen Time access so Tuff can show your stats.")
+                .font(.system(size: 14))
+                .foregroundColor(TuffColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            Button {
+                Task { await screenTimeManager.requestAuthorization() }
+            } label: {
+                Text("Allow Screen Time")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(TuffColors.accent)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .padding(.horizontal, 40)
+            Spacer()
+        }
+    }
+
+    private var statsPlaceholder: some View {
+        VStack(spacing: 8) {
+            Spacer().frame(height: 40)
+            Text("Stats available on device")
+                .font(.system(size: 14))
+                .foregroundColor(TuffColors.textSecondary)
+        }
+    }
 }
 
 // MARK: - Edit Profile Sheet

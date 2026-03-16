@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FC001122334455667788AA02 /* FeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDBB0001223344556677AA01 /* FeedView.swift */; };
+		FC001122334455667788AA04 /* BlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDBB0003223344556677AA03 /* BlockView.swift */; };
+		FC001122334455667788AA06 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC001122334455667788AA05 /* SearchView.swift */; };
+		FC001122334455667788AA10 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC001122334455667788AA09 /* SettingsView.swift */; };
 		020A7F4437034D638682A67C /* CreateLeagueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A99AC0FD5D7287ADDDBC164 /* CreateLeagueView.swift */; };
 		03EEA9C59A36A76A39E29AB3 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86CCBDA2CCE6E9715DA96805 /* User.swift */; };
 		0A186B889D36AC90DDFA6795 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3DFF1FB986855FACD264B942 /* Assets.xcassets */; };
@@ -75,6 +79,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		FDBB0001223344556677AA01 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
+		FDBB0003223344556677AA03 /* BlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockView.swift; sourceTree = "<group>"; };
+		FC001122334455667788AA05 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
+FC001122334455667788AA09 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		146D5441632C22A67744C333 /* FriendCarouselView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendCarouselView.swift; sourceTree = "<group>"; };
 		2B20E94174CF30E8FFF26D8A /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		349F7929AC5B7B6F327A0FF6 /* League.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = League.swift; sourceTree = "<group>"; };
@@ -160,6 +168,7 @@
 		036FF8E587CC20460024E270 /* Home */ = {
 			isa = PBXGroup;
 			children = (
+				FDBB0001223344556677AA01 /* FeedView.swift */,
 				146D5441632C22A67744C333 /* FriendCarouselView.swift */,
 				F9F6A64B1B0C9B1E305E130E /* HomeView.swift */,
 				FA742DE8F5095D68611C7FF9 /* LeagueCardView.swift */,
@@ -192,6 +201,8 @@
 		26316C8CE11E8D330230C222 /* Profile */ = {
 			isa = PBXGroup;
 			children = (
+				FC001122334455667788AA05 /* SearchView.swift */,
+				FC001122334455667788AA09 /* SettingsView.swift */,
 				E19A20D88869999A0353DD4C /* LeagueHistoryRow.swift */,
 				935D673557E80C6FE7B1CDF1 /* ProfileView.swift */,
 			);
@@ -336,6 +347,7 @@
 		E8760AFEE004F5A7CCE7B2A2 /* Stats */ = {
 			isa = PBXGroup;
 			children = (
+				FDBB0003223344556677AA03 /* BlockView.swift */,
 				9D20E98B5328CE88A5A35EDA /* ScreenTimeChartView.swift */,
 				7F28A14A8186E15C301A1C9F /* StatsView.swift */,
 			);
@@ -538,6 +550,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FC001122334455667788AA02 /* FeedView.swift in Sources */,
+				FC001122334455667788AA04 /* BlockView.swift in Sources */,
+				FC001122334455667788AA06 /* SearchView.swift in Sources */,
+				FC001122334455667788AA10 /* SettingsView.swift in Sources */,
 				D39F08284DAC58B9434BDEC3 /* ContentView.swift in Sources */,
 				020A7F4437034D638682A67C /* CreateLeagueView.swift in Sources */,
 				E69A83DBACD63B28881AD279 /* FriendCarouselView.swift in Sources */,
