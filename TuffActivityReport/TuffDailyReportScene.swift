@@ -81,6 +81,13 @@ struct TuffDailyReportScene: DeviceActivityReportScene {
                 )
             }
 
+        // Write history to shared app group so the main app can read today's total
+        let records = days.map {
+            DailyRecord(id: UUID(), date: $0.date, totalSeconds: $0.totalSeconds, appBreakdown: [])
+        }
+        TuffSharedStore.saveDailyHistory(records)
+        TuffSharedStore.saveTodayScreenTime(todayTotal)
+
         return ReportData(
             todayFormatted: formatTime(todayTotal),
             days: days

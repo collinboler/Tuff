@@ -25,6 +25,7 @@
 		96FA6E60F06A1E589E8B5328 /* DeviceActivityMonitorExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = F08CC8CFC059AD9A8AE9931A /* DeviceActivityMonitorExtension.swift */; };
 		A42D0096EC37EDF5B9FA65D5 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABAE5F4418FA24AF36A211B /* NotificationManager.swift */; };
 		AA001122334455667788AABB /* SharedKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001122334455667788AABC /* SharedKeys.swift */; };
+		BB001122334455667788AB01 /* SharedKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001122334455667788AABC /* SharedKeys.swift */; };
 		AC76B6B6EFF96EB2CBB9CFEC /* ScreenTimeData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D24FF406404BF607297917 /* ScreenTimeData.swift */; };
 		BB001122334455667788AA01 /* TuffActivityReportApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB001122334455667788AA02 /* TuffActivityReportApp.swift */; };
 		BB001122334455667788AA03 /* TuffDailyReportScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB001122334455667788AA04 /* TuffDailyReportScene.swift */; };
@@ -582,6 +583,7 @@
 				BB001122334455667788AA01 /* TuffActivityReportApp.swift in Sources */,
 				BB001122334455667788AA03 /* TuffDailyReportScene.swift in Sources */,
 				BB001122334455667788AA05 /* TuffDailyReportView.swift in Sources */,
+				BB001122334455667788AB01 /* SharedKeys.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

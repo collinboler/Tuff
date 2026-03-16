@@ -192,11 +192,22 @@ struct CreateLeagueView: View {
         isCreating = true
         errorMessage = nil
 
-        let code = inviteCode.isEmpty
+        let db = Firestore.firestore()
+
+        // Ensure invite code is unique, auto-retry up to 5 times
+        var finalCode = inviteCode.isEmpty
             ? String((0..<6).map { _ in "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".randomElement()! })
             : inviteCode.uppercased()
+        for _ in 0..<5 {
+            let snap = try? await db.collection("leagues")
+                .whereField("inviteCode", isEqualTo: finalCode)
+                .limit(to: 1)
+                .getDocuments()
+            if snap?.documents.isEmpty == true { break }
+            finalCode = String((0..<6).map { _ in "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".randomElement()! })
+        }
+        let code = finalCode
 
-        let db = Firestore.firestore()
         let userDoc = try? await db.collection("users").document(uid).getDocument()
         let userData = userDoc?.data()
         let firstName = userData?["firstName"] as? String ?? ""

@@ -146,6 +146,9 @@ struct TuffApp: App {
             .environmentObject(auth)
             .environmentObject(screenTimeManager)
             .environmentObject(notificationManager)
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                screenTimeManager.recheckAuthorization()
+            }
         }
     }
 }

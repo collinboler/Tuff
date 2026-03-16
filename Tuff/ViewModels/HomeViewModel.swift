@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import FirebaseAuth
 import FirebaseFirestore
+import UIKit
 
 @MainActor
 class HomeViewModel: ObservableObject {
@@ -14,10 +15,29 @@ class HomeViewModel: ObservableObject {
     @Published var showJoinLeague = false
 
     private var leaguesListener: ListenerRegistration?
+    private var screenTimeCancellable: AnyCancellable?
 
     init() {
         loadCurrentUser()
         startLeaguesListener()
+        // Keep carousel screen time in sync with live ScreenTimeManager value
+        screenTimeCancellable = ScreenTimeManager.shared.$todayMinutes
+            .receive(on: RunLoop.main)
+            .sink { [weak self] minutes in
+                guard let self, minutes > 0 else { return }
+                self.currentUser = TuffUser(
+                    id: self.currentUser.id, uid: self.currentUser.uid,
+                    name: self.currentUser.name, username: self.currentUser.username,
+                    imageName: self.currentUser.imageName, isCurrentUser: true,
+                    screenTimeMinutes: minutes,
+                    totalLeagues: self.currentUser.totalLeagues,
+                    leaguesWon: self.currentUser.leaguesWon,
+                    totalEarnings: self.currentUser.totalEarnings
+                )
+                if self.selectedCarouselUser.isCurrentUser {
+                    self.selectedCarouselUser = self.currentUser
+                }
+            }
     }
 
     // MARK: - Load real user

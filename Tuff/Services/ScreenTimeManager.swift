@@ -11,6 +11,7 @@ class ScreenTimeManager: ObservableObject {
     @Published var isAuthorized = false
     @Published var selectedAppsToBlock: FamilyActivitySelection = FamilyActivitySelection()
     @Published var isMonitoring = false
+    @Published var todayMinutes: Int = 0
 
     /// Filter used when requesting the DeviceActivityReport in StatsView
     var reportFilter: DeviceActivityFilter {
@@ -28,10 +29,24 @@ class ScreenTimeManager: ObservableObject {
 
     private var store: ManagedSettingsStore?
     private var center: DeviceActivityCenter?
+    private var authObserver: AnyCancellable?
 
     private init() {
         store = ManagedSettingsStore()
         center = DeviceActivityCenter()
+        isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+
+        // Re-check whenever the system auth state changes
+        authObserver = AuthorizationCenter.shared
+            .objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+            }
+    }
+
+    /// Call this when the app becomes active so the status is always fresh.
+    func recheckAuthorization() {
         isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
     }
 
@@ -92,7 +107,14 @@ class ScreenTimeManager: ObservableObject {
 
     // MARK: - Activity Monitoring
 
+    func refreshTodayMinutes() {
+        if let seconds = TuffSharedStore.todayScreenTime() {
+            todayMinutes = Int(seconds) / 60
+        }
+    }
+
     func startMonitoring() {
+        refreshTodayMinutes()
         guard isAuthorized, let center else { return }
 
         let schedule = DeviceActivitySchedule(
