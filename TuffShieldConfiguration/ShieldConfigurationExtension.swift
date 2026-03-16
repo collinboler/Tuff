@@ -52,7 +52,12 @@ class TuffShieldConfigurationExtension: ShieldConfigurationDataSource {
             subtitle: ShieldConfiguration.Label(
                 text: "This app is blocked by Tuff to help you stay focused.",
                 color: subtitleGray
-            )
+            ),
+            primaryButtonLabel: ShieldConfiguration.Label(
+                text: "Stay Focused",
+                color: .white
+            ),
+            primaryButtonBackgroundColor: tuffGreen
         )
     }
 
@@ -68,7 +73,12 @@ class TuffShieldConfigurationExtension: ShieldConfigurationDataSource {
             subtitle: ShieldConfiguration.Label(
                 text: "This site is blocked by Tuff to help you stay focused.",
                 color: subtitleGray
-            )
+            ),
+            primaryButtonLabel: ShieldConfiguration.Label(
+                text: "Stay Focused",
+                color: .white
+            ),
+            primaryButtonBackgroundColor: tuffGreen
         )
     }
 
