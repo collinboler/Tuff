@@ -10,14 +10,16 @@ struct ProfileView: View {
     @State private var showSearch = false
     @State private var showFriends = false
 
-    private let reportFilter: DeviceActivityFilter = {
+    @State private var reportID = UUID()
+
+    private var reportFilter: DeviceActivityFilter {
         let calendar = Calendar.current
         let todayEnd = calendar.startOfDay(for: Date()).addingTimeInterval(86400)
         let start = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -29, to: Date())!)
         return DeviceActivityFilter(
             segment: .daily(during: DateInterval(start: start, end: todayEnd))
         )
-    }()
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,8 +38,10 @@ struct ProfileView: View {
                         DeviceActivityReport.Context("TuffDailyActivity"),
                         filter: reportFilter
                     )
+                    .id(reportID)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.horizontal, 20)
+                    .onAppear { reportID = UUID() }
                     #else
                     statsPlaceholder
                     #endif

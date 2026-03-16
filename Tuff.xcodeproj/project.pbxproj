@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DA001122334455667788AABB /* SharedKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001122334455667788AABC /* SharedKeys.swift */; };
 		020A7F4437034D638682A67C /* CreateLeagueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A99AC0FD5D7287ADDDBC164 /* CreateLeagueView.swift */; };
 		03EEA9C59A36A76A39E29AB3 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86CCBDA2CCE6E9715DA96805 /* User.swift */; };
 		0A186B889D36AC90DDFA6795 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3DFF1FB986855FACD264B942 /* Assets.xcassets */; };
@@ -690,6 +691,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				96FA6E60F06A1E589E8B5328 /* DeviceActivityMonitorExtension.swift in Sources */,
+				DA001122334455667788AABB /* SharedKeys.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

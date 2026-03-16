@@ -81,11 +81,15 @@ struct TuffDailyReportScene: DeviceActivityReportScene {
                 )
             }
 
-        // Write history to shared app group so the main app can read today's total
-        let records = days.map {
+        // Write history to shared app group so the main app can read today's total.
+        // Merge: report data takes precedence for dates it covers; older records are preserved.
+        let reportRecords = days.map {
             DailyRecord(id: UUID(), date: $0.date, totalSeconds: $0.totalSeconds, appBreakdown: [])
         }
-        TuffSharedStore.saveDailyHistory(records)
+        let reportDates = Set(reportRecords.map { Calendar.current.startOfDay(for: $0.date) })
+        let existing = TuffSharedStore.dailyHistory()
+        let preserved = existing.filter { !reportDates.contains(Calendar.current.startOfDay(for: $0.date)) }
+        TuffSharedStore.saveDailyHistory(preserved + reportRecords)
         TuffSharedStore.saveTodayScreenTime(todayTotal)
 
         return ReportData(

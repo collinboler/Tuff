@@ -20,12 +20,22 @@ class TuffDeviceActivityMonitor: DeviceActivityMonitor {
         // In production, fetch blocked apps from shared UserDefaults (App Group)
     }
 
-    /// Called when a monitored interval ends (e.g., end of day)
+    /// Called when a monitored interval ends (midnight). Snapshots today's screen time
+    /// into the daily history so it shows up as a post in the Home feed.
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
-        // Daily interval ended: clear shields, log final screen time
         store.shield.applications = nil
         store.shield.applicationCategories = nil
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let seconds = TuffSharedStore.todayScreenTime(), seconds > 0 else { return }
+        var history = TuffSharedStore.dailyHistory()
+        // Only insert if we don't already have a record for today
+        guard !history.contains(where: { calendar.isDate($0.date, inSameDayAs: today) }) else { return }
+        let record = DailyRecord(id: UUID(), date: today, totalSeconds: seconds, appBreakdown: [])
+        history.append(record)
+        TuffSharedStore.saveDailyHistory(history)
     }
 
     /// Called when a usage threshold is reached for a specific app/category

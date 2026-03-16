@@ -4,14 +4,16 @@ import DeviceActivity
 struct StatsView: View {
     @EnvironmentObject var screenTimeManager: ScreenTimeManager
 
-    private let reportFilter: DeviceActivityFilter = {
+    @State private var reportID = UUID()
+
+    private var reportFilter: DeviceActivityFilter {
         let calendar = Calendar.current
         let todayEnd = calendar.startOfDay(for: Date()).addingTimeInterval(86400)
         let start = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -29, to: Date())!)
         return DeviceActivityFilter(
             segment: .daily(during: DateInterval(start: start, end: todayEnd))
         )
-    }()
+    }
 
     var body: some View {
         Group {
@@ -23,8 +25,10 @@ struct StatsView: View {
                     DeviceActivityReport.Context("TuffDailyActivity"),
                     filter: reportFilter
                 )
+                .id(reportID)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .padding(.horizontal, 20)
+                .onAppear { reportID = UUID() }
                 #endif
             }
         }
