@@ -245,6 +245,9 @@ struct TuffDailyReportView: View {
 
                     Chart {
                         ForEach(chartData) { point in
+                            let isSelected = Calendar.current.isDate(
+                                point.date, inSameDayAs: selectedDate ?? todayStart)
+
                             AreaMark(
                                 x: .value("Day", point.date, unit: .day),
                                 y: .value("Hours", point.hours)
@@ -269,19 +272,29 @@ struct TuffDailyReportView: View {
                                 x: .value("Day", point.date, unit: .day),
                                 y: .value("Hours", point.hours)
                             )
-                            .foregroundStyle(
-                                selectedDate.map { Calendar.current.isDate(point.date, inSameDayAs: $0) } == true
-                                    ? Color.white : chartLine
-                            )
-                            .symbolSize(
-                                selectedDate.map { Calendar.current.isDate(point.date, inSameDayAs: $0) } == true
-                                    ? 50 : 20
-                            )
+                            .foregroundStyle(Color.clear)
+                            .symbolSize(1)
+                            .annotation(position: .overlay, alignment: .center, spacing: 0) {
+                                if isSelected {
+                                    ZStack {
+                                        Circle()
+                                            .fill(chartLine.opacity(0.25))
+                                            .frame(width: 28, height: 28)
+                                        Circle()
+                                            .fill(chartLine)
+                                            .frame(width: 10, height: 10)
+                                    }
+                                } else {
+                                    Circle()
+                                        .strokeBorder(chartLine, lineWidth: 1.5)
+                                        .frame(width: 8, height: 8)
+                                }
+                            }
                         }
 
                         RuleMark(x: .value("Selected", selectedDate ?? todayStart, unit: .day))
-                            .foregroundStyle(.white.opacity(0.4))
-                            .lineStyle(StrokeStyle(lineWidth: 1))
+                            .foregroundStyle(.white)
+                            .lineStyle(StrokeStyle(lineWidth: 1.5))
 
                     }
                     .chartXAxis {
@@ -312,26 +325,18 @@ struct TuffDailyReportView: View {
                     .chartOverlay { proxy in
                         GeometryReader { geo in
                             let plotFrame = geo[proxy.plotAreaFrame]
-
-                            ZStack(alignment: .topLeading) {
-                                Rectangle()
-                                    .fill(Color.clear)
-                                    .contentShape(Rectangle())
-                                    .simultaneousGesture(
-                                        DragGesture(minimumDistance: 0)
-                                            .onChanged { value in
-                                                guard abs(value.translation.width) >= abs(value.translation.height) else { return }
-                                                let x = value.location.x - plotFrame.origin.x
-                                                guard let rawDate: Date = proxy.value(atX: x) else { return }
-                                                snapToNearest(rawDate)
-                                            }
-                                    )
-
-                                // Average line commented out for now
-                                // if let avgSeconds = averageSeconds {
-                                //     ...
-                                // }
-                            }
+                            Rectangle()
+                                .fill(Color.clear)
+                                .contentShape(Rectangle())
+                                .simultaneousGesture(
+                                    DragGesture(minimumDistance: 0)
+                                        .onChanged { value in
+                                            guard abs(value.translation.width) >= abs(value.translation.height) else { return }
+                                            let x = value.location.x - plotFrame.origin.x
+                                            guard let rawDate: Date = proxy.value(atX: x) else { return }
+                                            snapToNearest(rawDate)
+                                        }
+                                )
                         }
                     }
                     .frame(height: 140)
