@@ -244,6 +244,10 @@ struct TuffDailyReportView: View {
                     .padding(.horizontal, 4)
 
                     Chart {
+                        RuleMark(x: .value("Selected", selectedDate ?? todayStart, unit: .day))
+                            .foregroundStyle(.white)
+                            .lineStyle(StrokeStyle(lineWidth: 1.5))
+
                         ForEach(chartData) { point in
                             let isSelected = Calendar.current.isDate(
                                 point.date, inSameDayAs: selectedDate ?? todayStart)
@@ -279,23 +283,23 @@ struct TuffDailyReportView: View {
                                     ZStack {
                                         Circle()
                                             .fill(chartLine.opacity(0.25))
-                                            .frame(width: 28, height: 28)
+                                            .frame(width: 20, height: 20)
                                         Circle()
                                             .fill(chartLine)
                                             .frame(width: 10, height: 10)
                                     }
                                 } else {
-                                    Circle()
-                                        .strokeBorder(chartLine, lineWidth: 1.5)
-                                        .frame(width: 8, height: 8)
+                                    ZStack {
+                                        Circle()
+                                            .fill(surface)
+                                            .frame(width: 8, height: 8)
+                                        Circle()
+                                            .strokeBorder(chartLine, lineWidth: 1.5)
+                                            .frame(width: 8, height: 8)
+                                    }
                                 }
                             }
                         }
-
-                        RuleMark(x: .value("Selected", selectedDate ?? todayStart, unit: .day))
-                            .foregroundStyle(.white)
-                            .lineStyle(StrokeStyle(lineWidth: 1.5))
-
                     }
                     .chartXAxis {
                         AxisMarks(values: xAxisDates) { value in
