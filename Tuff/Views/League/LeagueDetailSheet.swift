@@ -75,6 +75,25 @@ struct LeagueDetailSheet: View {
                         .font(TuffFonts.modalPot())
                         .foregroundColor(TuffColors.accent)
                 }
+
+                if !league.inviteCode.isEmpty {
+                    Button {
+                        UIPasteboard.general.string = league.inviteCode
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text("CODE: \(league.inviteCode)")
+                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .foregroundColor(TuffColors.accent)
+                            Image(systemName: "doc.on.doc")
+                                .font(.system(size: 11))
+                                .foregroundColor(TuffColors.accent)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(TuffColors.accent.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                }
             }
 
             Spacer()

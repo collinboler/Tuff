@@ -1,6 +1,7 @@
 import SwiftUI
 import PhotosUI
 import DeviceActivity
+import FirebaseAuth
 
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
@@ -75,8 +76,6 @@ struct ProfileView: View {
             ProfileImageView(
                 imageName: viewModel.user.imageName,
                 size: 56,
-                borderColor: TuffColors.accent,
-                borderWidth: 2.5,
                 uiImage: viewModel.profileImage
             )
 
@@ -253,8 +252,6 @@ struct EditProfileView: View {
                             ProfileImageView(
                                 imageName: "",
                                 size: 90,
-                                borderColor: TuffColors.accent,
-                                borderWidth: 2.5,
                                 uiImage: newImage ?? viewModel.profileImage
                             )
                             Circle()

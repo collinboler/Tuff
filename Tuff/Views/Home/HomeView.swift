@@ -86,9 +86,7 @@ struct LeagueView: View {
         return HStack(alignment: .center, spacing: 12) {
             ProfileImageView(
                 imageName: user.imageName,
-                size: 44,
-                borderColor: TuffColors.accent,
-                borderWidth: 2
+                size: 44
             )
 
             VStack(alignment: .leading, spacing: 4) {

@@ -29,7 +29,7 @@ struct League: Identifiable {
         ]
     }
 
-    var sortedMembers: [LeagueMember] { members }
+    var sortedMembers: [LeagueMember] { members.sorted { $0.currentScreenTime < $1.currentScreenTime } }
 
     // MARK: - Firestore parsing
 

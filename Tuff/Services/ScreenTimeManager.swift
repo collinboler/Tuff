@@ -4,6 +4,8 @@ import DeviceActivity
 import ManagedSettings
 import Combine
 import ActivityKit
+import FirebaseFirestore
+import FirebaseAuth
 
 // BlockTimerAttributes is defined in BlockTimerAttributes.swift (compiled in both
 // the main Tuff target and the TuffLiveActivity widget extension target).
@@ -13,7 +15,12 @@ class ScreenTimeManager: ObservableObject {
     static let shared = ScreenTimeManager()
 
     @Published var isAuthorized = false
-    @Published var selectedAppsToBlock: FamilyActivitySelection = FamilyActivitySelection()
+    @Published var selectedAppsToBlock: FamilyActivitySelection = FamilyActivitySelection() {
+        didSet { persistSelection() }
+    }
+    @Published var appsToTrack: FamilyActivitySelection = FamilyActivitySelection() {
+        didSet { persistTrackSelection() }
+    }
     @Published var isMonitoring = false
     @Published var todayMinutes: Int = 0
     @Published var blockTimerEndDate: Date? = nil
@@ -40,12 +47,26 @@ class ScreenTimeManager: ObservableObject {
     private var center: DeviceActivityCenter?
     private var authObserver: AnyCancellable?
 
+    private static let selectionKey = "savedFamilyActivitySelection"
+    private static let trackSelectionKey = "savedTrackActivitySelection"
+    private static let sharedTrackSelectionKey = "trackingFamilyActivitySelection"
+
     private init() {
         store = ManagedSettingsStore()
         center = DeviceActivityCenter()
         isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
 
-        // Re-check whenever the system auth state changes
+        if let data = UserDefaults.standard.data(forKey: Self.selectionKey),
+           let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
+            selectedAppsToBlock = selection
+        }
+
+        if let data = UserDefaults.standard.data(forKey: Self.trackSelectionKey),
+           let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
+            appsToTrack = selection
+        }
+        persistTrackSelection()
+
         authObserver = AuthorizationCenter.shared
             .objectWillChange
             .receive(on: RunLoop.main)
@@ -54,9 +75,24 @@ class ScreenTimeManager: ObservableObject {
             }
     }
 
+    private func persistSelection() {
+        if let data = try? JSONEncoder().encode(selectedAppsToBlock) {
+            UserDefaults.standard.set(data, forKey: Self.selectionKey)
+        }
+    }
+
+    private func persistTrackSelection() {
+        if let data = try? JSONEncoder().encode(appsToTrack) {
+            UserDefaults.standard.set(data, forKey: Self.trackSelectionKey)
+            TuffSharedStore.defaults?.set(data, forKey: Self.sharedTrackSelectionKey)
+            TuffSharedStore.defaults?.synchronize()
+        }
+    }
+
     /// Call this when the app becomes active so the status is always fresh.
     func recheckAuthorization() {
         isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+        refreshTodayMinutes()
         // Auto-unblock if timer expired while app was backgrounded
         if let end = blockTimerEndDate, Date() >= end {
             blockTimerTask?.cancel()
@@ -195,22 +231,95 @@ class ScreenTimeManager: ObservableObject {
         }
     }
 
+    /// Last monitoring start result for debug display
+    @Published var monitoringDebug: String = ""
+
+    /// Tokens used for monitoring: prefer `appsToTrack`, fall back to `selectedAppsToBlock`.
+    var trackingTokens: (
+        apps: Set<ApplicationToken>,
+        cats: Set<ActivityCategoryToken>,
+        webs: Set<WebDomainToken>
+    ) {
+        let trackApps = appsToTrack.applicationTokens
+        let trackCats = appsToTrack.categoryTokens
+        let trackWebs = appsToTrack.webDomainTokens
+        if !trackApps.isEmpty || !trackCats.isEmpty || !trackWebs.isEmpty {
+            return (trackApps, trackCats, trackWebs)
+        }
+        return (
+            selectedAppsToBlock.applicationTokens,
+            selectedAppsToBlock.categoryTokens,
+            selectedAppsToBlock.webDomainTokens
+        )
+    }
+
+    private func nextThresholdMinutes(from currentSeconds: TimeInterval) -> Int {
+        let currentMinutes = max(0, Int(currentSeconds / 60))
+        if currentMinutes < 10 {
+            return currentMinutes + 1
+        }
+        return ((currentMinutes / 5) + 1) * 5
+    }
+
     func startMonitoring() {
         refreshTodayMinutes()
-        guard isAuthorized, let center else { return }
+        guard isAuthorized else {
+            monitoringDebug = "not authorized"
+            return
+        }
+        guard let center else {
+            monitoringDebug = "center is nil"
+            return
+        }
+
+        let (appTokens, catTokens, webTokens) = trackingTokens
+
+        center.stopMonitoring()
+
+        let activityName = DeviceActivityName(rawValue: "dailyActivity")
 
         let schedule = DeviceActivitySchedule(
             intervalStart: DateComponents(hour: 0, minute: 0),
             intervalEnd: DateComponents(hour: 23, minute: 59),
             repeats: true
         )
-        let activityName = DeviceActivityName(rawValue: "dailyActivity")
-        do {
-            try center.startMonitoring(activityName, during: schedule)
+
+        guard !appTokens.isEmpty || !catTokens.isEmpty || !webTokens.isEmpty else {
+            monitoringDebug = "no apps selected — pick apps to track"
+            try? center.startMonitoring(activityName, during: schedule)
             isMonitoring = true
-            print("[Tuff] Monitoring started ✓")
+            return
+        }
+
+        let nextThreshold = nextThresholdMinutes(from: TuffSharedStore.todayScreenTime() ?? 0)
+        let eventName = DeviceActivityEvent.Name("screentime_\(nextThreshold)")
+
+        func makeEvent(minutes: Int) -> DeviceActivityEvent {
+            if #available(iOS 17.4, *) {
+                return DeviceActivityEvent(
+                    applications: appTokens,
+                    categories: catTokens,
+                    webDomains: webTokens,
+                    threshold: DateComponents(minute: minutes),
+                    includesPastActivity: true
+                )
+            } else {
+                return DeviceActivityEvent(
+                    applications: appTokens,
+                    categories: catTokens,
+                    webDomains: webTokens,
+                    threshold: DateComponents(minute: minutes)
+                )
+            }
+        }
+        let events = [eventName: makeEvent(minutes: nextThreshold)]
+
+        do {
+            try center.startMonitoring(activityName, during: schedule, events: events)
+            isMonitoring = true
+            monitoringDebug = "OK: next=\(nextThreshold)m, \(appTokens.count) apps, \(catTokens.count) cats, \(webTokens.count) webs"
         } catch {
-            print("[Tuff] Monitoring failed: \(error.localizedDescription)")
+            monitoringDebug = "FAILED: \(error.localizedDescription)"
         }
     }
 
@@ -219,41 +328,29 @@ class ScreenTimeManager: ObservableObject {
         isMonitoring = false
     }
 
-    // MARK: - Screen Time Data (reads from App Groups, written by TuffActivityReport extension)
-
-    struct RealDayEntry: Codable {
-        let date: Date
-        let totalSeconds: TimeInterval
-    }
-
-    private func loadRealHistory() -> [RealDayEntry] {
-        guard let defaults = UserDefaults(suiteName: TuffSharedKeys.appGroupID),
-              let data = defaults.data(forKey: "realDailyHistory"),
-              let entries = try? JSONDecoder().decode([RealDayEntry].self, from: data) else {
-            return []
-        }
-        return entries.sorted { $0.date < $1.date }
-    }
+    // MARK: - Screen Time Data (reads from App Group, written by TuffActivityReport extension)
 
     func fetchWeeklyData() -> [DailyScreenTime] {
-        let history = loadRealHistory()
+        let history = TuffSharedStore.dailyHistory()
         guard !history.isEmpty else { return DailyScreenTime.sampleWeek }
-
         let calendar = Calendar.current
         return (0..<7).reversed().map { daysAgo in
             let date = calendar.date(byAdding: .day, value: -daysAgo, to: Date())!
             let dayStart = calendar.startOfDay(for: date)
             if let record = history.first(where: { calendar.isDate($0.date, inSameDayAs: dayStart) }) {
-                return DailyScreenTime(date: record.date, totalSeconds: record.totalSeconds, appBreakdown: [])
+                let apps = record.appBreakdown.map {
+                    AppUsage(appName: $0.displayName, bundleIdentifier: $0.bundleID,
+                             seconds: $0.totalSeconds, category: .other)
+                }
+                return DailyScreenTime(date: record.date, totalSeconds: record.totalSeconds, appBreakdown: apps)
             }
             return DailyScreenTime(date: date, totalSeconds: 0, appBreakdown: [])
         }
     }
 
     func fetchMonthlyData() -> [DailyScreenTime] {
-        let history = loadRealHistory()
+        let history = TuffSharedStore.dailyHistory()
         guard !history.isEmpty else { return DailyScreenTime.sampleMonth }
-
         let calendar = Calendar.current
         return (0..<30).reversed().map { daysAgo in
             let date = calendar.date(byAdding: .day, value: -daysAgo, to: Date())!
@@ -266,34 +363,108 @@ class ScreenTimeManager: ObservableObject {
     }
 
     func fetchStats(for period: Int = 7) -> ScreenTimeStats {
-        let history = loadRealHistory()
+        let history = TuffSharedStore.dailyHistory()
         guard !history.isEmpty else { return DailyScreenTime.sampleStats }
-
         let calendar = Calendar.current
-        let cutoff = calendar.date(byAdding: .day, value: -(period), to: calendar.startOfDay(for: Date()))!
-        let periodEntries = history.filter { $0.date >= cutoff }
-        let withActivity = periodEntries.filter { $0.totalSeconds > 0 }
-        guard !withActivity.isEmpty else { return DailyScreenTime.sampleStats }
-
-        let times = withActivity.map { $0.totalSeconds }
+        let cutoff = calendar.date(byAdding: .day, value: -period, to: calendar.startOfDay(for: Date()))!
+        let periodEntries = history.filter { $0.date >= cutoff && $0.totalSeconds > 0 }
+        guard !periodEntries.isEmpty else { return DailyScreenTime.sampleStats }
+        let times = periodEntries.map { $0.totalSeconds }
         let avg = times.reduce(0, +) / Double(times.count)
-        let best = times.min() ?? 0
-        let worst = times.max() ?? 0
-
         let goal: TimeInterval = 10800
         var streak = 0
-        let sorted = history.sorted { $0.date > $1.date }
-        for record in sorted {
+        for record in history.sorted(by: { $0.date > $1.date }) {
             guard record.totalSeconds > 0 else { continue }
             if record.totalSeconds < goal { streak += 1 } else { break }
         }
+        return ScreenTimeStats(dailyAverage: avg, bestDay: times.min() ?? 0,
+                               worstDay: times.max() ?? 0, currentStreak: streak, dailyGoal: goal)
+    }
 
-        return ScreenTimeStats(
-            dailyAverage: avg,
-            bestDay: best,
-            worstDay: worst,
-            currentStreak: streak,
-            dailyGoal: goal
-        )
+    // MARK: - Sync to Firestore
+
+    func syncScreenTimeToFirestore(uid: String) {
+        // Snapshot current screen time before syncing
+        // (Report extension wrote todayScreenTime to shared file, now we snapshot it to history)
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let seconds = TuffSharedStore.todayScreenTime(), seconds > 0 else {
+            // No data to snapshot, just sync empty
+            self.doSync(uid: uid)
+            return
+        }
+
+        var history = TuffSharedStore.dailyHistory()
+        let breakdown = TuffSharedStore.appBreakdown()
+
+        // Remove old entry for today if exists, add fresh one
+        history.removeAll { calendar.isDate($0.date, inSameDayAs: today) }
+        let record = DailyRecord(id: UUID(), date: today, totalSeconds: seconds, appBreakdown: breakdown)
+        history.append(record)
+
+        let sorted = history.sorted { $0.date > $1.date }
+        TuffSharedStore.saveDailyHistory(Array(sorted.prefix(30)))
+
+        // Now sync
+        self.doSync(uid: uid)
+    }
+
+    private func doSync(uid: String) {
+        let history = TuffSharedStore.dailyHistory().sorted(by: { $0.date > $1.date })
+        let todaySeconds = TuffSharedStore.todayScreenTime() ?? 0
+        let liveApps = TuffSharedStore.appBreakdown()
+
+        let todayMinutes: Int
+        if todaySeconds > 0 {
+            todayMinutes = Int(todaySeconds / 60)
+            self.todayMinutes = todayMinutes
+        } else {
+            todayMinutes = history.first.map { Int($0.totalSeconds / 60) } ?? 0
+        }
+
+        let dateFmt = DateFormatter(); dateFmt.dateFormat = "yyyy-MM-dd"
+
+        let historyData: [[String: Any]] = Array(history.prefix(30)).map { record in
+            let apps: [[String: Any]] = record.appBreakdown.map {
+                ["name": $0.displayName, "bundleID": $0.bundleID,
+                 "seconds": $0.totalSeconds, "minutes": Int($0.totalSeconds / 60)]
+            }
+            return ["date": dateFmt.string(from: record.date),
+                    "minutes": Int(record.totalSeconds / 60),
+                    "seconds": record.totalSeconds,
+                    "apps": apps]
+        }
+
+        let liveAppsData: [[String: Any]] = liveApps.map {
+            ["name": $0.displayName, "bundleID": $0.bundleID,
+             "seconds": $0.totalSeconds, "minutes": Int($0.totalSeconds / 60)]
+        }
+
+        print("[ScreenTime] Syncing: \(todayMinutes)m today, \(historyData.count) days")
+
+        Task {
+            let db = Firestore.firestore()
+            let now = Timestamp(date: Date())
+
+            try? await db.collection("users").document(uid).setData([
+                "screenTimeMinutes":  todayMinutes,
+                "screenTimeHistory":  historyData,
+                "appBreakdown":       liveAppsData,
+                "lastSyncedAt":       now
+            ], merge: true)
+
+            let leaguesSnap = try? await db.collection("leagues")
+                .whereField("memberUids", arrayContains: uid)
+                .getDocuments()
+            for doc in leaguesSnap?.documents ?? [] {
+                var profiles = doc.data()["memberProfiles"] as? [[String: Any]] ?? []
+                guard let idx = profiles.firstIndex(where: { $0["uid"] as? String == uid }) else { continue }
+                profiles[idx]["screenTimeMinutes"] = todayMinutes
+                try? await db.collection("leagues").document(doc.documentID)
+                    .updateData(["memberProfiles": profiles])
+            }
+
+            print("[ScreenTime] Synced OK")
+        }
     }
 }

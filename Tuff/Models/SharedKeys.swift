@@ -54,9 +54,15 @@ struct TuffSharedStore {
     static func saveTodayScreenTime(_ seconds: TimeInterval) {
         defaults?.set(seconds, forKey: TuffSharedKeys.todayScreenTime)
         defaults?.set(Date(), forKey: TuffSharedKeys.lastUpdated)
+        defaults?.synchronize()
     }
 
     static func todayScreenTime() -> TimeInterval? {
+        defaults?.synchronize()
+        if let updatedAt = lastUpdated(),
+           !Calendar.current.isDateInToday(updatedAt) {
+            return nil
+        }
         let val = defaults?.double(forKey: TuffSharedKeys.todayScreenTime) ?? 0
         return val > 0 ? val : nil
     }
@@ -68,10 +74,12 @@ struct TuffSharedStore {
     static func saveDailyHistory(_ records: [DailyRecord]) {
         if let data = try? JSONEncoder().encode(records) {
             defaults?.set(data, forKey: TuffSharedKeys.dailyHistory)
+            defaults?.synchronize()
         }
     }
 
     static func dailyHistory() -> [DailyRecord] {
+        defaults?.synchronize()
         guard let data = defaults?.data(forKey: TuffSharedKeys.dailyHistory),
               let records = try? JSONDecoder().decode([DailyRecord].self, from: data) else {
             return []
@@ -82,10 +90,12 @@ struct TuffSharedStore {
     static func saveAppBreakdown(_ records: [AppRecord]) {
         if let data = try? JSONEncoder().encode(records) {
             defaults?.set(data, forKey: TuffSharedKeys.appBreakdown)
+            defaults?.synchronize()
         }
     }
 
     static func appBreakdown() -> [AppRecord] {
+        defaults?.synchronize()
         guard let data = defaults?.data(forKey: TuffSharedKeys.appBreakdown),
               let records = try? JSONDecoder().decode([AppRecord].self, from: data) else {
             return []

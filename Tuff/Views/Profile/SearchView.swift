@@ -56,8 +56,7 @@ struct UserSearchView: View {
                 } else {
                     List(results) { user in
                         HStack(spacing: 12) {
-                            ProfileImageView(imageName: "", size: 40,
-                                            borderColor: TuffColors.accent, borderWidth: 1.5)
+                            ProfileImageView(imageName: "", size: 40)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(user.name.uppercased())
                                     .font(.system(size: 14, weight: .bold))
@@ -240,8 +239,7 @@ struct FriendsListView: View {
                 } else {
                     List(friends) { friend in
                         HStack(spacing: 12) {
-                            ProfileImageView(imageName: "", size: 40,
-                                            borderColor: TuffColors.accent, borderWidth: 1.5)
+                            ProfileImageView(imageName: "", size: 40)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(friend.name.uppercased())
                                     .font(.system(size: 14, weight: .bold))

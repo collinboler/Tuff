@@ -23,10 +23,5 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.deviceactivityui.report-extension</string>
 	</dict>
-	<key>EXAppExtensionAttributes</key>
-	<dict>
-		<key>EXExtensionPointIdentifier</key>
-		<string>com.apple.deviceactivityui.report-extension</string>
-	</dict>
 </dict>
 </plist>

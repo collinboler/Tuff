@@ -3,9 +3,7 @@ import SwiftUI
 struct ProfileImageView: View {
     let imageName: String
     var size: CGFloat = 44
-    var borderColor: Color = TuffColors.accent
-    var borderWidth: CGFloat = 2
-    var uiImage: UIImage? = nil   // takes priority over imageName if set
+    var uiImage: UIImage? = nil
 
     var body: some View {
         Group {
@@ -26,6 +24,5 @@ struct ProfileImageView: View {
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
-        .overlay(Circle().stroke(borderColor, lineWidth: borderWidth))
     }
 }

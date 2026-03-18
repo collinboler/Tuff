@@ -148,6 +148,14 @@ struct TuffApp: App {
             .environmentObject(notificationManager)
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 screenTimeManager.recheckAuthorization()
+                if let uid = Auth.auth().currentUser?.uid {
+                    screenTimeManager.syncScreenTimeToFirestore(uid: uid)
+                }
+            }
+            .onReceive(Timer.publish(every: 3600, on: .main, in: .common).autoconnect()) { _ in
+                if let uid = Auth.auth().currentUser?.uid {
+                    screenTimeManager.syncScreenTimeToFirestore(uid: uid)
+                }
             }
         }
     }

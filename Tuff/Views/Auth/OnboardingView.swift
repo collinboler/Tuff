@@ -18,14 +18,15 @@ struct OnboardingView: View {
     @State private var showSourcePicker = false
     @State private var showCamera = false
     @State private var showLibrary = false
+    @State private var showTrackPicker = false
     @State private var selectedPhoto: PhotosPickerItem?
-    @State private var screenTimeGranted = false
+    @State private var isRequestingScreenTime = false
     @FocusState private var focusedField: Field?
 
-    private enum Step: Int { case name, username, photo, screenTime, notifications }
+    private enum Step: Int { case name, username, photo, screenTime, tracking, notifications }
     private enum Field { case firstName, lastName, username }
 
-    private let totalSteps = 5
+    private let totalSteps = 6
 
     var body: some View {
         ZStack {
@@ -43,6 +44,7 @@ struct OnboardingView: View {
                 case .username:      usernameStep
                 case .photo:         photoStep
                 case .screenTime:    screenTimeStep
+                case .tracking:      trackingStep
                 case .notifications: notificationsStep
                 }
 
@@ -79,6 +81,15 @@ struct OnboardingView: View {
             }
             Button("Choose from Library") { showLibrary = true }
             Button("Cancel", role: .cancel) {}
+        }
+        .familyActivityPicker(
+            isPresented: $showTrackPicker,
+            selection: $screenTimeManager.appsToTrack
+        )
+        .onChange(of: screenTimeManager.appsToTrack) { _ in
+            if trackingSelectionCount > 0 {
+                screenTimeManager.startMonitoring()
+            }
         }
     }
 
@@ -296,11 +307,86 @@ struct OnboardingView: View {
                     title: "Track daily usage", subtitle: "See how long you spend on each app")
             iconRow(systemName: "trophy.fill", color: TuffColors.gold,
                     title: "Compete in leagues", subtitle: "Your screen time is your score")
-            iconRow(systemName: "lock.shield.fill", color: Color(hex: "5B8CFF"),
-                    title: "Stays private", subtitle: "Data never leaves your device")
+            iconRow(systemName: "list.bullet.rectangle.portrait.fill", color: Color(hex: "5B8CFF"),
+                    title: "Pick what to track", subtitle: "You'll choose all apps and categories next")
 
-            continueButton(title: "Allow Screen Time", disabled: false) {
-                Task { await screenTimeManager.requestAuthorization() }
+            continueButton(
+                title: isRequestingScreenTime ? "Allowing..." : "Allow Screen Time",
+                disabled: isRequestingScreenTime
+            ) {
+                Task {
+                    isRequestingScreenTime = true
+                    await screenTimeManager.requestAuthorization()
+                    isRequestingScreenTime = false
+                    if screenTimeManager.isAuthorized {
+                        step = .tracking
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Tracking step
+
+    private var trackingSelectionCount: Int {
+        screenTimeManager.appsToTrack.applicationTokens.count
+            + screenTimeManager.appsToTrack.categoryTokens.count
+            + screenTimeManager.appsToTrack.webDomainTokens.count
+    }
+
+    private var trackingStep: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("SELECT EVERYTHING")
+                    .font(.system(size: 28, weight: .black, design: .default).width(.condensed))
+                    .foregroundColor(.black)
+                    .tracking(1)
+                Text("Pick all the apps, categories, and websites you use so Tuff can estimate your total screen time for leagues.")
+                    .font(.system(size: 15))
+                    .foregroundColor(TuffColors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            iconRow(systemName: "iphone.gen3", color: TuffColors.accent,
+                    title: "Choose broadly", subtitle: "Select all common apps you open during the day")
+            iconRow(systemName: "square.grid.2x2.fill", color: TuffColors.gold,
+                    title: "Add all categories", subtitle: "Social, entertainment, productivity, and more")
+            iconRow(systemName: "globe", color: Color(hex: "5B8CFF"),
+                    title: "Include websites", subtitle: "Safari/web usage helps the total feel more accurate")
+
+            VStack(alignment: .leading, spacing: 12) {
+                Button {
+                    showTrackPicker = true
+                } label: {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(hex: "F5F5F5"))
+                        .frame(height: 54)
+                        .overlay(
+                            HStack {
+                                Text(trackingSelectionCount > 0 ? "Edit Tracking Selection" : "Select Apps to Track")
+                                    .font(.system(size: 17, weight: .bold))
+                                    .foregroundColor(.black)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(TuffColors.textSecondary)
+                            }
+                            .padding(.horizontal, 18)
+                        )
+                }
+                .buttonStyle(.plain)
+
+                Text(
+                    trackingSelectionCount > 0
+                    ? "Selected \(trackingSelectionCount) items. Tuff will start tracking after you finish onboarding."
+                    : "Nothing selected yet. Open the picker and choose everything you want counted."
+                )
+                .font(.system(size: 13))
+                .foregroundColor(trackingSelectionCount > 0 ? .green : TuffColors.textSecondary)
+            }
+
+            continueButton(title: "Continue", disabled: trackingSelectionCount == 0) {
+                screenTimeManager.startMonitoring()
                 step = .notifications
             }
         }

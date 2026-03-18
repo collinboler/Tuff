@@ -41,9 +41,7 @@ struct LeagueCardView: View {
             ForEach(Array(league.members.prefix(3).enumerated()), id: \.element.id) { index, member in
                 ProfileImageView(
                     imageName: member.user.imageName,
-                    size: 26,
-                    borderColor: index == 0 ? TuffColors.gold : TuffColors.surface,
-                    borderWidth: 2
+                    size: 26
                 )
                 .zIndex(Double(3 - index))
             }

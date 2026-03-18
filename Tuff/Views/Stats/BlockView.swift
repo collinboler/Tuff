@@ -33,6 +33,8 @@ struct BlockView: View {
                 if hasApps {
                     screenTimeManager.blockSelectedApps()
                     screenTimeManager.startBlockTimer(duration: blockDurations[selectedDurationIndex].1)
+                    // Restart monitoring with the new app tokens for screen time tracking
+                    screenTimeManager.startMonitoring()
                 }
             }
         )

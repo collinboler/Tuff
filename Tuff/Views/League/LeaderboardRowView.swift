@@ -14,9 +14,7 @@ struct LeaderboardRowView: View {
 
             ProfileImageView(
                 imageName: member.user.imageName,
-                size: 40,
-                borderColor: isCurrentUser ? TuffColors.accent : Color.gray.opacity(0.2),
-                borderWidth: isCurrentUser ? 2.5 : 1.5
+                size: 40
             )
 
             VStack(alignment: .leading, spacing: 1) {

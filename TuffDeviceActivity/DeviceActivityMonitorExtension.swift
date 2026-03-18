@@ -1,62 +1,134 @@
 import DeviceActivity
+import FamilyControls
 import ManagedSettings
 import Foundation
 
-/// App extension that runs in the background to monitor device activity.
-/// Apple requires this as a separate target—it cannot live in the main app process.
-///
-/// To set up in Xcode:
-/// 1. File > New > Target > Device Activity Monitor Extension
-/// 2. Name it "TuffDeviceActivity"
-/// 3. Add FamilyControls & DeviceActivity capabilities
 class TuffDeviceActivityMonitor: DeviceActivityMonitor {
 
     let store = ManagedSettingsStore()
+    private let ud = UserDefaults(suiteName: "group.com.collinboler.tuff")
+    private let sharedTrackSelectionKey = "trackingFamilyActivitySelection"
 
-    /// Called when a monitored interval begins (e.g., start of day)
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
-        // Re-apply shields at the start of each monitoring interval
-        // In production, fetch blocked apps from shared UserDefaults (App Group)
+        ud?.set(Date().timeIntervalSince1970, forKey: "monitorLastStarted")
+        ud?.removeObject(forKey: "lastThresholdFired")
+        ud?.removeObject(forKey: "lastThresholdName")
+        ud?.set(0, forKey: "thresholdFireCount")
+        ud?.synchronize()
     }
 
-    /// Called when a monitored interval ends (midnight). Snapshots today's screen time
-    /// into the daily history so it shows up as a post in the Home feed.
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
-        store.shield.applications = nil
-        store.shield.applicationCategories = nil
-
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        guard let seconds = TuffSharedStore.todayScreenTime(), seconds > 0 else { return }
-        var history = TuffSharedStore.dailyHistory()
-        // Only insert if we don't already have a record for today
-        guard !history.contains(where: { calendar.isDate($0.date, inSameDayAs: today) }) else { return }
-        let record = DailyRecord(id: UUID(), date: today, totalSeconds: seconds, appBreakdown: [])
-        history.append(record)
-        TuffSharedStore.saveDailyHistory(history)
+        snapshotTodayToHistory()
     }
 
-    /// Called when a usage threshold is reached for a specific app/category
     override func eventDidReachThreshold(
         _ event: DeviceActivityEvent.Name,
         activity: DeviceActivityName
     ) {
         super.eventDidReachThreshold(event, activity: activity)
-        // The user exceeded their screen time threshold for a tracked app.
-        // In production:
-        // 1. Send push notification via backend
-        // 2. Activate shields on the offending apps
-        // 3. Trigger Friend 2FA or Custom Challenge flow
+
+        let rawName = event.rawValue
+
+        ud?.set(Date().timeIntervalSince1970, forKey: "lastThresholdFired")
+        ud?.set(rawName, forKey: "lastThresholdName")
+        let count = (ud?.integer(forKey: "thresholdFireCount") ?? 0) + 1
+        ud?.set(count, forKey: "thresholdFireCount")
+        ud?.synchronize()
+
+        if rawName.hasPrefix("screentime_"),
+           let minutesStr = rawName.split(separator: "_").last,
+           let minutes = Int(minutesStr) {
+            let seconds = TimeInterval(minutes * 60)
+            TuffSharedStore.saveTodayScreenTime(seconds)
+
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            var history = TuffSharedStore.dailyHistory()
+            history.removeAll { calendar.isDate($0.date, inSameDayAs: today) }
+            let record = DailyRecord(id: UUID(), date: today, totalSeconds: seconds, appBreakdown: [])
+            history.append(record)
+            let sorted = history.sorted { $0.date > $1.date }
+            TuffSharedStore.saveDailyHistory(Array(sorted.prefix(30)))
+            rearmNextThreshold(after: minutes, activity: activity)
+        }
     }
 
-    /// Called when usage drops below a previously-reached threshold
     override func intervalWillStartWarning(for activity: DeviceActivityName) {
         super.intervalWillStartWarning(for: activity)
     }
 
     override func intervalWillEndWarning(for activity: DeviceActivityName) {
         super.intervalWillEndWarning(for: activity)
+    }
+
+    private func snapshotTodayToHistory() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let seconds = TuffSharedStore.todayScreenTime(), seconds > 0 else { return }
+        var history = TuffSharedStore.dailyHistory()
+        history.removeAll { calendar.isDate($0.date, inSameDayAs: today) }
+        let breakdown = TuffSharedStore.appBreakdown()
+        let record = DailyRecord(id: UUID(), date: today, totalSeconds: seconds, appBreakdown: breakdown)
+        history.append(record)
+        let sorted = history.sorted { $0.date > $1.date }
+        TuffSharedStore.saveDailyHistory(Array(sorted.prefix(30)))
+    }
+
+    private func rearmNextThreshold(after minutes: Int, activity: DeviceActivityName) {
+        guard let data = ud?.data(forKey: sharedTrackSelectionKey),
+              let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) else {
+            return
+        }
+
+        let appTokens = selection.applicationTokens
+        let catTokens = selection.categoryTokens
+        let webTokens = selection.webDomainTokens
+
+        guard !appTokens.isEmpty || !catTokens.isEmpty || !webTokens.isEmpty else {
+            return
+        }
+
+        let nextMinutes: Int
+        if minutes < 10 {
+            nextMinutes = minutes + 1
+        } else {
+            nextMinutes = ((minutes / 5) + 1) * 5
+        }
+
+        let schedule = DeviceActivitySchedule(
+            intervalStart: DateComponents(hour: 0, minute: 0, second: 0),
+            intervalEnd: DateComponents(hour: 23, minute: 59, second: 59),
+            repeats: true
+        )
+
+        let eventName = DeviceActivityEvent.Name("screentime_\(nextMinutes)")
+        let event: DeviceActivityEvent
+        if #available(iOS 17.4, *) {
+            event = DeviceActivityEvent(
+                applications: appTokens,
+                categories: catTokens,
+                webDomains: webTokens,
+                threshold: DateComponents(minute: nextMinutes),
+                includesPastActivity: true
+            )
+        } else {
+            event = DeviceActivityEvent(
+                applications: appTokens,
+                categories: catTokens,
+                webDomains: webTokens,
+                threshold: DateComponents(minute: nextMinutes)
+            )
+        }
+
+        do {
+            try DeviceActivityCenter().startMonitoring(activity, during: schedule, events: [eventName: event])
+            ud?.set(nextMinutes, forKey: "nextThresholdMinutes")
+            ud?.synchronize()
+        } catch {
+            ud?.set("rearm failed: \(error.localizedDescription)", forKey: "lastThresholdName")
+            ud?.synchronize()
+        }
     }
 }
