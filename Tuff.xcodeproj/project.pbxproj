@@ -55,6 +55,9 @@
 		E69A83DBACD63B28881AD279 /* FriendCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146D5441632C22A67744C333 /* FriendCarouselView.swift */; };
 		ED17F9694E0EC6B5B0D9B5C9 /* LeagueHistoryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E19A20D88869999A0353DD4C /* LeagueHistoryRow.swift */; };
 		EE001122334455667788AA01 /* ShieldActionExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE001122334455667788AA02 /* ShieldActionExtension.swift */; };
+		DA001122334455667788BB01 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA02 /* DeviceActivity.framework */; };
+		DA001122334455667788BB02 /* ExtensionFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA07 /* ExtensionFoundation.framework */; };
+		DA001122334455667788BB03 /* ExtensionKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA09 /* ExtensionKit.framework */; };
 		EE001122334455667788AA04 /* TuffShieldAction.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = EE001122334455667788AA03 /* TuffShieldAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FA001122334455667788AA01 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA02 /* AuthViewModel.swift */; };
 		FA001122334455667788AA03 /* PhoneSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA04 /* PhoneSignInView.swift */; };
@@ -77,6 +80,34 @@
 			proxyType = 1;
 			remoteGlobalIDString = A49E0A94DFAE06CE0E2EBAC4;
 			remoteInfo = TuffLiveActivity;
+		};
+		DA001122334455667788BB20 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CACFD2EBBD3ED61D67074E70 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 307FFB2C2F6506A5A6126A08;
+			remoteInfo = TuffDeviceActivity;
+		};
+		DA001122334455667788BB21 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CACFD2EBBD3ED61D67074E70 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BB001122334455667788AA0C;
+			remoteInfo = TuffActivityReport;
+		};
+		DA001122334455667788BB22 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CACFD2EBBD3ED61D67074E70 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 23D9EDF1650F12E136CD1A3C;
+			remoteInfo = TuffShieldConfiguration;
+		};
+		DA001122334455667788BB23 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CACFD2EBBD3ED61D67074E70 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EE001122334455667788AA07;
+			remoteInfo = TuffShieldAction;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -199,6 +230,16 @@
 				FB001122334455667788AA01 /* FirebaseAuth in Frameworks */,
 				FB001122334455667788AA02 /* FirebaseCore in Frameworks */,
 				FB001122334455667788AA03 /* FirebaseFirestore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DA001122334455667788BB10 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DA001122334455667788BB01 /* DeviceActivity.framework in Frameworks */,
+				DA001122334455667788BB02 /* ExtensionFoundation.framework in Frameworks */,
+				DA001122334455667788BB03 /* ExtensionKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -477,6 +518,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = BD7A8F89354D0A06755C447E /* Build configuration list for PBXNativeTarget "TuffDeviceActivity" */;
 			buildPhases = (
+				DA001122334455667788BB10 /* Frameworks */,
 				A3AA5DECD6571BCBA8A229FE /* Sources */,
 			);
 			buildRules = (
@@ -518,6 +560,10 @@
 			);
 			dependencies = (
 				1912B50EE302A98236514896 /* PBXTargetDependency */,
+				DA001122334455667788BB30 /* PBXTargetDependency */,
+				DA001122334455667788BB31 /* PBXTargetDependency */,
+				DA001122334455667788BB32 /* PBXTargetDependency */,
+				DA001122334455667788BB33 /* PBXTargetDependency */,
 			);
 			name = Tuff;
 			packageProductDependencies = (
@@ -723,6 +769,30 @@
 			target = A49E0A94DFAE06CE0E2EBAC4 /* TuffLiveActivity */;
 			targetProxy = C5E518437F9A814897E2B72F /* PBXContainerItemProxy */;
 		};
+		DA001122334455667788BB30 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = TuffDeviceActivity;
+			target = 307FFB2C2F6506A5A6126A08 /* TuffDeviceActivity */;
+			targetProxy = DA001122334455667788BB20 /* PBXContainerItemProxy */;
+		};
+		DA001122334455667788BB31 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = TuffActivityReport;
+			target = BB001122334455667788AA0C /* TuffActivityReport */;
+			targetProxy = DA001122334455667788BB21 /* PBXContainerItemProxy */;
+		};
+		DA001122334455667788BB32 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = TuffShieldConfiguration;
+			target = 23D9EDF1650F12E136CD1A3C /* TuffShieldConfiguration */;
+			targetProxy = DA001122334455667788BB22 /* PBXContainerItemProxy */;
+		};
+		DA001122334455667788BB33 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = TuffShieldAction;
+			target = EE001122334455667788AA07 /* TuffShieldAction */;
+			targetProxy = DA001122334455667788BB23 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -901,12 +971,15 @@
 		8572F8C53C0822EEB5B71B15 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = TuffDeviceActivity/TuffDeviceActivity.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TuffDeviceActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -923,12 +996,15 @@
 		A02562BA80ED45270B13EE5F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = TuffDeviceActivity/TuffDeviceActivity.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TuffDeviceActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

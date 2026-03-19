@@ -13,6 +13,9 @@ enum TuffSharedKeys {
     static let dailyHistory = "dailyScreenTimeHistory"
     // Per-app breakdown for today: encoded [AppRecord]
     static let appBreakdown = "appBreakdownToday"
+    // Estimated daily screen time derived from threshold callbacks
+    static let estimatedTodayScreenTime = "estimatedTodayScreenTime"
+    static let estimatedLastUpdated = "estimatedScreenTimeLastUpdated"
 }
 
 /// Lightweight codable record stored in App Group UserDefaults.
@@ -101,5 +104,25 @@ struct TuffSharedStore {
             return []
         }
         return records
+    }
+
+    static func saveEstimatedTodayScreenTime(_ seconds: TimeInterval) {
+        defaults?.set(seconds, forKey: TuffSharedKeys.estimatedTodayScreenTime)
+        defaults?.set(Date(), forKey: TuffSharedKeys.estimatedLastUpdated)
+        defaults?.synchronize()
+    }
+
+    static func estimatedTodayScreenTime() -> TimeInterval? {
+        defaults?.synchronize()
+        if let updatedAt = estimatedLastUpdated(),
+           !Calendar.current.isDateInToday(updatedAt) {
+            return nil
+        }
+        let val = defaults?.double(forKey: TuffSharedKeys.estimatedTodayScreenTime) ?? 0
+        return val > 0 ? val : nil
+    }
+
+    static func estimatedLastUpdated() -> Date? {
+        defaults?.object(forKey: TuffSharedKeys.estimatedLastUpdated) as? Date
     }
 }

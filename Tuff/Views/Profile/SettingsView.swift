@@ -10,8 +10,7 @@ struct SettingsView: View {
     @State private var isSyncing = false
     @State private var syncMessage: String?
     @State private var debugLog: String = ""
-    @State private var showTrackPicker = false
-
+    @State private var showTrackingPicker = false
     private static let dateFmt: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f
     }()
@@ -71,37 +70,63 @@ struct SettingsView: View {
                 .listRowBackground(Color.white)
 
                 Section {
-                    Button {
-                        showTrackPicker = true
-                    } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "waveform.path.ecg")
+                            .font(.system(size: 16))
+                            .frame(width: 28)
+                            .foregroundColor(TuffColors.accent)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Estimated Screen Time")
+                                .font(.system(size: 16))
+                                .foregroundColor(.black)
+                            Text("12 schedules × 23 thresholds (every 5 min)")
+                                .font(.system(size: 12))
+                                .foregroundColor(TuffColors.textSecondary)
+                        }
+                        Spacer()
+                        Text(formatMinutes(screenTimeManager.estimatedTodayMinutes))
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(TuffColors.accent)
+                    }
+
+                    Button { showTrackingPicker = true } label: {
                         HStack(spacing: 12) {
-                            Image(systemName: "eye")
+                            Image(systemName: "square.grid.2x2.fill")
                                 .font(.system(size: 16))
                                 .frame(width: 28)
                                 .foregroundColor(TuffColors.accent)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Select Apps to Track")
+                                Text("Change Tracked Apps")
                                     .font(.system(size: 16))
                                     .foregroundColor(.black)
-                                let t = screenTimeManager.appsToTrack
-                                let count = t.applicationTokens.count + t.categoryTokens.count
-                                Text(count > 0 ? "Tracking \(count) app/categories" : "No apps selected — tap to choose")
+                                Text(trackingLabel)
                                     .font(.system(size: 12))
-                                    .foregroundColor(count > 0 ? .green : TuffColors.textSecondary)
+                                    .foregroundColor(TuffColors.textSecondary)
                             }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(TuffColors.textSecondary)
                         }
                     }
-                    .contentShape(Rectangle())
+                    .familyActivityPicker(
+                        headerText: "Select all categories for complete tracking",
+                        footerText: "Changes take effect after restarting monitoring",
+                        isPresented: $showTrackingPicker,
+                        selection: $screenTimeManager.appsToTrack
+                    )
                 } header: {
                     Text("Screen Time Tracking")
                 } footer: {
-                    Text("Pick ALL the apps and categories you use so Tuff can track your total screen time for leagues.")
+                    Text("This is the shareable estimate pipeline. Your Stats screen still uses the exact local Apple report.")
                 }
                 .listRowBackground(Color.white)
 
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
                         Button {
+                            ScreenTimeManager.clearMonitorLog()
+                            screenTimeManager.estimatedTodayMinutes = 0
                             screenTimeManager.startMonitoring()
                             debugLog = buildDebugLog()
                         } label: {
@@ -176,62 +201,28 @@ struct SettingsView: View {
                 try? Auth.auth().signOut()
             }
         }
-        .familyActivityPicker(
-            isPresented: $showTrackPicker,
-            selection: $screenTimeManager.appsToTrack
-        )
-        .onChange(of: screenTimeManager.appsToTrack) { _ in
-            screenTimeManager.startMonitoring()
+        .onAppear {
+            screenTimeManager.refreshEstimatedMinutes()
             debugLog = buildDebugLog()
         }
     }
 
+    private var trackingLabel: String {
+        let apps = screenTimeManager.appsToTrack.applicationTokens.count
+        let cats = screenTimeManager.appsToTrack.categoryTokens.count
+        if apps == 0 && cats == 0 { return "No apps selected" }
+        var parts: [String] = []
+        if apps > 0 { parts.append("\(apps) app\(apps == 1 ? "" : "s")") }
+        if cats > 0 { parts.append("\(cats) categor\(cats == 1 ? "y" : "ies")") }
+        return parts.joined(separator: ", ")
+    }
+
     private func buildDebugLog() -> String {
-        let ud = UserDefaults(suiteName: "group.com.collinboler.tuff")
-        ud?.synchronize()
-
         var log = ""
-
-        let t = screenTimeManager.appsToTrack
-        log += "TRACKING: \(t.applicationTokens.count) apps, \(t.categoryTokens.count) categories, \(t.webDomainTokens.count) web domains\n"
-        log += "monitoring: \(screenTimeManager.monitoringDebug)\n"
-
-        let monitorTs = ud?.double(forKey: "monitorLastStarted") ?? 0
-        if monitorTs > 0 {
-            let age = Date().timeIntervalSince1970 - monitorTs
-            log += "MONITOR intervalDidStart: \(Int(age))s ago\n"
-        } else {
-            log += "MONITOR intervalDidStart: never\n"
-        }
-
-        let thresholdTs = ud?.double(forKey: "lastThresholdFired") ?? 0
-        if thresholdTs > 0 {
-            let age = Date().timeIntervalSince1970 - thresholdTs
-            let name = ud?.string(forKey: "lastThresholdName") ?? "?"
-            log += "LAST THRESHOLD: \(name), \(Int(age))s ago\n"
-        } else {
-            log += "LAST THRESHOLD: none fired yet\n"
-        }
-
-        let thresholdCount = ud?.integer(forKey: "thresholdFireCount") ?? 0
-        log += "THRESHOLD FIRE COUNT: \(thresholdCount)\n"
-        let nextThreshold = ud?.integer(forKey: "nextThresholdMinutes") ?? 0
-        if nextThreshold > 0 {
-            log += "NEXT THRESHOLD: \(nextThreshold)m\n"
-        }
-
-        let rawToday = ud?.double(forKey: "todayScreenTime") ?? 0
-        log += "todayScreenTime: \(Int(rawToday/60))m (\(Int(rawToday))s)\n"
-
-        let lastUpdated = ud?.object(forKey: "screenTimeLastUpdated") as? Date
-        log += "lastUpdated: \(lastUpdated?.description ?? "nil")\n"
-
-        let storeHistory = TuffSharedStore.dailyHistory()
-        log += "history: \(storeHistory.count) days\n"
-        for r in storeHistory.prefix(5) {
-            log += "  \(Self.dateFmt.string(from: r.date)): \(Int(r.totalSeconds/60))m\n"
-        }
-
+        log += "=== MONITOR (file-based log) ===\n"
+        log += "schedules: \(screenTimeManager.monitoringDebug)\n"
+        log += "estimated today: \(screenTimeManager.estimatedTodayMinutes)m\n\n"
+        log += ScreenTimeManager.readMonitorLog()
         return log
     }
 
@@ -241,16 +232,21 @@ struct SettingsView: View {
         syncMessage = nil
         debugLog = ""
 
+        screenTimeManager.refreshEstimatedMinutes()
         let log = buildDebugLog()
         print("[Sync Debug]\n\(log)")
 
-        let storeToday = TuffSharedStore.todayScreenTime() ?? 0
-        let storeHistory = TuffSharedStore.dailyHistory()
-        let storeApps = TuffSharedStore.appBreakdown()
         screenTimeManager.syncScreenTimeToFirestore(uid: uid)
 
-        syncMessage = "today=\(Int(storeToday/60))m, \(storeHistory.count) days, \(storeApps.count) apps"
+        let estMin = ScreenTimeManager.readEstimatedMinutesFromLog()
+        syncMessage = "estimated: \(estMin)m"
         debugLog = log
         isSyncing = false
+    }
+
+    private func formatMinutes(_ minutes: Int) -> String {
+        let h = minutes / 60
+        let m = minutes % 60
+        return "\(h)h \(String(format: "%02d", m))m"
     }
 }

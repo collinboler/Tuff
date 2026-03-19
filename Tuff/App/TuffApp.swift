@@ -138,9 +138,6 @@ struct TuffApp: App {
                     PermissionsGateView()
                 } else {
                     ContentView()
-                        .onAppear {
-                            screenTimeManager.startMonitoring()
-                        }
                 }
             }
             .environmentObject(auth)

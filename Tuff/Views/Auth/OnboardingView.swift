@@ -1,7 +1,7 @@
 import SwiftUI
 import PhotosUI
-import FamilyControls
 import FirebaseFirestore
+import FamilyControls
 
 struct OnboardingView: View {
     @EnvironmentObject private var auth: AuthViewModel
@@ -18,9 +18,9 @@ struct OnboardingView: View {
     @State private var showSourcePicker = false
     @State private var showCamera = false
     @State private var showLibrary = false
-    @State private var showTrackPicker = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isRequestingScreenTime = false
+    @State private var showTrackingPicker = false
     @FocusState private var focusedField: Field?
 
     private enum Step: Int { case name, username, photo, screenTime, tracking, notifications }
@@ -54,12 +54,10 @@ struct OnboardingView: View {
         }
         .animation(.easeInOut(duration: 0.25), value: step)
         .colorScheme(.light)
-        // Camera picker
         .sheet(isPresented: $showCamera) {
             ImagePicker(sourceType: .camera, image: $profileImage)
                 .ignoresSafeArea()
         }
-        // Photo library picker
         .sheet(isPresented: $showLibrary) {
             PhotosPicker(selection: $selectedPhoto, matching: .images) {
                 Text("Choose Photo")
@@ -81,15 +79,6 @@ struct OnboardingView: View {
             }
             Button("Choose from Library") { showLibrary = true }
             Button("Cancel", role: .cancel) {}
-        }
-        .familyActivityPicker(
-            isPresented: $showTrackPicker,
-            selection: $screenTimeManager.appsToTrack
-        )
-        .onChange(of: screenTimeManager.appsToTrack) { _ in
-            if trackingSelectionCount > 0 {
-                screenTimeManager.startMonitoring()
-            }
         }
     }
 
@@ -328,68 +317,72 @@ struct OnboardingView: View {
 
     // MARK: - Tracking step
 
-    private var trackingSelectionCount: Int {
-        screenTimeManager.appsToTrack.applicationTokens.count
-            + screenTimeManager.appsToTrack.categoryTokens.count
-            + screenTimeManager.appsToTrack.webDomainTokens.count
-    }
-
     private var trackingStep: some View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("SELECT EVERYTHING")
+                Text("CHOOSE WHAT TO TRACK")
                     .font(.system(size: 28, weight: .black, design: .default).width(.condensed))
                     .foregroundColor(.black)
                     .tracking(1)
-                Text("Pick all the apps, categories, and websites you use so Tuff can estimate your total screen time for leagues.")
+                Text("Select the apps and categories to include in your screen time estimate. For the most accurate tracking, select all categories.")
                     .font(.system(size: 15))
                     .foregroundColor(TuffColors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            iconRow(systemName: "iphone.gen3", color: TuffColors.accent,
-                    title: "Choose broadly", subtitle: "Select all common apps you open during the day")
-            iconRow(systemName: "square.grid.2x2.fill", color: TuffColors.gold,
-                    title: "Add all categories", subtitle: "Social, entertainment, productivity, and more")
-            iconRow(systemName: "globe", color: Color(hex: "5B8CFF"),
-                    title: "Include websites", subtitle: "Safari/web usage helps the total feel more accurate")
-
-            VStack(alignment: .leading, spacing: 12) {
-                Button {
-                    showTrackPicker = true
-                } label: {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(hex: "F5F5F5"))
-                        .frame(height: 54)
-                        .overlay(
-                            HStack {
-                                Text(trackingSelectionCount > 0 ? "Edit Tracking Selection" : "Select Apps to Track")
-                                    .font(.system(size: 17, weight: .bold))
-                                    .foregroundColor(.black)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(TuffColors.textSecondary)
-                            }
-                            .padding(.horizontal, 18)
-                        )
+            Button { showTrackingPicker = true } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: "square.grid.2x2.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(TuffColors.accent)
+                        .frame(width: 40, height: 40)
+                        .background(TuffColors.accent.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(trackingSelectionLabel)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(.black)
+                        Text("Tap to choose apps & categories")
+                            .font(.system(size: 13))
+                            .foregroundColor(TuffColors.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(TuffColors.textSecondary)
                 }
-                .buttonStyle(.plain)
-
-                Text(
-                    trackingSelectionCount > 0
-                    ? "Selected \(trackingSelectionCount) items. Tuff will start tracking after you finish onboarding."
-                    : "Nothing selected yet. Open the picker and choose everything you want counted."
-                )
-                .font(.system(size: 13))
-                .foregroundColor(trackingSelectionCount > 0 ? .green : TuffColors.textSecondary)
             }
+            .familyActivityPicker(
+                headerText: "Select all categories for complete tracking",
+                footerText: "Tuff estimates your usage every ~5 minutes",
+                isPresented: $showTrackingPicker,
+                selection: $screenTimeManager.appsToTrack
+            )
 
-            continueButton(title: "Continue", disabled: trackingSelectionCount == 0) {
+            iconRow(systemName: "clock.fill", color: TuffColors.gold,
+                    title: "~5 min accuracy", subtitle: "Estimated every 5 minutes in the background")
+            iconRow(systemName: "globe", color: Color(hex: "5B8CFF"),
+                    title: "Shared to leagues", subtitle: "Your Stats tab still uses exact local data")
+
+            continueButton(
+                title: "Start Tracking",
+                disabled: screenTimeManager.appsToTrack.applicationTokens.isEmpty
+                    && screenTimeManager.appsToTrack.categoryTokens.isEmpty
+            ) {
                 screenTimeManager.startMonitoring()
                 step = .notifications
             }
         }
+    }
+
+    private var trackingSelectionLabel: String {
+        let apps = screenTimeManager.appsToTrack.applicationTokens.count
+        let cats = screenTimeManager.appsToTrack.categoryTokens.count
+        if apps == 0 && cats == 0 { return "No apps selected" }
+        var parts: [String] = []
+        if apps > 0 { parts.append("\(apps) app\(apps == 1 ? "" : "s")") }
+        if cats > 0 { parts.append("\(cats) categor\(cats == 1 ? "y" : "ies")") }
+        return parts.joined(separator: ", ")
     }
 
     // MARK: - Notifications step
@@ -437,7 +430,6 @@ struct OnboardingView: View {
             username: username,
             profileImage: profileImage
         )
-        screenTimeManager.startMonitoring()
     }
 
     private func continueButton(title: String, disabled: Bool, action: @escaping () -> Void) -> some View {

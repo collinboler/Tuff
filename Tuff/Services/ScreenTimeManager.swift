@@ -15,14 +15,16 @@ class ScreenTimeManager: ObservableObject {
     static let shared = ScreenTimeManager()
 
     @Published var isAuthorized = false
+    private static let hasAuthorizedKey = "tuff_hasAuthorizedScreenTime"
     @Published var selectedAppsToBlock: FamilyActivitySelection = FamilyActivitySelection() {
         didSet { persistSelection() }
     }
-    @Published var appsToTrack: FamilyActivitySelection = FamilyActivitySelection() {
+    @Published var appsToTrack: FamilyActivitySelection = FamilyActivitySelection(includeEntireCategory: true) {
         didSet { persistTrackSelection() }
     }
     @Published var isMonitoring = false
     @Published var todayMinutes: Int = 0
+    @Published var estimatedTodayMinutes: Int = 0
     @Published var blockTimerEndDate: Date? = nil
     @Published var isActivelyBlocking: Bool = false
 
@@ -49,12 +51,13 @@ class ScreenTimeManager: ObservableObject {
 
     private static let selectionKey = "savedFamilyActivitySelection"
     private static let trackSelectionKey = "savedTrackActivitySelection"
-    private static let sharedTrackSelectionKey = "trackingFamilyActivitySelection"
-
     private init() {
         store = ManagedSettingsStore()
         center = DeviceActivityCenter()
-        isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+
+        let liveStatus = AuthorizationCenter.shared.authorizationStatus == .approved
+        let persisted = UserDefaults.standard.bool(forKey: Self.hasAuthorizedKey)
+        isAuthorized = liveStatus || persisted
 
         if let data = UserDefaults.standard.data(forKey: Self.selectionKey),
            let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
@@ -65,13 +68,17 @@ class ScreenTimeManager: ObservableObject {
            let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
             appsToTrack = selection
         }
-        persistTrackSelection()
-
         authObserver = AuthorizationCenter.shared
             .objectWillChange
-            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    guard let self else { return }
+                    let status = AuthorizationCenter.shared.authorizationStatus == .approved
+                    if status {
+                        UserDefaults.standard.set(true, forKey: Self.hasAuthorizedKey)
+                    }
+                    self.isAuthorized = status || UserDefaults.standard.bool(forKey: Self.hasAuthorizedKey)
+                }
             }
     }
 
@@ -84,15 +91,16 @@ class ScreenTimeManager: ObservableObject {
     private func persistTrackSelection() {
         if let data = try? JSONEncoder().encode(appsToTrack) {
             UserDefaults.standard.set(data, forKey: Self.trackSelectionKey)
-            TuffSharedStore.defaults?.set(data, forKey: Self.sharedTrackSelectionKey)
-            TuffSharedStore.defaults?.synchronize()
         }
     }
 
     /// Call this when the app becomes active so the status is always fresh.
     func recheckAuthorization() {
-        isAuthorized = AuthorizationCenter.shared.authorizationStatus == .approved
+        let live = AuthorizationCenter.shared.authorizationStatus == .approved
+        if live { UserDefaults.standard.set(true, forKey: Self.hasAuthorizedKey) }
+        isAuthorized = live || UserDefaults.standard.bool(forKey: Self.hasAuthorizedKey)
         refreshTodayMinutes()
+        refreshEstimatedMinutes()
         // Auto-unblock if timer expired while app was backgrounded
         if let end = blockTimerEndDate, Date() >= end {
             blockTimerTask?.cancel()
@@ -180,7 +188,7 @@ class ScreenTimeManager: ObservableObject {
         do {
             try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
             isAuthorized = true
-            startMonitoring()
+            UserDefaults.standard.set(true, forKey: Self.hasAuthorizedKey)
             print("[Tuff] Screen Time authorized ✓")
         } catch {
             print("[Tuff] Screen Time auth failed: \(error)")
@@ -228,41 +236,22 @@ class ScreenTimeManager: ObservableObject {
     func refreshTodayMinutes() {
         if let seconds = TuffSharedStore.todayScreenTime() {
             todayMinutes = Int(seconds) / 60
+        } else {
+            todayMinutes = 0
         }
     }
 
-    /// Last monitoring start result for debug display
+    func refreshEstimatedMinutes() {
+        estimatedTodayMinutes = Self.readEstimatedMinutesFromLog()
+    }
+
     @Published var monitoringDebug: String = ""
 
-    /// Tokens used for monitoring: prefer `appsToTrack`, fall back to `selectedAppsToBlock`.
-    var trackingTokens: (
-        apps: Set<ApplicationToken>,
-        cats: Set<ActivityCategoryToken>,
-        webs: Set<WebDomainToken>
-    ) {
-        let trackApps = appsToTrack.applicationTokens
-        let trackCats = appsToTrack.categoryTokens
-        let trackWebs = appsToTrack.webDomainTokens
-        if !trackApps.isEmpty || !trackCats.isEmpty || !trackWebs.isEmpty {
-            return (trackApps, trackCats, trackWebs)
-        }
-        return (
-            selectedAppsToBlock.applicationTokens,
-            selectedAppsToBlock.categoryTokens,
-            selectedAppsToBlock.webDomainTokens
-        )
-    }
-
-    private func nextThresholdMinutes(from currentSeconds: TimeInterval) -> Int {
-        let currentMinutes = max(0, Int(currentSeconds / 60))
-        if currentMinutes < 10 {
-            return currentMinutes + 1
-        }
-        return ((currentMinutes / 5) + 1) * 5
-    }
-
+    /// Follows Mattei's approach exactly: 12 two-hour schedules, shared events
+    /// with 5-minute thresholds (5, 10, 15 ... 115). Each threshold fire = +5 min.
+    /// No includesPastActivity. Extension logs to a file, not UserDefaults.
     func startMonitoring() {
-        refreshTodayMinutes()
+        refreshEstimatedMinutes()
         guard isAuthorized else {
             monitoringDebug = "not authorized"
             return
@@ -272,59 +261,157 @@ class ScreenTimeManager: ObservableObject {
             return
         }
 
-        let (appTokens, catTokens, webTokens) = trackingTokens
-
-        center.stopMonitoring()
-
-        let activityName = DeviceActivityName(rawValue: "dailyActivity")
-
-        let schedule = DeviceActivitySchedule(
-            intervalStart: DateComponents(hour: 0, minute: 0),
-            intervalEnd: DateComponents(hour: 23, minute: 59),
-            repeats: true
-        )
+        let appTokens = appsToTrack.applicationTokens
+        let catTokens = appsToTrack.categoryTokens
+        let webTokens = appsToTrack.webDomainTokens
 
         guard !appTokens.isEmpty || !catTokens.isEmpty || !webTokens.isEmpty else {
-            monitoringDebug = "no apps selected — pick apps to track"
-            try? center.startMonitoring(activityName, during: schedule)
-            isMonitoring = true
+            monitoringDebug = "no apps/categories selected — open picker first"
             return
         }
 
-        let nextThreshold = nextThresholdMinutes(from: TuffSharedStore.todayScreenTime() ?? 0)
-        let eventName = DeviceActivityEvent.Name("screentime_\(nextThreshold)")
+        monitoringDebug = "registering..."
 
-        func makeEvent(minutes: Int) -> DeviceActivityEvent {
-            if #available(iOS 17.4, *) {
-                return DeviceActivityEvent(
-                    applications: appTokens,
-                    categories: catTokens,
-                    webDomains: webTokens,
-                    threshold: DateComponents(minute: minutes),
-                    includesPastActivity: true
-                )
-            } else {
-                return DeviceActivityEvent(
-                    applications: appTokens,
-                    categories: catTokens,
-                    webDomains: webTokens,
-                    threshold: DateComponents(minute: minutes)
+        let intervals = Self.generateTwoHourIntervals()
+
+        // Capture everything we need as local values so the background task
+        // doesn't need to touch self at all.
+        let capturedAppTokens = appTokens
+        let capturedCatTokens = catTokens
+        let capturedWebTokens = webTokens
+
+        Task.detached(priority: .userInitiated) {
+            let bgCenter = DeviceActivityCenter()
+            bgCenter.stopMonitoring()
+
+            var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
+            for minute in stride(from: 5, through: 115, by: 5) {
+                let eventName = DeviceActivityEvent.Name("tuff.\(minute).threshold")
+                events[eventName] = DeviceActivityEvent(
+                    applications: capturedAppTokens,
+                    categories: capturedCatTokens,
+                    webDomains: capturedWebTokens,
+                    threshold: DateComponents(minute: minute)
                 )
             }
-        }
-        let events = [eventName: makeEvent(minutes: nextThreshold)]
 
-        do {
-            try center.startMonitoring(activityName, during: schedule, events: events)
-            isMonitoring = true
-            monitoringDebug = "OK: next=\(nextThreshold)m, \(appTokens.count) apps, \(catTokens.count) cats, \(webTokens.count) webs"
-        } catch {
-            monitoringDebug = "FAILED: \(error.localizedDescription)"
+            var registeredCount = 0
+            var errors: [String] = []
+
+            for (index, (startTime, endTime)) in intervals.enumerated() {
+                let schedule = DeviceActivitySchedule(
+                    intervalStart: startTime,
+                    intervalEnd: endTime,
+                    repeats: true
+                )
+                let activity = DeviceActivityName("tuff.schedule.\(index)")
+                do {
+                    try bgCenter.startMonitoring(activity, during: schedule, events: events)
+                    registeredCount += 1
+                } catch {
+                    errors.append("s\(index): \(error.localizedDescription)")
+                }
+            }
+
+            let resultDebug: String
+            if errors.isEmpty {
+                resultDebug = "OK: \(registeredCount)/12, \(events.count) events, \(capturedAppTokens.count) apps, \(capturedCatTokens.count) cats"
+            } else {
+                resultDebug = "\(registeredCount)/12 OK, errors: \(errors.joined(separator: "; "))"
+            }
+            let resultMonitoring = registeredCount > 0
+
+            await MainActor.run {
+                ScreenTimeManager.shared.isMonitoring = resultMonitoring
+                ScreenTimeManager.shared.monitoringDebug = resultDebug
+            }
         }
     }
 
+    /// Calendar-based interval generation (matches Mattei's generateHourlyDateTuples)
+    private static func generateTwoHourIntervals() -> [(DateComponents, DateComponents)] {
+        let calendar = Calendar.current
+        let base = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: Date())!
+
+        var intervals: [(DateComponents, DateComponents)] = []
+        for hour in stride(from: 0, through: 22, by: 2) {
+            let startDate = calendar.date(byAdding: .hour, value: hour, to: base)!
+            let endDate = calendar.date(byAdding: .hour, value: 2, to: startDate)!.addingTimeInterval(-1)
+            let start = calendar.dateComponents([.hour, .minute, .second], from: startDate)
+            let end = calendar.dateComponents([.hour, .minute, .second], from: endDate)
+            intervals.append((start, end))
+        }
+        return intervals
+    }
+
+    // MARK: - File-based log reader (avoids UserDefaults crash in extension)
+
+    private static var monitorLogURL: URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: "group.com.collinboler.tuff")?
+            .appendingPathComponent("monitor_log.txt")
+    }
+
+    /// Reads today's threshold fires from the file log written by the extension.
+    static func readEstimatedMinutesFromLog() -> Int {
+        guard let url = monitorLogURL,
+              let content = try? String(contentsOf: url, encoding: .utf8) else { return 0 }
+
+        let todayStart = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+        var totalMinutes = 0
+
+        for line in content.split(separator: "\n") {
+            let parts = line.split(separator: ",")
+            guard parts.count >= 3,
+                  let ts = Double(parts[0]),
+                  ts >= todayStart,
+                  parts[1] == "threshold",
+                  let mins = Int(parts[2]) else { continue }
+            totalMinutes += mins
+        }
+        return totalMinutes
+    }
+
+    static func clearMonitorLog() {
+        guard let url = monitorLogURL else { return }
+        try? Data().write(to: url, options: .atomic)
+    }
+
+    /// Returns all log lines for debugging
+    static func readMonitorLog() -> String {
+        guard let url = monitorLogURL,
+              let content = try? String(contentsOf: url, encoding: .utf8) else { return "(no log file)" }
+        let lines = content.split(separator: "\n")
+        if lines.isEmpty { return "(log empty)" }
+        let todayStart = Calendar.current.startOfDay(for: Date()).timeIntervalSince1970
+        let todayLines = lines.filter {
+            guard let ts = Double($0.split(separator: ",").first ?? "") else { return false }
+            return ts >= todayStart
+        }
+        let total = todayLines.count
+        let thresholds = todayLines.filter { $0.contains("threshold") }.count
+        let starts = todayLines.filter { $0.contains(",start,") }.count
+        let ends = todayLines.filter { $0.contains(",end,") }.count
+        var summary = "\(total) events today (starts: \(starts), ends: \(ends), thresholds: \(thresholds))"
+        summary += "\nestimated: \(thresholds * 5)m"
+        if let lastLine = todayLines.last {
+            let parts = lastLine.split(separator: ",")
+            if let ts = Double(parts.first ?? "") {
+                let age = Int(Date().timeIntervalSince1970 - ts)
+                summary += "\nlast event: \(age)s ago"
+            }
+        }
+        // Show last 5 raw lines
+        let tail = todayLines.suffix(5)
+        if !tail.isEmpty {
+            summary += "\n---\n" + tail.joined(separator: "\n")
+        }
+        return summary
+    }
+
     func stopMonitoring() {
-        center?.stopMonitoring([DeviceActivityName(rawValue: "dailyActivity")])
+        guard let center else { return }
+        center.stopMonitoring()
         isMonitoring = false
     }
 
@@ -384,43 +471,32 @@ class ScreenTimeManager: ObservableObject {
     // MARK: - Sync to Firestore
 
     func syncScreenTimeToFirestore(uid: String) {
-        // Snapshot current screen time before syncing
-        // (Report extension wrote todayScreenTime to shared file, now we snapshot it to history)
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        guard let seconds = TuffSharedStore.todayScreenTime(), seconds > 0 else {
-            // No data to snapshot, just sync empty
-            self.doSync(uid: uid)
-            return
+
+        // Use file-based estimated minutes from the monitor extension
+        let estMinutes = Self.readEstimatedMinutesFromLog()
+        let estSeconds = TimeInterval(estMinutes * 60)
+
+        if estSeconds > 0 {
+            var history = TuffSharedStore.dailyHistory()
+            history.removeAll { calendar.isDate($0.date, inSameDayAs: today) }
+            let record = DailyRecord(id: UUID(), date: today, totalSeconds: estSeconds, appBreakdown: [])
+            history.append(record)
+            let sorted = history.sorted { $0.date > $1.date }
+            TuffSharedStore.saveDailyHistory(Array(sorted.prefix(30)))
         }
 
-        var history = TuffSharedStore.dailyHistory()
-        let breakdown = TuffSharedStore.appBreakdown()
-
-        // Remove old entry for today if exists, add fresh one
-        history.removeAll { calendar.isDate($0.date, inSameDayAs: today) }
-        let record = DailyRecord(id: UUID(), date: today, totalSeconds: seconds, appBreakdown: breakdown)
-        history.append(record)
-
-        let sorted = history.sorted { $0.date > $1.date }
-        TuffSharedStore.saveDailyHistory(Array(sorted.prefix(30)))
-
-        // Now sync
         self.doSync(uid: uid)
     }
 
     private func doSync(uid: String) {
         let history = TuffSharedStore.dailyHistory().sorted(by: { $0.date > $1.date })
-        let todaySeconds = TuffSharedStore.todayScreenTime() ?? 0
-        let liveApps = TuffSharedStore.appBreakdown()
+        let estMinutes = Self.readEstimatedMinutesFromLog()
+        self.estimatedTodayMinutes = estMinutes
 
-        let todayMinutes: Int
-        if todaySeconds > 0 {
-            todayMinutes = Int(todaySeconds / 60)
-            self.todayMinutes = todayMinutes
-        } else {
-            todayMinutes = history.first.map { Int($0.totalSeconds / 60) } ?? 0
-        }
+        let todayMinutes = estMinutes > 0 ? estMinutes : (history.first.map { Int($0.totalSeconds / 60) } ?? 0)
+        self.todayMinutes = todayMinutes
 
         let dateFmt = DateFormatter(); dateFmt.dateFormat = "yyyy-MM-dd"
 
@@ -435,6 +511,7 @@ class ScreenTimeManager: ObservableObject {
                     "apps": apps]
         }
 
+        let liveApps = TuffSharedStore.appBreakdown()
         let liveAppsData: [[String: Any]] = liveApps.map {
             ["name": $0.displayName, "bundleID": $0.bundleID,
              "seconds": $0.totalSeconds, "minutes": Int($0.totalSeconds / 60)]
@@ -448,6 +525,7 @@ class ScreenTimeManager: ObservableObject {
 
             try? await db.collection("users").document(uid).setData([
                 "screenTimeMinutes":  todayMinutes,
+                "estimatedScreenTimeMinutes": estMinutes,
                 "screenTimeHistory":  historyData,
                 "appBreakdown":       liveAppsData,
                 "lastSyncedAt":       now
