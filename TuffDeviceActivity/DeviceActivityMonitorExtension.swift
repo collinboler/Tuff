@@ -20,7 +20,7 @@ class TuffDeviceActivityMonitor: DeviceActivityMonitor {
         activity: DeviceActivityName
     ) {
         super.eventDidReachThreshold(event, activity: activity)
-        appendLog("threshold,5,\(event.rawValue)")
+        appendLog("threshold,1,\(event.rawValue)")
     }
 
     /// Append a line to the shared log file.

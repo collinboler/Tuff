@@ -28,6 +28,12 @@ class ScreenTimeManager: ObservableObject {
     @Published var blockTimerEndDate: Date? = nil
     @Published var isActivelyBlocking: Bool = false
 
+    var hasTrackingSelection: Bool {
+        !appsToTrack.applicationTokens.isEmpty
+            || !appsToTrack.categoryTokens.isEmpty
+            || !appsToTrack.webDomainTokens.isEmpty
+    }
+
     private var blockTimerTask: Task<Void, Never>?
     private var liveActivity: Activity<BlockTimerAttributes>?
 
@@ -51,6 +57,7 @@ class ScreenTimeManager: ObservableObject {
 
     private static let selectionKey = "savedFamilyActivitySelection"
     private static let trackSelectionKey = "savedTrackActivitySelection"
+    private static let monitoringRegistrationKey = "savedMonitoringRegistrationSignature"
     private init() {
         store = ManagedSettingsStore()
         center = DeviceActivityCenter()
@@ -246,12 +253,17 @@ class ScreenTimeManager: ObservableObject {
     }
 
     @Published var monitoringDebug: String = ""
+    @Published var isRegisteringMonitoring = false
 
     /// Follows Mattei's approach exactly: 12 two-hour schedules, shared events
-    /// with 5-minute thresholds (5, 10, 15 ... 115). Each threshold fire = +5 min.
+    /// with 1-minute thresholds (1 ... 115). Each threshold fire = +1 min.
     /// No includesPastActivity. Extension logs to a file, not UserDefaults.
-    func startMonitoring() {
+    func startMonitoring(force: Bool = false) {
         refreshEstimatedMinutes()
+        if isRegisteringMonitoring {
+            monitoringDebug = "registering..."
+            return
+        }
         guard isAuthorized else {
             monitoringDebug = "not authorized"
             return
@@ -270,9 +282,23 @@ class ScreenTimeManager: ObservableObject {
             return
         }
 
+        let signature = monitoringSignature(
+            applications: appTokens.count,
+            categories: catTokens.count,
+            webDomains: webTokens.count
+        )
+        let savedSignature = UserDefaults.standard.string(forKey: Self.monitoringRegistrationKey)
+        if !force, savedSignature == signature {
+            isMonitoring = true
+            monitoringDebug = "already registered: 12 schedules, 115 events, \(appTokens.count) apps, \(catTokens.count) cats"
+            return
+        }
+
+        isRegisteringMonitoring = true
         monitoringDebug = "registering..."
 
         let intervals = Self.generateTwoHourIntervals()
+        let activeIntervalIndex = Self.currentIntervalIndex()
 
         // Capture everything we need as local values so the background task
         // doesn't need to touch self at all.
@@ -285,7 +311,7 @@ class ScreenTimeManager: ObservableObject {
             bgCenter.stopMonitoring()
 
             var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
-            for minute in stride(from: 5, through: 115, by: 5) {
+            for minute in 1...115 {
                 let eventName = DeviceActivityEvent.Name("tuff.\(minute).threshold")
                 events[eventName] = DeviceActivityEvent(
                     applications: capturedAppTokens,
@@ -298,7 +324,8 @@ class ScreenTimeManager: ObservableObject {
             var registeredCount = 0
             var errors: [String] = []
 
-            for (index, (startTime, endTime)) in intervals.enumerated() {
+            func registerInterval(_ index: Int) {
+                let (startTime, endTime) = intervals[index]
                 let schedule = DeviceActivitySchedule(
                     intervalStart: startTime,
                     intervalEnd: endTime,
@@ -313,6 +340,25 @@ class ScreenTimeManager: ObservableObject {
                 }
             }
 
+            // Phase 1: register the currently active 2-hour window first so tracking
+            // can begin for "right now" before the full daily setup finishes.
+            registerInterval(activeIntervalIndex)
+
+            await MainActor.run {
+                let hasActiveWindow = registeredCount > 0
+                ScreenTimeManager.shared.isMonitoring = hasActiveWindow
+                if hasActiveWindow {
+                    ScreenTimeManager.shared.monitoringDebug = "live now: 1/12 schedules, finishing setup..."
+                } else {
+                    ScreenTimeManager.shared.monitoringDebug = "registering active window failed, finishing setup..."
+                }
+            }
+
+            // Phase 2: register the remaining 11 windows in the background.
+            for index in intervals.indices where index != activeIntervalIndex {
+                registerInterval(index)
+            }
+
             let resultDebug: String
             if errors.isEmpty {
                 resultDebug = "OK: \(registeredCount)/12, \(events.count) events, \(capturedAppTokens.count) apps, \(capturedCatTokens.count) cats"
@@ -324,8 +370,27 @@ class ScreenTimeManager: ObservableObject {
             await MainActor.run {
                 ScreenTimeManager.shared.isMonitoring = resultMonitoring
                 ScreenTimeManager.shared.monitoringDebug = resultDebug
+                ScreenTimeManager.shared.isRegisteringMonitoring = false
+                if resultMonitoring {
+                    UserDefaults.standard.set(signature, forKey: Self.monitoringRegistrationKey)
+                }
             }
         }
+    }
+
+    private func monitoringSignature(applications: Int, categories: Int, webDomains: Int) -> String {
+        let data = (try? JSONEncoder().encode(appsToTrack)) ?? Data()
+        let hash = Self.fnv1a64Hex(data)
+        return "v1m-\(applications)-\(categories)-\(webDomains)-\(hash)"
+    }
+
+    private static func fnv1a64Hex(_ data: Data) -> String {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in data {
+            hash ^= UInt64(byte)
+            hash &*= 0x100000001b3
+        }
+        return String(hash, radix: 16)
     }
 
     /// Calendar-based interval generation (matches Mattei's generateHourlyDateTuples)
@@ -342,6 +407,11 @@ class ScreenTimeManager: ObservableObject {
             intervals.append((start, end))
         }
         return intervals
+    }
+
+    private static func currentIntervalIndex(now: Date = Date()) -> Int {
+        let hour = Calendar.current.component(.hour, from: now)
+        return max(0, min(11, hour / 2))
     }
 
     // MARK: - File-based log reader (avoids UserDefaults crash in extension)
@@ -393,7 +463,14 @@ class ScreenTimeManager: ObservableObject {
         let starts = todayLines.filter { $0.contains(",start,") }.count
         let ends = todayLines.filter { $0.contains(",end,") }.count
         var summary = "\(total) events today (starts: \(starts), ends: \(ends), thresholds: \(thresholds))"
-        summary += "\nestimated: \(thresholds * 5)m"
+        let estimatedMinutes = todayLines.reduce(into: 0) { partialResult, line in
+            let parts = line.split(separator: ",")
+            guard parts.count >= 3,
+                  parts[1] == "threshold",
+                  let mins = Int(parts[2]) else { return }
+            partialResult += mins
+        }
+        summary += "\nestimated: \(estimatedMinutes)m"
         if let lastLine = todayLines.last {
             let parts = lastLine.split(separator: ",")
             if let ts = Double(parts.first ?? "") {
@@ -413,6 +490,7 @@ class ScreenTimeManager: ObservableObject {
         guard let center else { return }
         center.stopMonitoring()
         isMonitoring = false
+        UserDefaults.standard.removeObject(forKey: Self.monitoringRegistrationKey)
     }
 
     // MARK: - Screen Time Data (reads from App Group, written by TuffActivityReport extension)

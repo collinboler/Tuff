@@ -136,6 +136,8 @@ struct TuffApp: App {
                     OnboardingView()
                 } else if !screenTimeManager.isAuthorized {
                     PermissionsGateView()
+                } else if !screenTimeManager.hasTrackingSelection {
+                    OnboardingView(mode: .trackingRecovery)
                 } else {
                     ContentView()
                 }
@@ -145,6 +147,12 @@ struct TuffApp: App {
             .environmentObject(notificationManager)
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 screenTimeManager.recheckAuthorization()
+                if auth.isSignedIn
+                    && screenTimeManager.isAuthorized
+                    && screenTimeManager.hasTrackingSelection
+                    && !screenTimeManager.isRegisteringMonitoring {
+                    screenTimeManager.startMonitoring()
+                }
                 if let uid = Auth.auth().currentUser?.uid {
                     screenTimeManager.syncScreenTimeToFirestore(uid: uid)
                 }

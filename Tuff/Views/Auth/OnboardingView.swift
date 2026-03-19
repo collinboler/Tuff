@@ -8,6 +8,13 @@ struct OnboardingView: View {
     @EnvironmentObject private var screenTimeManager: ScreenTimeManager
     @EnvironmentObject private var notificationManager: NotificationManager
 
+    enum Mode {
+        case full
+        case trackingRecovery
+    }
+
+    private let mode: Mode
+
     @State private var step: Step = .name
     @State private var firstName = ""
     @State private var lastName = ""
@@ -26,16 +33,29 @@ struct OnboardingView: View {
     private enum Step: Int { case name, username, photo, screenTime, tracking, notifications }
     private enum Field { case firstName, lastName, username }
 
-    private let totalSteps = 6
+    init(mode: Mode = .full) {
+        self.mode = mode
+        _step = State(initialValue: mode == .trackingRecovery ? .tracking : .name)
+    }
+
+    private var totalSteps: Int {
+        mode == .trackingRecovery ? 1 : 6
+    }
+
+    private var progressIndex: Int {
+        mode == .trackingRecovery ? 0 : step.rawValue
+    }
 
     var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                progressBar
-                    .padding(.top, 16)
-                    .padding(.horizontal, 32)
+                if mode == .full {
+                    progressBar
+                        .padding(.top, 16)
+                        .padding(.horizontal, 32)
+                }
 
                 Spacer()
 
@@ -80,6 +100,15 @@ struct OnboardingView: View {
             Button("Choose from Library") { showLibrary = true }
             Button("Cancel", role: .cancel) {}
         }
+        .onChange(of: screenTimeManager.appsToTrack) { _, newSelection in
+            guard mode == .trackingRecovery else { return }
+            let hasSelection = !newSelection.applicationTokens.isEmpty
+                || !newSelection.categoryTokens.isEmpty
+                || !newSelection.webDomainTokens.isEmpty
+            if hasSelection {
+                screenTimeManager.startMonitoring(force: true)
+            }
+        }
     }
 
     // MARK: - Progress bar
@@ -88,7 +117,7 @@ struct OnboardingView: View {
         HStack(spacing: 6) {
             ForEach(0..<totalSteps) { i in
                 Capsule()
-                    .fill(i <= step.rawValue ? TuffColors.accent : Color(hex: "E0E0E0"))
+                    .fill(i <= progressIndex ? TuffColors.accent : Color(hex: "E0E0E0"))
                     .frame(height: 4)
             }
         }
@@ -320,11 +349,13 @@ struct OnboardingView: View {
     private var trackingStep: some View {
         VStack(alignment: .leading, spacing: 24) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("CHOOSE WHAT TO TRACK")
+                Text(mode == .trackingRecovery ? "RE-ENABLE TRACKING" : "CHOOSE WHAT TO TRACK")
                     .font(.system(size: 28, weight: .black, design: .default).width(.condensed))
                     .foregroundColor(.black)
                     .tracking(1)
-                Text("Select the apps and categories to include in your screen time estimate. For the most accurate tracking, select all categories.")
+                Text(mode == .trackingRecovery
+                     ? "To keep contests fair, choose all apps and categories again. Reinstalls clear this Apple selection."
+                     : "Select the apps and categories to include in your screen time estimate. For the most accurate tracking, select all categories.")
                     .font(.system(size: 15))
                     .foregroundColor(TuffColors.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -354,22 +385,24 @@ struct OnboardingView: View {
             }
             .familyActivityPicker(
                 headerText: "Select all categories for complete tracking",
-                footerText: "Tuff estimates your usage every ~5 minutes",
+                footerText: "Tuff estimates your usage every ~1 minute",
                 isPresented: $showTrackingPicker,
                 selection: $screenTimeManager.appsToTrack
             )
 
             iconRow(systemName: "clock.fill", color: TuffColors.gold,
-                    title: "~5 min accuracy", subtitle: "Estimated every 5 minutes in the background")
+                    title: "~1 min accuracy", subtitle: "Estimated every minute in the background")
             iconRow(systemName: "globe", color: Color(hex: "5B8CFF"),
                     title: "Shared to leagues", subtitle: "Your Stats tab still uses exact local data")
 
             continueButton(
-                title: "Start Tracking",
-                disabled: screenTimeManager.appsToTrack.applicationTokens.isEmpty
-                    && screenTimeManager.appsToTrack.categoryTokens.isEmpty
+                title: mode == .trackingRecovery ? "Continue" : "Start Tracking",
+                disabled: !screenTimeManager.hasTrackingSelection
             ) {
-                screenTimeManager.startMonitoring()
+                screenTimeManager.startMonitoring(force: true)
+                if mode == .trackingRecovery {
+                    return
+                }
                 step = .notifications
             }
         }

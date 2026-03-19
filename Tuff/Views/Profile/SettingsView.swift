@@ -79,7 +79,7 @@ struct SettingsView: View {
                             Text("Estimated Screen Time")
                                 .font(.system(size: 16))
                                 .foregroundColor(.black)
-                            Text("12 schedules × 23 thresholds (every 5 min)")
+                            Text("12 schedules × 115 thresholds (every 1 min)")
                                 .font(.system(size: 12))
                                 .foregroundColor(TuffColors.textSecondary)
                         }
@@ -127,7 +127,7 @@ struct SettingsView: View {
                         Button {
                             ScreenTimeManager.clearMonitorLog()
                             screenTimeManager.estimatedTodayMinutes = 0
-                            screenTimeManager.startMonitoring()
+                            screenTimeManager.startMonitoring(force: true)
                             debugLog = buildDebugLog()
                         } label: {
                             HStack(spacing: 12) {
