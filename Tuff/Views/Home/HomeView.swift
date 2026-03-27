@@ -1,8 +1,7 @@
 import SwiftUI
-import FamilyControls
 
 struct LeagueView: View {
-    @StateObject private var viewModel = HomeViewModel()
+    @EnvironmentObject var viewModel: HomeViewModel
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -21,7 +20,6 @@ struct LeagueView: View {
         }
         .sheet(isPresented: $viewModel.showCreateLeague) {
             CreateLeagueView()
-                .environmentObject(ScreenTimeManager.shared)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }

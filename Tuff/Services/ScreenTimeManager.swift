@@ -108,25 +108,38 @@ class ScreenTimeManager: ObservableObject {
         isAuthorized = live || UserDefaults.standard.bool(forKey: Self.hasAuthorizedKey)
         refreshTodayMinutes()
         refreshEstimatedMinutes()
-        // Auto-unblock if timer expired while app was backgrounded
+        // Break expired while backgrounded — re-lock
         if let end = blockTimerEndDate, Date() >= end {
             blockTimerTask?.cancel()
             blockTimerTask = nil
             blockTimerEndDate = nil
-            unblockAllApps()
+            blockSelectedApps()
         }
     }
 
-    // MARK: - Block Timer
+    // MARK: - Break Timer (apps are always locked; a break temporarily unblocks them)
 
+    /// Always re-apply the shield unless a break is currently active.
+    func applyAlwaysOnBlocking() {
+        guard isAuthorized else { return }
+        let hasApps = !selectedAppsToBlock.applicationTokens.isEmpty
+            || !selectedAppsToBlock.categoryTokens.isEmpty
+        guard hasApps else { return }
+        guard blockTimerEndDate == nil else { return }
+        blockSelectedApps()
+    }
+
+    /// Start a break: unblock apps for `duration`, then automatically re-lock.
     func startBlockTimer(duration: TimeInterval) {
-        // Cancel any previous timer cleanly first
         blockTimerTask?.cancel()
         blockTimerTask = nil
 
         let end = Date().addingTimeInterval(duration)
         blockTimerEndDate = end
-        // Caller is responsible for calling blockSelectedApps() before this
+
+        // Unblock apps for the break duration
+        store?.clearAllSettings()
+        isActivelyBlocking = false
 
         blockTimerTask = Task {
             let delay = end.timeIntervalSince(Date())
@@ -136,17 +149,55 @@ class ScreenTimeManager: ObservableObject {
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 self.blockTimerEndDate = nil
-                self.unblockAllApps()
+                self.blockSelectedApps()  // Re-lock when break ends
             }
         }
         startLiveActivity(endDate: end)
     }
 
+    /// End the break early and immediately re-lock.
     func cancelBlockTimer() {
         blockTimerTask?.cancel()
         blockTimerTask = nil
         blockTimerEndDate = nil
-        unblockAllApps()
+        endLiveActivity()
+        blockSelectedApps()
+    }
+
+    /// Purchase a break: unblock for `minutes`, then atomically increment each active league's
+    /// ledger entry for this user using FieldValue.increment (no transaction needed).
+    func buyBreak(minutes: Int, uid: String, leagues: [League]) async {
+        startBlockTimer(duration: TimeInterval(minutes * 60))
+
+        let activeLeagues = leagues.filter { $0.isActive }
+        guard !activeLeagues.isEmpty else {
+            print("[Tuff] buyBreak: no active leagues to charge")
+            return
+        }
+
+        let db = Firestore.firestore()
+
+        await withTaskGroup(of: Void.self) { group in
+            for league in activeLeagues {
+                let costCents = max(1, Int(round(Double(minutes) / 60.0 * Double(league.pricePerHourCents))))
+                let docRef = db.collection("leagues").document(league.id)
+                let leagueId = league.id
+
+                group.addTask {
+                    do {
+                        // ledger.{uid}.boughtCents / boughtMinutes are top-level map fields —
+                        // FieldValue.increment is atomic and needs no transaction.
+                        try await docRef.updateData([
+                            "ledger.\(uid).boughtCents":   FieldValue.increment(Int64(costCents)),
+                            "ledger.\(uid).boughtMinutes": FieldValue.increment(Int64(minutes))
+                        ])
+                        print("[Tuff] buyBreak: +\(costCents)¢ / +\(minutes)m → league \(leagueId)")
+                    } catch {
+                        print("[Tuff] buyBreak: FAILED for league \(leagueId): \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Live Activity
@@ -255,8 +306,9 @@ class ScreenTimeManager: ObservableObject {
     @Published var monitoringDebug: String = ""
     @Published var isRegisteringMonitoring = false
 
-    /// Follows Mattei's approach exactly: 12 two-hour schedules, shared events
-    /// with 1-minute thresholds (1 ... 115). Each threshold fire = +1 min.
+    /// Registers 24 one-hour schedules. The current hour is registered first
+    /// so tracking can begin quickly, then the remaining hours are registered
+    /// concurrently in the background. Each hour uses 1-minute thresholds 1...59.
     /// No includesPastActivity. Extension logs to a file, not UserDefaults.
     func startMonitoring(force: Bool = false) {
         refreshEstimatedMinutes()
@@ -290,14 +342,14 @@ class ScreenTimeManager: ObservableObject {
         let savedSignature = UserDefaults.standard.string(forKey: Self.monitoringRegistrationKey)
         if !force, savedSignature == signature {
             isMonitoring = true
-            monitoringDebug = "already registered: 12 schedules, 115 events, \(appTokens.count) apps, \(catTokens.count) cats"
+            monitoringDebug = "already registered: 24 schedules, 59 events, \(appTokens.count) apps, \(catTokens.count) cats"
             return
         }
 
         isRegisteringMonitoring = true
         monitoringDebug = "registering..."
 
-        let intervals = Self.generateTwoHourIntervals()
+        let intervals = Self.generateHourlyIntervals()
         let activeIntervalIndex = Self.currentIntervalIndex()
 
         // Capture everything we need as local values so the background task
@@ -311,7 +363,7 @@ class ScreenTimeManager: ObservableObject {
             bgCenter.stopMonitoring()
 
             var events: [DeviceActivityEvent.Name: DeviceActivityEvent] = [:]
-            for minute in 1...115 {
+            for minute in 1...59 {
                 let eventName = DeviceActivityEvent.Name("tuff.\(minute).threshold")
                 events[eventName] = DeviceActivityEvent(
                     applications: capturedAppTokens,
@@ -324,7 +376,7 @@ class ScreenTimeManager: ObservableObject {
             var registeredCount = 0
             var errors: [String] = []
 
-            func registerInterval(_ index: Int) {
+            func registerInterval(_ index: Int) -> String? {
                 let (startTime, endTime) = intervals[index]
                 let schedule = DeviceActivitySchedule(
                     intervalStart: startTime,
@@ -333,37 +385,61 @@ class ScreenTimeManager: ObservableObject {
                 )
                 let activity = DeviceActivityName("tuff.schedule.\(index)")
                 do {
-                    try bgCenter.startMonitoring(activity, during: schedule, events: events)
-                    registeredCount += 1
+                    let center = DeviceActivityCenter()
+                    try center.startMonitoring(activity, during: schedule, events: events)
+                    return nil
                 } catch {
-                    errors.append("s\(index): \(error.localizedDescription)")
+                    return "s\(index): \(error.localizedDescription)"
                 }
             }
 
-            // Phase 1: register the currently active 2-hour window first so tracking
+            // Phase 1: register the currently active 1-hour window first so tracking
             // can begin for "right now" before the full daily setup finishes.
-            registerInterval(activeIntervalIndex)
+            if let error = registerInterval(activeIntervalIndex) {
+                errors.append(error)
+            } else {
+                registeredCount += 1
+            }
 
             await MainActor.run {
                 let hasActiveWindow = registeredCount > 0
                 ScreenTimeManager.shared.isMonitoring = hasActiveWindow
                 if hasActiveWindow {
-                    ScreenTimeManager.shared.monitoringDebug = "live now: 1/12 schedules, finishing setup..."
+                    ScreenTimeManager.shared.monitoringDebug = "live now: 1/24 schedules, finishing setup..."
                 } else {
                     ScreenTimeManager.shared.monitoringDebug = "registering active window failed, finishing setup..."
                 }
             }
 
-            // Phase 2: register the remaining 11 windows in the background.
-            for index in intervals.indices where index != activeIntervalIndex {
-                registerInterval(index)
+            // Phase 2: register the remaining 23 windows concurrently in the background.
+            await withTaskGroup(of: (Int, String?).self) { group in
+                for index in intervals.indices where index != activeIntervalIndex {
+                    group.addTask {
+                        (index, registerInterval(index))
+                    }
+                }
+
+                for await (_, error) in group {
+                    if let error {
+                        errors.append(error)
+                    } else {
+                        registeredCount += 1
+                    }
+
+                    let progress = registeredCount
+                    await MainActor.run {
+                        if progress < intervals.count {
+                            ScreenTimeManager.shared.monitoringDebug = "live now: \(progress)/24 schedules, finishing setup..."
+                        }
+                    }
+                }
             }
 
             let resultDebug: String
             if errors.isEmpty {
-                resultDebug = "OK: \(registeredCount)/12, \(events.count) events, \(capturedAppTokens.count) apps, \(capturedCatTokens.count) cats"
+                resultDebug = "OK: \(registeredCount)/24, \(events.count) events, \(capturedAppTokens.count) apps, \(capturedCatTokens.count) cats"
             } else {
-                resultDebug = "\(registeredCount)/12 OK, errors: \(errors.joined(separator: "; "))"
+                resultDebug = "\(registeredCount)/24 OK, errors: \(errors.joined(separator: "; "))"
             }
             let resultMonitoring = registeredCount > 0
 
@@ -381,7 +457,7 @@ class ScreenTimeManager: ObservableObject {
     private func monitoringSignature(applications: Int, categories: Int, webDomains: Int) -> String {
         let data = (try? JSONEncoder().encode(appsToTrack)) ?? Data()
         let hash = Self.fnv1a64Hex(data)
-        return "v1m-\(applications)-\(categories)-\(webDomains)-\(hash)"
+        return "v2-hourly59-\(applications)-\(categories)-\(webDomains)-\(hash)"
     }
 
     private static func fnv1a64Hex(_ data: Data) -> String {
@@ -393,15 +469,15 @@ class ScreenTimeManager: ObservableObject {
         return String(hash, radix: 16)
     }
 
-    /// Calendar-based interval generation (matches Mattei's generateHourlyDateTuples)
-    private static func generateTwoHourIntervals() -> [(DateComponents, DateComponents)] {
+    /// Calendar-based interval generation for 24 one-hour windows.
+    private static func generateHourlyIntervals() -> [(DateComponents, DateComponents)] {
         let calendar = Calendar.current
         let base = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: Date())!
 
         var intervals: [(DateComponents, DateComponents)] = []
-        for hour in stride(from: 0, through: 22, by: 2) {
+        for hour in 0...23 {
             let startDate = calendar.date(byAdding: .hour, value: hour, to: base)!
-            let endDate = calendar.date(byAdding: .hour, value: 2, to: startDate)!.addingTimeInterval(-1)
+            let endDate = calendar.date(byAdding: .hour, value: 1, to: startDate)!.addingTimeInterval(-1)
             let start = calendar.dateComponents([.hour, .minute, .second], from: startDate)
             let end = calendar.dateComponents([.hour, .minute, .second], from: endDate)
             intervals.append((start, end))
@@ -411,7 +487,7 @@ class ScreenTimeManager: ObservableObject {
 
     private static func currentIntervalIndex(now: Date = Date()) -> Int {
         let hour = Calendar.current.component(.hour, from: now)
-        return max(0, min(11, hour / 2))
+        return max(0, min(23, hour))
     }
 
     // MARK: - File-based log reader (avoids UserDefaults crash in extension)

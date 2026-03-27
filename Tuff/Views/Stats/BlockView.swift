@@ -1,189 +1,411 @@
 import SwiftUI
 import FamilyControls
-import ManagedSettings
+import FirebaseAuth
 
 struct BlockView: View {
     @EnvironmentObject var screenTimeManager: ScreenTimeManager
+    @EnvironmentObject var homeViewModel: HomeViewModel
+
     @State private var showAppPicker = false
+    @State private var selectedMinutes: Int = 15  // default to 15 min
+    @State private var isBuying = false
 
-    private let blockDurations: [(String, TimeInterval)] = {
-        var d: [(String, TimeInterval)] = [
-            ("1m", 60), ("5m", 300), ("15m", 900), ("30m", 1800), ("45m", 2700)
-        ]
-        for h in 1...24 { d.append(("\(h)h", TimeInterval(h * 3600))) }
-        return d
-    }()
-    @State private var selectedDurationIndex: Int = 5
+    private let breakOptions: [(label: String, minutes: Int)] = [
+        ("1 min", 1),
+        ("5 min", 5),
+        ("15 min", 15),
+        ("30 min", 30),
+        ("1 hr", 60),
+        ("2 hr", 120),
+        ("4 hr", 240)
+    ]
 
-    private var isBlocking: Bool { screenTimeManager.isActivelyBlocking }
-    private var isTimerRunning: Bool { screenTimeManager.blockTimerEndDate != nil }
+    private var isOnBreak: Bool { screenTimeManager.blockTimerEndDate != nil }
+    private var activeLeagues: [League] { homeViewModel.leagues.filter { $0.isActive } }
 
-    private var appCount: Int {
-        screenTimeManager.selectedAppsToBlock.applicationTokens.count +
-        screenTimeManager.selectedAppsToBlock.categoryTokens.count
-    }
-
-    // Custom binding — fires block + timer on picker confirm, no double-call
-    private var blockPickerBinding: Binding<FamilyActivitySelection> {
-        Binding(
-            get: { screenTimeManager.selectedAppsToBlock },
-            set: { newValue in
-                screenTimeManager.selectedAppsToBlock = newValue
-                let hasApps = !newValue.applicationTokens.isEmpty || !newValue.categoryTokens.isEmpty
-                if hasApps {
-                    screenTimeManager.blockSelectedApps()
-                    screenTimeManager.startBlockTimer(duration: blockDurations[selectedDurationIndex].1)
-                    // Restart monitoring with the new app tokens for screen time tracking
-                    screenTimeManager.startMonitoring()
-                }
-            }
-        )
+    private var hasApps: Bool {
+        !screenTimeManager.selectedAppsToBlock.applicationTokens.isEmpty
+            || !screenTimeManager.selectedAppsToBlock.categoryTokens.isEmpty
     }
 
     var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
 
-            VStack(spacing: 24) {
+            VStack(spacing: 0) {
                 Spacer()
 
-                Text(isBlocking
-                     ? "Blocking \(appCount) app\(appCount == 1 ? "" : "s")"
-                     : "No apps blocked")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(Color(hex: "999999"))
-
-                // Main 3D pill button
-                Button {
-                    if isBlocking {
-                        screenTimeManager.cancelBlockTimer()
-                    } else {
-                        showAppPicker = true
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: isBlocking ? "lock.open" : "lock.fill")
-                            .font(.system(size: 17, weight: .semibold))
-                        Text(isBlocking ? "Unblock Apps" : "Block Apps")
-                            .font(.system(size: 17, weight: .bold))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background(
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 18)
-                                .fill(isBlocking ? Color.red.opacity(0.5) : TuffColors.accent.opacity(0.55))
-                                .offset(y: 4)
-                            RoundedRectangle(cornerRadius: 18)
-                                .fill(isBlocking
-                                      ? LinearGradient(colors: [Color.red.opacity(0.85), Color.red.opacity(0.75)],
-                                                       startPoint: .top, endPoint: .bottom)
-                                      : LinearGradient(colors: [TuffColors.accent.opacity(0.95), TuffColors.accent],
-                                                       startPoint: .top, endPoint: .bottom))
-                            RoundedRectangle(cornerRadius: 18)
-                                .fill(LinearGradient(
-                                    colors: [Color.white.opacity(0.22), Color.white.opacity(0)],
-                                    startPoint: .top, endPoint: .center
-                                ))
-                        }
-                    )
-                    .shadow(color: isBlocking ? Color.red.opacity(0.4) : TuffColors.accent.opacity(0.45),
-                            radius: 12, x: 0, y: 6)
+                if isOnBreak {
+                    breakActiveView
+                } else if !hasApps {
+                    setupView
+                } else {
+                    buyBreakView
                 }
-                .padding(.horizontal, 40)
-                .buttonStyle(PressableButtonStyle())
-
-                timerStepper
 
                 Spacer()
             }
         }
-        .familyActivityPicker(isPresented: $showAppPicker, selection: blockPickerBinding)
+        .familyActivityPicker(isPresented: $showAppPicker, selection: $screenTimeManager.selectedAppsToBlock)
+        .onChange(of: screenTimeManager.selectedAppsToBlock) { _, newVal in
+            let hasNew = !newVal.applicationTokens.isEmpty || !newVal.categoryTokens.isEmpty
+            if hasNew { screenTimeManager.applyAlwaysOnBlocking() }
+        }
     }
 
-    // MARK: - Timer Stepper (no Start/Stop button — timer auto-starts with block)
+    // MARK: - Break Active
 
-    private var timerStepper: some View {
-        let currentLabel = blockDurations[selectedDurationIndex].0
+    private var breakActiveView: some View {
+        VStack(spacing: 32) {
+            VStack(spacing: 8) {
+                Image(systemName: "lock.open.fill")
+                    .font(.system(size: 52))
+                    .foregroundColor(TuffColors.accent)
 
-        return HStack(spacing: 8) {
-            // Hide stepper buttons while timer is running
-            if !isTimerRunning {
-                Button {
-                    if selectedDurationIndex > 0 { selectedDurationIndex -= 1 }
-                } label: {
-                    Image(systemName: "minus")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 34, height: 34)
-                        .background(
-                            ZStack {
-                                Circle().fill(Color(white: 0.13, opacity: 0.96)).offset(y: 2)
-                                Circle().fill(Color(white: 0.22, opacity: 0.96))
-                                Circle().fill(LinearGradient(
-                                    colors: [Color.white.opacity(0.18), Color.white.opacity(0)],
-                                    startPoint: .top, endPoint: .center))
-                            }
-                        )
-                }
-                .buttonStyle(PressableButtonStyle())
-                .disabled(selectedDurationIndex == 0)
-            }
+                Text("BREAK ACTIVE")
+                    .font(.system(size: 22, weight: .black, design: .default).width(.condensed))
+                    .foregroundColor(.black)
+                    .tracking(1)
 
-            // Pill: countdown when running, duration label when idle
-            Group {
-                if isTimerRunning, let end = screenTimeManager.blockTimerEndDate {
+                if let end = screenTimeManager.blockTimerEndDate {
                     Text(timerInterval: Date()...end, countsDown: true)
-                        .font(.system(size: 15, weight: .bold).monospacedDigit())
+                        .font(.system(size: 42, weight: .black, design: .monospaced).monospacedDigit())
                         .foregroundColor(TuffColors.accent)
-                } else {
-                    Text(currentLabel)
-                        .font(.system(size: 16, weight: .bold).monospacedDigit())
-                        .foregroundColor(.black)
                 }
-            }
-            .frame(minWidth: 80)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 9)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 11)
-                        .fill(isTimerRunning ? TuffColors.accent.opacity(0.15) : Color(white: 0.75, opacity: 0.5))
-                        .offset(y: 3)
-                    RoundedRectangle(cornerRadius: 11)
-                        .fill(isTimerRunning
-                              ? LinearGradient(colors: [TuffColors.accent.opacity(0.12), TuffColors.accent.opacity(0.08)],
-                                               startPoint: .top, endPoint: .bottom)
-                              : LinearGradient(colors: [Color.white, Color(white: 0.92)],
-                                               startPoint: .top, endPoint: .bottom))
-                }
-            )
-            .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 3)
 
-            if !isTimerRunning {
-                Button {
-                    if selectedDurationIndex < blockDurations.count - 1 { selectedDurationIndex += 1 }
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 34, height: 34)
-                        .background(
-                            ZStack {
-                                Circle().fill(Color(white: 0.13, opacity: 0.96)).offset(y: 2)
-                                Circle().fill(Color(white: 0.22, opacity: 0.96))
-                                Circle().fill(LinearGradient(
-                                    colors: [Color.white.opacity(0.18), Color.white.opacity(0)],
-                                    startPoint: .top, endPoint: .center))
-                            }
-                        )
+                Text("Apps unlocked until break ends")
+                    .font(.system(size: 14))
+                    .foregroundColor(TuffColors.textSecondary)
+            }
+
+            if !activeLeagues.isEmpty {
+                VStack(spacing: 6) {
+                    Text("LEDGER UPDATE")
+                        .font(TuffFonts.sectionHeader())
+                        .foregroundColor(TuffColors.textSecondary)
+                        .tracking(0.15 * 12)
+                    ForEach(activeLeagues) { league in
+                        HStack {
+                            Text(league.name)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.black)
+                            Spacer()
+                            Text("–\(breakCostText(minutes: selectedMinutes, league: league))")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.red)
+                        }
+                        .padding(.horizontal, 20)
+                    }
                 }
-                .buttonStyle(PressableButtonStyle())
-                .disabled(selectedDurationIndex == blockDurations.count - 1)
+                .padding(.vertical, 12)
+                .background(Color(hex: "F8F8F8"))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, 32)
+            }
+
+            Button {
+                screenTimeManager.cancelBlockTimer()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text("End Break Early")
+                        .font(.system(size: 16, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.red.opacity(0.5))
+                            .offset(y: 4)
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(LinearGradient(
+                                colors: [Color.red.opacity(0.9), Color.red.opacity(0.8)],
+                                startPoint: .top, endPoint: .bottom
+                            ))
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(LinearGradient(
+                                colors: [Color.white.opacity(0.2), Color.white.opacity(0)],
+                                startPoint: .top, endPoint: .center
+                            ))
+                    }
+                )
+                .shadow(color: Color.red.opacity(0.4), radius: 10, x: 0, y: 5)
+            }
+            .padding(.horizontal, 40)
+            .buttonStyle(PressableButtonStyle())
+        }
+    }
+
+    // MARK: - Setup (no apps selected)
+
+    private var setupView: some View {
+        VStack(spacing: 28) {
+            VStack(spacing: 10) {
+                Image(systemName: "lock.slash")
+                    .font(.system(size: 52))
+                    .foregroundColor(Color(hex: "BBBBBB"))
+
+                Text("CHOOSE APPS TO LOCK")
+                    .font(.system(size: 20, weight: .black, design: .default).width(.condensed))
+                    .foregroundColor(.black)
+                    .tracking(1)
+
+                Text("Select the apps that will be blocked while you compete. You can buy breaks to temporarily unlock them.")
+                    .font(.system(size: 14))
+                    .foregroundColor(TuffColors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
+
+            Button {
+                showAppPicker = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "apps.iphone")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Select Apps")
+                        .font(.system(size: 16, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(TuffColors.accent.opacity(0.5))
+                            .offset(y: 4)
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(LinearGradient(
+                                colors: [TuffColors.accent.opacity(0.95), TuffColors.accent],
+                                startPoint: .top, endPoint: .bottom
+                            ))
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(LinearGradient(
+                                colors: [Color.white.opacity(0.22), Color.white.opacity(0)],
+                                startPoint: .top, endPoint: .center
+                            ))
+                    }
+                )
+                .shadow(color: TuffColors.accent.opacity(0.45), radius: 12, x: 0, y: 6)
+            }
+            .padding(.horizontal, 40)
+            .buttonStyle(PressableButtonStyle())
+        }
+    }
+
+    // MARK: - Buy Break
+
+    private var buyBreakView: some View {
+        VStack(spacing: 28) {
+            lockStatusHeader
+
+            durationPicker
+
+            if !activeLeagues.isEmpty {
+                costBreakdown
+            }
+
+            buyButton
+
+            changeLockButton
+        }
+    }
+
+    private var lockStatusHeader: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 44))
+                .foregroundColor(.black)
+
+            Text("APPS LOCKED")
+                .font(.system(size: 22, weight: .black, design: .default).width(.condensed))
+                .foregroundColor(.black)
+                .tracking(1)
+
+            let count = screenTimeManager.selectedAppsToBlock.applicationTokens.count
+                + screenTimeManager.selectedAppsToBlock.categoryTokens.count
+            Text("\(count) app\(count == 1 ? "" : "s/categories") blocked")
+                .font(.system(size: 14))
+                .foregroundColor(TuffColors.textSecondary)
+        }
+    }
+
+    private var durationPicker: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("BREAK DURATION")
+                .font(TuffFonts.sectionHeader())
+                .foregroundColor(TuffColors.textSecondary)
+                .tracking(0.15 * 12)
+                .padding(.horizontal, 24)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(breakOptions, id: \.minutes) { option in
+                        let isSelected = selectedMinutes == option.minutes
+                        Button {
+                            selectedMinutes = option.minutes
+                        } label: {
+                            VStack(spacing: 2) {
+                                Text(option.label)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(isSelected ? .white : .black)
+                                if !activeLeagues.isEmpty, let firstLeague = activeLeagues.first {
+                                    Text(breakCostText(minutes: option.minutes, league: firstLeague))
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(isSelected ? Color.white.opacity(0.8) : TuffColors.textSecondary)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(isSelected ? TuffColors.accent.opacity(0.5) : Color(hex: "E8E8E8"))
+                                        .offset(y: 3)
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(isSelected
+                                              ? LinearGradient(colors: [TuffColors.accent.opacity(0.95), TuffColors.accent],
+                                                               startPoint: .top, endPoint: .bottom)
+                                              : LinearGradient(colors: [Color.white, Color(hex: "F0F0F0")],
+                                                               startPoint: .top, endPoint: .bottom))
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(LinearGradient(
+                                            colors: [Color.white.opacity(0.2), Color.white.opacity(0)],
+                                            startPoint: .top, endPoint: .center
+                                        ))
+                                }
+                            )
+                            .shadow(color: isSelected ? TuffColors.accent.opacity(0.4) : Color.black.opacity(0.12),
+                                    radius: isSelected ? 8 : 4, x: 0, y: isSelected ? 4 : 2)
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 4)
             }
         }
-        .padding(.horizontal, 40)
+    }
+
+    private var costBreakdown: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("COST PER LEAGUE")
+                    .font(TuffFonts.sectionHeader())
+                    .foregroundColor(TuffColors.textSecondary)
+                    .tracking(0.15 * 12)
+                Spacer()
+                Text("\(selectedMinutes) min break")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(TuffColors.textSecondary)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 8)
+
+            VStack(spacing: 0) {
+                ForEach(Array(activeLeagues.enumerated()), id: \.element.id) { i, league in
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(league.name)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.black)
+                            Text("\(league.pricePerHourCents)¢/hr rate")
+                                .font(.system(size: 11))
+                                .foregroundColor(TuffColors.textSecondary)
+                        }
+                        Spacer()
+                        Text("–\(breakCostText(minutes: selectedMinutes, league: league))")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(Color.red.opacity(0.8))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+
+                    if i < activeLeagues.count - 1 {
+                        Divider().padding(.horizontal, 16)
+                    }
+                }
+            }
+            .background(Color(hex: "F8F8F8"))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "EEEEEE"), lineWidth: 1))
+            .padding(.horizontal, 24)
+        }
+    }
+
+    private var buyButton: some View {
+        Button {
+            guard !isBuying else { return }
+            isBuying = true
+            guard let uid = Auth.auth().currentUser?.uid else { isBuying = false; return }
+            let leagues = activeLeagues
+            let minutes = selectedMinutes
+            // Optimistic update — leaderboard reflects the charge immediately
+            homeViewModel.applyOptimisticBreakCharge(uid: uid, minutes: minutes)
+            Task {
+                await screenTimeManager.buyBreak(minutes: minutes, uid: uid, leagues: leagues)
+                await MainActor.run { isBuying = false }
+            }
+        } label: {
+            HStack(spacing: 10) {
+                if isBuying {
+                    ProgressView().tint(.black)
+                } else {
+                    Image(systemName: "lock.open.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Buy \(selectedMinutes) min Break")
+                        .font(.system(size: 17, weight: .bold))
+                }
+            }
+            .foregroundColor(.black)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 17)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(TuffColors.accent.opacity(0.55))
+                        .offset(y: 4)
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(LinearGradient(
+                            colors: [TuffColors.accent.opacity(0.95), TuffColors.accent],
+                            startPoint: .top, endPoint: .bottom
+                        ))
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(LinearGradient(
+                            colors: [Color.white.opacity(0.22), Color.white.opacity(0)],
+                            startPoint: .top, endPoint: .center
+                        ))
+                }
+            )
+            .shadow(color: TuffColors.accent.opacity(0.45), radius: 12, x: 0, y: 6)
+        }
+        .disabled(isBuying)
+        .padding(.horizontal, 32)
+        .buttonStyle(PressableButtonStyle())
+    }
+
+    private var changeLockButton: some View {
+        Button {
+            showAppPicker = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 13))
+                Text("Change locked apps")
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .foregroundColor(TuffColors.textSecondary)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func breakCostText(minutes: Int, league: League) -> String {
+        let cents = max(1, Int(round(Double(minutes) / 60.0 * Double(league.pricePerHourCents))))
+        return String(format: "$%.2f", Double(cents) / 100.0)
     }
 }
 

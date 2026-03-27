@@ -8,12 +8,15 @@ struct League: Identifiable {
     var createdBy: String   // Firebase uid
     var startDate: Date
     var endDate: Date
-    var costPerPerson: Double
+    /// Virtual cost rate in cents per hour (e.g. 20 = $0.20/hr).
+    var pricePerHourCents: Int
     var inviteCode: String
     var isActive: Bool
     var members: [LeagueMember]
 
-    var potAmount: Double { costPerPerson * Double(members.count) }
+    /// Total virtual pool = sum of all members' boughtCents.
+    var poolCents: Int { members.reduce(0) { $0 + $1.boughtCents } }
+    var poolDollars: Double { Double(poolCents) / 100.0 }
 
     var dateRangeText: String {
         let formatter = DateFormatter()
@@ -21,15 +24,13 @@ struct League: Identifiable {
         return "\(formatter.string(from: startDate)) – \(formatter.string(from: endDate))"
     }
 
-    var payoutBreakdown: [(place: String, amount: Double)] {
-        [
-            ("1st Place", potAmount * 0.50),
-            ("2nd Place", potAmount * 0.30),
-            ("3rd Place", potAmount * 0.20)
-        ]
+    /// Winner takes all — person with lowest boughtCents wins the pool.
+    var payoutBreakdown: [(place: String, amount: String)] {
+        [("1st Place — Lowest spent wins", String(format: "$%.2f pool", poolDollars))]
     }
 
-    var sortedMembers: [LeagueMember] { members.sorted { $0.currentScreenTime < $1.currentScreenTime } }
+    /// Sorted ascending by boughtCents (0 = winning; most disciplined user first).
+    var sortedMembers: [LeagueMember] { members.sorted { $0.boughtCents < $1.boughtCents } }
 
     // MARK: - Firestore parsing
 
@@ -39,9 +40,15 @@ struct League: Identifiable {
               let endTs = data["endDate"] as? Timestamp else { return nil }
 
         let currentUID = Auth.auth().currentUser?.uid ?? ""
+
+        // ledger is a top-level map { uid: { boughtCents: Int, boughtMinutes: Int } }
+        // This allows atomic FieldValue.increment updates without transactions.
+        let ledger = data["ledger"] as? [String: [String: Any]] ?? [:]
+
         let memberProfiles = data["memberProfiles"] as? [[String: Any]] ?? []
         let members: [LeagueMember] = memberProfiles.enumerated().map { i, profile in
             let uid = profile["uid"] as? String ?? ""
+            let entry = ledger[uid] ?? [:]
             let memberUser = TuffUser(
                 id: UUID(),
                 uid: uid,
@@ -59,7 +66,9 @@ struct League: Identifiable {
                 user: memberUser,
                 currentScreenTime: Double((profile["screenTimeMinutes"] as? Int ?? 0) * 60),
                 rank: i + 1,
-                lastUpdated: Date()
+                lastUpdated: Date(),
+                boughtCents: entry["boughtCents"] as? Int ?? 0,
+                boughtMinutes: entry["boughtMinutes"] as? Int ?? 0
             )
         }
 
@@ -69,7 +78,7 @@ struct League: Identifiable {
             createdBy: data["createdBy"] as? String ?? "",
             startDate: startTs.dateValue(),
             endDate: endTs.dateValue(),
-            costPerPerson: data["costPerPerson"] as? Double ?? 0,
+            pricePerHourCents: data["pricePerHourCents"] as? Int ?? 20,
             inviteCode: data["inviteCode"] as? String ?? "",
             isActive: data["isActive"] as? Bool ?? true,
             members: members

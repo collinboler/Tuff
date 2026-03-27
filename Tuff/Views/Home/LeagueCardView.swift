@@ -21,11 +21,11 @@ struct LeagueCardView: View {
             memberAvatars
 
             VStack(alignment: .trailing, spacing: 1) {
-                Text("$\(Int(league.potAmount))")
+                Text(String(format: "$%.2f", league.poolDollars))
                     .font(TuffFonts.leagueCardPot())
                     .foregroundColor(.white)
 
-                Text("$\(Int(league.costPerPerson))/person")
+                Text("\(league.pricePerHourCents)¢/hr")
                     .font(TuffFonts.caption(11))
                     .foregroundColor(TuffColors.textSecondary)
             }

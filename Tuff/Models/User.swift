@@ -40,10 +40,21 @@ struct LeagueMember: Identifiable {
     var currentScreenTime: TimeInterval
     var rank: Int
     var lastUpdated: Date
+    var boughtCents: Int    // total virtual cents spent on breaks in this league
+    var boughtMinutes: Int  // total minutes of breaks purchased
 
-    var screenTimeMinutes: Int {
-        Int(currentScreenTime) / 60
+    init(id: UUID, user: TuffUser, currentScreenTime: TimeInterval,
+         rank: Int, lastUpdated: Date, boughtCents: Int = 0, boughtMinutes: Int = 0) {
+        self.id = id
+        self.user = user
+        self.currentScreenTime = currentScreenTime
+        self.rank = rank
+        self.lastUpdated = lastUpdated
+        self.boughtCents = boughtCents
+        self.boughtMinutes = boughtMinutes
     }
+
+    var screenTimeMinutes: Int { Int(currentScreenTime) / 60 }
 
     var formattedScreenTime: String {
         let h = screenTimeMinutes / 60
@@ -51,13 +62,26 @@ struct LeagueMember: Identifiable {
         return "\(h)h \(String(format: "%02d", m))m"
     }
 
+    var formattedBoughtTime: String {
+        if boughtMinutes == 0 { return "0m bought" }
+        let h = boughtMinutes / 60
+        let m = boughtMinutes % 60
+        if h > 0 { return "\(h)h \(m)m bought" }
+        return "\(m)m bought"
+    }
+
+    var formattedBoughtCost: String {
+        if boughtCents == 0 { return "$0.00" }
+        return String(format: "$%.2f", Double(boughtCents) / 100.0)
+    }
+
     var lastUpdatedText: String {
         let calendar = Calendar.current
         if calendar.isDateInToday(lastUpdated) {
-            return "Today \(formattedScreenTime)"
+            return "Updated today"
         }
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
-        return "\(formatter.string(from: lastUpdated)) \(formattedScreenTime)"
+        return "Updated \(formatter.string(from: lastUpdated))"
     }
 }

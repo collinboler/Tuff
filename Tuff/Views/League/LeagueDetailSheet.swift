@@ -71,9 +71,13 @@ struct LeagueDetailSheet: View {
                         .font(TuffFonts.caption(12))
                         .foregroundColor(TuffColors.textSecondary)
 
-                    Text("$\(Int(league.potAmount))")
+                    Text(String(format: "$%.2f pool", league.poolDollars))
                         .font(TuffFonts.modalPot())
                         .foregroundColor(TuffColors.accent)
+
+                    Text("·  \(league.pricePerHourCents)¢/hr")
+                        .font(TuffFonts.caption(12))
+                        .foregroundColor(TuffColors.textSecondary)
                 }
 
                 if !league.inviteCode.isEmpty {
@@ -133,11 +137,11 @@ struct LeagueDetailSheet: View {
         }
     }
 
-    // MARK: - Payout
+    // MARK: - Prize Pool
 
     private var payoutSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("PAYOUT BREAKDOWN")
+            Text("PRIZE POOL")
                 .font(TuffFonts.payoutHeader())
                 .foregroundColor(TuffColors.textSecondary)
                 .tracking(0.14 * 11)
@@ -150,11 +154,15 @@ struct LeagueDetailSheet: View {
 
                     Spacer()
 
-                    Text("$\(Int(payout.amount))")
+                    Text(payout.amount)
                         .font(TuffFonts.payoutAmount())
                         .foregroundColor(TuffColors.accent)
                 }
             }
+
+            Text("Spend the least on breaks to win the entire pool.")
+                .font(TuffFonts.caption(11))
+                .foregroundColor(TuffColors.textSecondary)
         }
         .padding(20)
         .background(TuffColors.payoutBg)
@@ -261,7 +269,7 @@ struct EditLeagueView: View {
     @State private var name: String
     @State private var startDate: Date
     @State private var endDate: Date
-    @State private var costPerPerson: String
+    @State private var pricePerHourCents: String
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -270,7 +278,7 @@ struct EditLeagueView: View {
         _name = State(initialValue: league.name)
         _startDate = State(initialValue: league.startDate)
         _endDate = State(initialValue: league.endDate)
-        _costPerPerson = State(initialValue: String(Int(league.costPerPerson)))
+        _pricePerHourCents = State(initialValue: String(league.pricePerHourCents))
     }
 
     var body: some View {
@@ -301,16 +309,16 @@ struct EditLeagueView: View {
                         }
                     }
 
-                    // Buy-in
+                    // Price per hour
                     VStack(alignment: .leading, spacing: 6) {
-                        sectionLabel("BUY-IN PER PERSON")
+                        sectionLabel("PRICE PER HOUR (¢)")
                         HStack {
-                            Text("$")
-                                .font(TuffFonts.leagueCardPot())
-                                .foregroundColor(.black)
-                            TextField("0", text: $costPerPerson)
+                            TextField("20", text: $pricePerHourCents)
                                 .font(TuffFonts.leagueCardPot())
                                 .keyboardType(.numberPad)
+                            Text("¢ / hr")
+                                .font(TuffFonts.leagueCardPot())
+                                .foregroundColor(TuffColors.textSecondary)
                         }
                         .padding(12)
                         .background(TuffColors.tagBackground)
@@ -369,7 +377,7 @@ struct EditLeagueView: View {
                 "name": name.trimmingCharacters(in: .whitespaces),
                 "startDate": Timestamp(date: startDate),
                 "endDate": Timestamp(date: endDate),
-                "costPerPerson": Double(costPerPerson) ?? 0
+                "pricePerHourCents": Int(pricePerHourCents) ?? 20
             ])
             dismiss()
         } catch {

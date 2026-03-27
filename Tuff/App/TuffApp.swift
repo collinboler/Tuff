@@ -147,6 +147,7 @@ struct TuffApp: App {
             .environmentObject(notificationManager)
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 screenTimeManager.recheckAuthorization()
+                screenTimeManager.applyAlwaysOnBlocking()
                 if auth.isSignedIn
                     && screenTimeManager.isAuthorized
                     && screenTimeManager.hasTrackingSelection

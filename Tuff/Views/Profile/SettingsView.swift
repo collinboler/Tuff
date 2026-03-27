@@ -79,7 +79,7 @@ struct SettingsView: View {
                             Text("Estimated Screen Time")
                                 .font(.system(size: 16))
                                 .foregroundColor(.black)
-                            Text("12 schedules × 115 thresholds (every 1 min)")
+                            Text("24 schedules × 59 thresholds (every 1 min)")
                                 .font(.system(size: 12))
                                 .foregroundColor(TuffColors.textSecondary)
                         }

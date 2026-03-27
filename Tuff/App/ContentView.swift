@@ -10,18 +10,8 @@ enum Tab: Int, CaseIterable {
 
 struct ContentView: View {
     @EnvironmentObject var screenTimeManager: ScreenTimeManager
+    @StateObject private var homeViewModel = HomeViewModel()
     @State private var selectedTab: Tab = .feed
-
-    private let blockDurations: [(String, TimeInterval)] = {
-        var d: [(String, TimeInterval)] = [
-            ("1m", 60), ("5m", 300), ("15m", 900), ("30m", 1800), ("45m", 2700)
-        ]
-        for h in 1...24 { d.append(("\(h)h", TimeInterval(h * 3600))) }
-        return d
-    }()
-    // Default index = "1h" which is at index 5 (after 1m,5m,15m,30m,45m)
-    @State private var selectedDurationIndex: Int = 5
-    @State private var showBlockPicker = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -31,11 +21,13 @@ struct ContentView: View {
                 .allowsHitTesting(selectedTab == .feed)
 
             LeagueView()
+                .environmentObject(homeViewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .opacity(selectedTab == .leagues ? 1 : 0)
                 .allowsHitTesting(selectedTab == .leagues)
 
             BlockView()
+                .environmentObject(homeViewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .opacity(selectedTab == .block ? 1 : 0)
                 .allowsHitTesting(selectedTab == .block)
@@ -48,7 +40,7 @@ struct ContentView: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             VStack(spacing: 0) {
                 if selectedTab == .feed {
-                    blockBar
+                    breakStatusBar
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
                 }
@@ -56,7 +48,6 @@ struct ContentView: View {
             }
         }
         .ignoresSafeArea(.keyboard)
-        .familyActivityPicker(isPresented: $showBlockPicker, selection: pickerSelection)
         .onOpenURL { url in
             if url.scheme == "tuff", url.host == "block" {
                 withAnimation(.easeInOut(duration: 0.22)) { selectedTab = .block }
@@ -64,139 +55,79 @@ struct ContentView: View {
         }
     }
 
-    // Custom binding so the setter fires block + timer immediately when picker confirms
-    private var pickerSelection: Binding<FamilyActivitySelection> {
-        Binding(
-            get: { screenTimeManager.selectedAppsToBlock },
-            set: { newValue in
-                screenTimeManager.selectedAppsToBlock = newValue
-                let hasApps = !newValue.applicationTokens.isEmpty || !newValue.categoryTokens.isEmpty
-                if hasApps {
-                    screenTimeManager.blockSelectedApps()
-                    screenTimeManager.startBlockTimer(duration: blockDurations[selectedDurationIndex].1)
-                }
-            }
-        )
-    }
+    // MARK: - Break Status Bar (Home tab only)
 
-    // MARK: - Block Bar (Home tab only)
-
-    private var blockBar: some View {
-        let isRunning = screenTimeManager.blockTimerEndDate != nil
-        let currentLabel = blockDurations[selectedDurationIndex].0
-        let currentSeconds = blockDurations[selectedDurationIndex].1
+    private var breakStatusBar: some View {
+        let isOnBreak = screenTimeManager.blockTimerEndDate != nil
+        let hasApps = !screenTimeManager.selectedAppsToBlock.applicationTokens.isEmpty
+            || !screenTimeManager.selectedAppsToBlock.categoryTokens.isEmpty
 
         return HStack(spacing: 8) {
-            if isRunning, let end = screenTimeManager.blockTimerEndDate {
-                // Auto-updating countdown
-                Text(timerInterval: Date()...end, countsDown: true)
-                    .font(.system(size: 16, weight: .bold).monospacedDigit())
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 4)
-            } else {
-                // − button
-                Button {
-                    if selectedDurationIndex > 0 { selectedDurationIndex -= 1 }
-                } label: {
-                    Image(systemName: "minus")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 34, height: 34)
-                        .background(
-                            ZStack {
-                                Circle().fill(Color.white.opacity(0.07)).offset(y: 2)
-                                Circle().fill(Color.white.opacity(0.14))
-                                Circle().fill(LinearGradient(
-                                    colors: [Color.white.opacity(0.2), Color.white.opacity(0)],
-                                    startPoint: .top, endPoint: .center))
-                            }
-                        )
-                }
-                .buttonStyle(PressableButtonStyle())
-                .disabled(selectedDurationIndex == 0)
+            Image(systemName: isOnBreak ? "lock.open.fill" : "lock.fill")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(isOnBreak ? TuffColors.accent : .white)
 
-                // Duration display — 3D white pill
-                Text(currentLabel)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(.black)
-                    .frame(minWidth: 52)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
-                    .background(
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 11)
-                                .fill(Color(white: 0.6, opacity: 0.4))
-                                .offset(y: 3)
-                            RoundedRectangle(cornerRadius: 11)
-                                .fill(Color.white)
-                            RoundedRectangle(cornerRadius: 11)
-                                .fill(LinearGradient(
-                                    colors: [Color.white, Color(white: 0.92)],
-                                    startPoint: .top, endPoint: .bottom))
-                        }
-                    )
-                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 3)
-
-                // + button
-                Button {
-                    if selectedDurationIndex < blockDurations.count - 1 { selectedDurationIndex += 1 }
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 34, height: 34)
-                        .background(
-                            ZStack {
-                                Circle().fill(Color.white.opacity(0.07)).offset(y: 2)
-                                Circle().fill(Color.white.opacity(0.14))
-                                Circle().fill(LinearGradient(
-                                    colors: [Color.white.opacity(0.2), Color.white.opacity(0)],
-                                    startPoint: .top, endPoint: .center))
-                            }
-                        )
-                }
-                .buttonStyle(PressableButtonStyle())
-                .disabled(selectedDurationIndex == blockDurations.count - 1)
-            }
-
-            // Block Apps / Stop 3D button
-            Button {
-                if isRunning {
-                    screenTimeManager.cancelBlockTimer()
-                } else {
-                    showBlockPicker = true
-                }
-            } label: {
-                Text(isRunning ? "Stop" : "Block Apps")
+            if isOnBreak, let end = screenTimeManager.blockTimerEndDate {
+                Text("BREAK — ")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(isRunning ? .red : .white)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
-                    .background(
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(isRunning ? Color.red.opacity(0.25) : TuffColors.accent.opacity(0.5))
-                                .offset(y: 3)
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(isRunning
-                                      ? LinearGradient(colors: [Color.red.opacity(0.18), Color.red.opacity(0.18)],
-                                                       startPoint: .top, endPoint: .bottom)
-                                      : LinearGradient(colors: [TuffColors.accent.opacity(0.95), TuffColors.accent],
-                                                       startPoint: .top, endPoint: .bottom))
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(LinearGradient(
-                                    colors: [Color.white.opacity(0.22), Color.white.opacity(0)],
-                                    startPoint: .top, endPoint: .center
-                                ))
-                        }
-                    )
-                    .shadow(color: isRunning ? Color.red.opacity(0.3) : TuffColors.accent.opacity(0.4),
-                            radius: 8, x: 0, y: 4)
+                    .foregroundColor(TuffColors.accent)
+                + Text(timerInterval: Date()...end, countsDown: true)
+                    .font(.system(size: 14, weight: .bold).monospacedDigit())
+                    .foregroundColor(TuffColors.accent)
+            } else if hasApps {
+                Text("APPS LOCKED")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+            } else {
+                Text("NO APPS SELECTED")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Color.white.opacity(0.5))
             }
-            .buttonStyle(PressableButtonStyle())
+
+            Spacer()
+
+            if isOnBreak {
+                Button {
+                    screenTimeManager.cancelBlockTimer()
+                } label: {
+                    Text("End Break")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.red.opacity(0.18))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+                .buttonStyle(PressableButtonStyle())
+            } else {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.22)) { selectedTab = .block }
+                } label: {
+                    Text("Buy Break")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(TuffColors.accent.opacity(0.5))
+                                    .offset(y: 2)
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(TuffColors.accent)
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(LinearGradient(
+                                        colors: [Color.white.opacity(0.22), Color.white.opacity(0)],
+                                        startPoint: .top, endPoint: .center
+                                    ))
+                            }
+                        )
+                        .shadow(color: TuffColors.accent.opacity(0.4), radius: 6, x: 0, y: 3)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(RoundedRectangle(cornerRadius: 20).fill(Color(white: 0.13, opacity: 0.96)))
         .colorScheme(.dark)

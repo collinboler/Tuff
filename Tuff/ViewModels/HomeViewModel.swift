@@ -131,7 +131,31 @@ class HomeViewModel: ObservableObject {
                 )
                 return LeagueMember(id: member.id, user: updatedUser,
                                     currentScreenTime: seconds, rank: member.rank,
-                                    lastUpdated: Date())
+                                    lastUpdated: Date(),
+                                    boughtCents: member.boughtCents,
+                                    boughtMinutes: member.boughtMinutes)
+            }
+            return updated
+        }
+    }
+
+    /// Immediately applies the break cost to local league state so the leaderboard
+    /// updates before the Firestore round-trip completes.
+    func applyOptimisticBreakCharge(uid: String, minutes: Int) {
+        leagues = leagues.map { league in
+            guard league.isActive else { return league }
+            let costCents = max(1, Int(round(Double(minutes) / 60.0 * Double(league.pricePerHourCents))))
+            var updated = league
+            updated.members = league.members.map { member in
+                guard member.user.uid == uid else { return member }
+                return LeagueMember(
+                    id: member.id, user: member.user,
+                    currentScreenTime: member.currentScreenTime,
+                    rank: member.rank,
+                    lastUpdated: Date(),
+                    boughtCents: member.boughtCents + costCents,
+                    boughtMinutes: member.boughtMinutes + minutes
+                )
             }
             return updated
         }

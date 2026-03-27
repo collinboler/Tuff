@@ -31,16 +31,16 @@ struct LeaderboardRowView: View {
                     }
                 }
 
-                Text(member.lastUpdatedText)
+                Text(member.formattedBoughtTime)
                     .font(TuffFonts.caption(11))
                     .foregroundColor(TuffColors.textSecondary)
             }
 
             Spacer()
 
-            Text(member.formattedScreenTime)
+            Text(member.formattedBoughtCost)
                 .font(TuffFonts.lbTime())
-                .foregroundColor(.black)
+                .foregroundColor(member.boughtCents == 0 ? TuffColors.accent : .black)
                 .monospacedDigit()
         }
         .padding(.horizontal, 20)

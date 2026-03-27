@@ -46,11 +46,11 @@ class TuffShieldConfigurationExtension: ShieldConfigurationDataSource {
             backgroundColor: UIColor.black.withAlphaComponent(0.65),
             icon: tuffIcon(),
             title: ShieldConfiguration.Label(
-                text: "Blocked by Tuff",
+                text: "Locked by Tuff",
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "This app is blocked by Tuff to help you stay focused.",
+                text: "Open Tuff to buy a break and temporarily unlock your apps.",
                 color: subtitleGray
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
@@ -67,11 +67,11 @@ class TuffShieldConfigurationExtension: ShieldConfigurationDataSource {
             backgroundColor: UIColor.black.withAlphaComponent(0.65),
             icon: tuffIcon(),
             title: ShieldConfiguration.Label(
-                text: "Site Blocked by Tuff",
+                text: "Site Locked by Tuff",
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "This site is blocked by Tuff to help you stay focused.",
+                text: "Open Tuff to buy a break and temporarily unlock your apps.",
                 color: subtitleGray
             ),
             primaryButtonLabel: ShieldConfiguration.Label(

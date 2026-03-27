@@ -1,19 +1,15 @@
 import SwiftUI
-import FamilyControls
 import FirebaseAuth
 import FirebaseFirestore
 
 struct CreateLeagueView: View {
     @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject var screenTimeManager: ScreenTimeManager
 
     @State private var leagueName = ""
     @State private var startDate = Date()
     @State private var endDate = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: Date()) ?? Date()
-    @State private var costPerPerson = "5"
+    @State private var pricePerHourCents = "20"
     @State private var inviteCode = ""
-    @State private var showAppPicker = false
-    @State private var selectedApps = FamilyActivitySelection()
     @State private var isCreating = false
     @State private var errorMessage: String?
 
@@ -23,8 +19,7 @@ struct CreateLeagueView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     nameField
                     datesRow
-                    buyInField
-                    appBlocking
+                    pricePerHourField
                     inviteSection
                     if let err = errorMessage {
                         Text(err)
@@ -79,52 +74,28 @@ struct CreateLeagueView: View {
         }
     }
 
-    // MARK: - Buy-in
+    // MARK: - Price Per Hour
 
-    private var buyInField: some View {
+    private var pricePerHourField: some View {
         VStack(alignment: .leading, spacing: 6) {
-            sectionLabel("BUY-IN PER PERSON")
+            sectionLabel("PRICE PER HOUR (¢)")
             HStack {
-                Text("$")
-                    .font(TuffFonts.leagueCardPot())
-                    .foregroundColor(.black)
-                TextField("0", text: $costPerPerson)
+                TextField("20", text: $pricePerHourCents)
                     .font(TuffFonts.leagueCardPot())
                     .keyboardType(.numberPad)
+                Text("¢ / hr")
+                    .font(TuffFonts.leagueCardPot())
+                    .foregroundColor(TuffColors.textSecondary)
             }
             .padding(12)
             .background(TuffColors.tagBackground)
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
-            Text("Set to $0 for a free league")
+            let cents = Int(pricePerHourCents) ?? 20
+            let ex15 = max(1, Int(round(Double(15) / 60.0 * Double(cents))))
+            Text("e.g. a 15-min break costs \(ex15)¢ (\(String(format: "$%.2f", Double(ex15) / 100.0)))")
                 .font(TuffFonts.caption(11))
                 .foregroundColor(TuffColors.textSecondary)
-        }
-    }
-
-    // MARK: - App Blocking
-
-    private var appBlocking: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("APP BLOCKING (OPTIONAL)")
-            Button {
-                showAppPicker = true
-            } label: {
-                HStack {
-                    Image(systemName: "apps.iphone")
-                        .font(.system(size: 16))
-                    Text(selectedApps.applicationTokens.isEmpty ? "Choose Apps to Block" : "\(selectedApps.applicationTokens.count) app(s) selected")
-                        .font(TuffFonts.body(14))
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12))
-                }
-                .foregroundColor(.black)
-                .padding(12)
-                .background(TuffColors.tagBackground)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .familyActivityPicker(isPresented: $showAppPicker, selection: $selectedApps)
         }
     }
 
@@ -227,18 +198,13 @@ struct CreateLeagueView: View {
                 "createdBy": uid,
                 "startDate": Timestamp(date: startDate),
                 "endDate": Timestamp(date: endDate),
-                "costPerPerson": Double(costPerPerson) ?? 0,
+                "pricePerHourCents": Int(pricePerHourCents) ?? 20,
                 "inviteCode": code,
                 "memberUids": [uid],
                 "memberProfiles": [memberProfile],
                 "isActive": true,
                 "createdAt": FieldValue.serverTimestamp()
             ])
-
-            if !selectedApps.applicationTokens.isEmpty {
-                screenTimeManager.selectedAppsToBlock = selectedApps
-                screenTimeManager.blockSelectedApps()
-            }
 
             dismiss()
         } catch {
