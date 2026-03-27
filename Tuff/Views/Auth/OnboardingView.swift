@@ -1,19 +1,11 @@
 import SwiftUI
 import PhotosUI
 import FirebaseFirestore
-import FamilyControls
 
 struct OnboardingView: View {
     @EnvironmentObject private var auth: AuthViewModel
     @EnvironmentObject private var screenTimeManager: ScreenTimeManager
     @EnvironmentObject private var notificationManager: NotificationManager
-
-    enum Mode {
-        case full
-        case trackingRecovery
-    }
-
-    private let mode: Mode
 
     @State private var step: Step = .name
     @State private var firstName = ""
@@ -27,35 +19,22 @@ struct OnboardingView: View {
     @State private var showLibrary = false
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var isRequestingScreenTime = false
-    @State private var showTrackingPicker = false
     @FocusState private var focusedField: Field?
 
-    private enum Step: Int { case name, username, photo, screenTime, tracking, notifications }
+    private enum Step: Int { case name, username, photo, screenTime, notifications }
     private enum Field { case firstName, lastName, username }
 
-    init(mode: Mode = .full) {
-        self.mode = mode
-        _step = State(initialValue: mode == .trackingRecovery ? .tracking : .name)
-    }
-
-    private var totalSteps: Int {
-        mode == .trackingRecovery ? 1 : 6
-    }
-
-    private var progressIndex: Int {
-        mode == .trackingRecovery ? 0 : step.rawValue
-    }
+    private var totalSteps: Int { 5 }
+    private var progressIndex: Int { step.rawValue }
 
     var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                if mode == .full {
-                    progressBar
-                        .padding(.top, 16)
-                        .padding(.horizontal, 32)
-                }
+                progressBar
+                    .padding(.top, 16)
+                    .padding(.horizontal, 32)
 
                 Spacer()
 
@@ -64,7 +43,6 @@ struct OnboardingView: View {
                 case .username:      usernameStep
                 case .photo:         photoStep
                 case .screenTime:    screenTimeStep
-                case .tracking:      trackingStep
                 case .notifications: notificationsStep
                 }
 
@@ -99,15 +77,6 @@ struct OnboardingView: View {
             }
             Button("Choose from Library") { showLibrary = true }
             Button("Cancel", role: .cancel) {}
-        }
-        .onChange(of: screenTimeManager.appsToTrack) { _, newSelection in
-            guard mode == .trackingRecovery else { return }
-            let hasSelection = !newSelection.applicationTokens.isEmpty
-                || !newSelection.categoryTokens.isEmpty
-                || !newSelection.webDomainTokens.isEmpty
-            if hasSelection {
-                screenTimeManager.startMonitoring(force: true)
-            }
         }
     }
 
@@ -321,12 +290,12 @@ struct OnboardingView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            iconRow(systemName: "chart.bar.fill", color: TuffColors.accent,
-                    title: "Track daily usage", subtitle: "See how long you spend on each app")
+            iconRow(systemName: "lock.fill", color: TuffColors.accent,
+                    title: "Block distracting apps", subtitle: "All selected apps locked by default")
             iconRow(systemName: "trophy.fill", color: TuffColors.gold,
-                    title: "Compete in leagues", subtitle: "Your screen time is your score")
-            iconRow(systemName: "list.bullet.rectangle.portrait.fill", color: Color(hex: "5B8CFF"),
-                    title: "Pick what to track", subtitle: "You'll choose all apps and categories next")
+                    title: "Compete in leagues", subtitle: "Lowest break time spent wins")
+            iconRow(systemName: "timer", color: Color(hex: "5B8CFF"),
+                    title: "Buy breaks", subtitle: "Unlock apps temporarily when you need to")
 
             continueButton(
                 title: isRequestingScreenTime ? "Allowing..." : "Allow Screen Time",
@@ -337,85 +306,11 @@ struct OnboardingView: View {
                     await screenTimeManager.requestAuthorization()
                     isRequestingScreenTime = false
                     if screenTimeManager.isAuthorized {
-                        step = .tracking
+                        step = .notifications
                     }
                 }
             }
         }
-    }
-
-    // MARK: - Tracking step
-
-    private var trackingStep: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(mode == .trackingRecovery ? "RE-ENABLE TRACKING" : "CHOOSE WHAT TO TRACK")
-                    .font(.system(size: 28, weight: .black, design: .default).width(.condensed))
-                    .foregroundColor(.black)
-                    .tracking(1)
-                Text(mode == .trackingRecovery
-                     ? "To keep contests fair, choose all apps and categories again. Reinstalls clear this Apple selection."
-                     : "Select the apps and categories to include in your screen time estimate. For the most accurate tracking, select all categories.")
-                    .font(.system(size: 15))
-                    .foregroundColor(TuffColors.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Button { showTrackingPicker = true } label: {
-                HStack(spacing: 14) {
-                    Image(systemName: "square.grid.2x2.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(TuffColors.accent)
-                        .frame(width: 40, height: 40)
-                        .background(TuffColors.accent.opacity(0.12))
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(trackingSelectionLabel)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.black)
-                        Text("Tap to choose apps & categories")
-                            .font(.system(size: 13))
-                            .foregroundColor(TuffColors.textSecondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(TuffColors.textSecondary)
-                }
-            }
-            .familyActivityPicker(
-                headerText: "Select all categories for complete tracking",
-                footerText: "Tuff estimates your usage every ~1 minute",
-                isPresented: $showTrackingPicker,
-                selection: $screenTimeManager.appsToTrack
-            )
-
-            iconRow(systemName: "clock.fill", color: TuffColors.gold,
-                    title: "~1 min accuracy", subtitle: "Estimated every minute in the background")
-            iconRow(systemName: "globe", color: Color(hex: "5B8CFF"),
-                    title: "Shared to leagues", subtitle: "Your Stats tab still uses exact local data")
-
-            continueButton(
-                title: mode == .trackingRecovery ? "Continue" : "Start Tracking",
-                disabled: !screenTimeManager.hasTrackingSelection
-            ) {
-                screenTimeManager.startMonitoring(force: true)
-                if mode == .trackingRecovery {
-                    return
-                }
-                step = .notifications
-            }
-        }
-    }
-
-    private var trackingSelectionLabel: String {
-        let apps = screenTimeManager.appsToTrack.applicationTokens.count
-        let cats = screenTimeManager.appsToTrack.categoryTokens.count
-        if apps == 0 && cats == 0 { return "No apps selected" }
-        var parts: [String] = []
-        if apps > 0 { parts.append("\(apps) app\(apps == 1 ? "" : "s")") }
-        if cats > 0 { parts.append("\(cats) categor\(cats == 1 ? "y" : "ies")") }
-        return parts.joined(separator: ", ")
     }
 
     // MARK: - Notifications step

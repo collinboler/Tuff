@@ -1,13 +1,11 @@
 import SwiftUI
-import FamilyControls
 import FirebaseAuth
 
 struct BlockView: View {
     @EnvironmentObject var screenTimeManager: ScreenTimeManager
     @EnvironmentObject var homeViewModel: HomeViewModel
 
-    @State private var showAppPicker = false
-    @State private var selectedMinutes: Int = 15  // default to 15 min
+    @State private var selectedMinutes: Int = 15
     @State private var isBuying = false
 
     private let breakOptions: [(label: String, minutes: Int)] = [
@@ -23,11 +21,6 @@ struct BlockView: View {
     private var isOnBreak: Bool { screenTimeManager.blockTimerEndDate != nil }
     private var activeLeagues: [League] { homeViewModel.leagues.filter { $0.isActive } }
 
-    private var hasApps: Bool {
-        !screenTimeManager.selectedAppsToBlock.applicationTokens.isEmpty
-            || !screenTimeManager.selectedAppsToBlock.categoryTokens.isEmpty
-    }
-
     var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
@@ -37,19 +30,12 @@ struct BlockView: View {
 
                 if isOnBreak {
                     breakActiveView
-                } else if !hasApps {
-                    setupView
                 } else {
                     buyBreakView
                 }
 
                 Spacer()
             }
-        }
-        .familyActivityPicker(isPresented: $showAppPicker, selection: $screenTimeManager.selectedAppsToBlock)
-        .onChange(of: screenTimeManager.selectedAppsToBlock) { _, newVal in
-            let hasNew = !newVal.applicationTokens.isEmpty || !newVal.categoryTokens.isEmpty
-            if hasNew { screenTimeManager.applyAlwaysOnBlocking() }
         }
     }
 
@@ -139,63 +125,6 @@ struct BlockView: View {
         }
     }
 
-    // MARK: - Setup (no apps selected)
-
-    private var setupView: some View {
-        VStack(spacing: 28) {
-            VStack(spacing: 10) {
-                Image(systemName: "lock.slash")
-                    .font(.system(size: 52))
-                    .foregroundColor(Color(hex: "BBBBBB"))
-
-                Text("CHOOSE APPS TO LOCK")
-                    .font(.system(size: 20, weight: .black, design: .default).width(.condensed))
-                    .foregroundColor(.black)
-                    .tracking(1)
-
-                Text("Select the apps that will be blocked while you compete. You can buy breaks to temporarily unlock them.")
-                    .font(.system(size: 14))
-                    .foregroundColor(TuffColors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-            }
-
-            Button {
-                showAppPicker = true
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "apps.iphone")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Select Apps")
-                        .font(.system(size: 16, weight: .bold))
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(TuffColors.accent.opacity(0.5))
-                            .offset(y: 4)
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(LinearGradient(
-                                colors: [TuffColors.accent.opacity(0.95), TuffColors.accent],
-                                startPoint: .top, endPoint: .bottom
-                            ))
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(LinearGradient(
-                                colors: [Color.white.opacity(0.22), Color.white.opacity(0)],
-                                startPoint: .top, endPoint: .center
-                            ))
-                    }
-                )
-                .shadow(color: TuffColors.accent.opacity(0.45), radius: 12, x: 0, y: 6)
-            }
-            .padding(.horizontal, 40)
-            .buttonStyle(PressableButtonStyle())
-        }
-    }
-
     // MARK: - Buy Break
 
     private var buyBreakView: some View {
@@ -209,8 +138,6 @@ struct BlockView: View {
             }
 
             buyButton
-
-            changeLockButton
         }
     }
 
@@ -225,9 +152,7 @@ struct BlockView: View {
                 .foregroundColor(.black)
                 .tracking(1)
 
-            let count = screenTimeManager.selectedAppsToBlock.applicationTokens.count
-                + screenTimeManager.selectedAppsToBlock.categoryTokens.count
-            Text("\(count) app\(count == 1 ? "" : "s/categories") blocked")
+            Text("All app categories blocked by your league")
                 .font(.system(size: 14))
                 .foregroundColor(TuffColors.textSecondary)
         }
@@ -385,20 +310,6 @@ struct BlockView: View {
         .disabled(isBuying)
         .padding(.horizontal, 32)
         .buttonStyle(PressableButtonStyle())
-    }
-
-    private var changeLockButton: some View {
-        Button {
-            showAppPicker = true
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "pencil")
-                    .font(.system(size: 13))
-                Text("Change locked apps")
-                    .font(.system(size: 13, weight: .medium))
-            }
-            .foregroundColor(TuffColors.textSecondary)
-        }
     }
 
     // MARK: - Helpers

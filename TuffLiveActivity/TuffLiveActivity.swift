@@ -39,9 +39,9 @@ struct TuffLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     Link(destination: URL(string: "tuff://block")!) {
                         HStack {
-                            Image(systemName: "lock.fill")
+                            Image(systemName: "lock.open.fill")
                                 .foregroundColor(Color(red: 0, green: 206/255, blue: 109/255))
-                            Text("Blocking \(context.state.appCount) app\(context.state.appCount == 1 ? "" : "s") · Tap to manage")
+                            Text("Break active · Tap to manage")
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.white.opacity(0.75))
                             Spacer()
@@ -90,11 +90,11 @@ struct TuffLiveActivity: Widget {
                     )
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("TUFF IS BLOCKING")
+                    Text("TUFF BREAK ACTIVE")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.white.opacity(0.55))
                         .tracking(0.5)
-                    Text("\(context.state.appCount) app\(context.state.appCount == 1 ? "" : "s") blocked")
+                    Text("Apps unlock until break ends")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
                 }

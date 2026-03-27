@@ -1,7 +1,6 @@
 import SwiftUI
 import FirebaseCore
 import FirebaseAuth
-import FamilyControls
 import UserNotifications
 
 // MARK: - Permissions gate (shown when screen time not yet authorized after login)
@@ -136,8 +135,6 @@ struct TuffApp: App {
                     OnboardingView()
                 } else if !screenTimeManager.isAuthorized {
                     PermissionsGateView()
-                } else if !screenTimeManager.hasTrackingSelection {
-                    OnboardingView(mode: .trackingRecovery)
                 } else {
                     ContentView()
                 }
@@ -148,20 +145,6 @@ struct TuffApp: App {
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 screenTimeManager.recheckAuthorization()
                 screenTimeManager.applyAlwaysOnBlocking()
-                if auth.isSignedIn
-                    && screenTimeManager.isAuthorized
-                    && screenTimeManager.hasTrackingSelection
-                    && !screenTimeManager.isRegisteringMonitoring {
-                    screenTimeManager.startMonitoring()
-                }
-                if let uid = Auth.auth().currentUser?.uid {
-                    screenTimeManager.syncScreenTimeToFirestore(uid: uid)
-                }
-            }
-            .onReceive(Timer.publish(every: 3600, on: .main, in: .common).autoconnect()) { _ in
-                if let uid = Auth.auth().currentUser?.uid {
-                    screenTimeManager.syncScreenTimeToFirestore(uid: uid)
-                }
             }
         }
     }

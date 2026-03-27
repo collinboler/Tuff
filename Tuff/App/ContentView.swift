@@ -59,8 +59,6 @@ struct ContentView: View {
 
     private var breakStatusBar: some View {
         let isOnBreak = screenTimeManager.blockTimerEndDate != nil
-        let hasApps = !screenTimeManager.selectedAppsToBlock.applicationTokens.isEmpty
-            || !screenTimeManager.selectedAppsToBlock.categoryTokens.isEmpty
 
         return HStack(spacing: 8) {
             Image(systemName: isOnBreak ? "lock.open.fill" : "lock.fill")
@@ -74,14 +72,10 @@ struct ContentView: View {
                 + Text(timerInterval: Date()...end, countsDown: true)
                     .font(.system(size: 14, weight: .bold).monospacedDigit())
                     .foregroundColor(TuffColors.accent)
-            } else if hasApps {
+            } else {
                 Text("APPS LOCKED")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(.white)
-            } else {
-                Text("NO APPS SELECTED")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color.white.opacity(0.5))
             }
 
             Spacer()

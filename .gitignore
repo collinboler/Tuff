@@ -18,7 +18,8 @@ xcuserdata/
 # Swift Package Manager
 .build/
 Packages/
-Package.resolved
+# Keep Package.resolved committed — Xcode Cloud requires it when automatic
+# dependency resolution is disabled (see xcshareddata/swiftpm/Package.resolved).
 
 # CocoaPods
 Pods/
