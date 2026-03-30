@@ -137,6 +137,9 @@ class ScreenTimeManager: ObservableObject {
             await MainActor.run {
                 self.blockTimerEndDate = nil
                 Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
+                // End the Live Activity BEFORE re-locking so the Dynamic Island
+                // dismisses cleanly instead of showing a frozen spinner at 0:00.
+                self.endLiveActivity()
                 self.blockSelectedApps()
             }
         }
@@ -224,7 +227,7 @@ class ScreenTimeManager: ObservableObject {
 
         let attrs = BlockTimerAttributes(appCount: 0)
         let state = BlockTimerAttributes.ContentState(endDate: endDate, appCount: 0)
-        let content = ActivityContent(state: state, staleDate: endDate.addingTimeInterval(60))
+        let content = ActivityContent(state: state, staleDate: endDate)
         do {
             liveActivity = try Activity.request(attributes: attrs, content: content, pushType: nil)
             print("[Tuff] Live Activity started: \(liveActivity?.id ?? "?")")
