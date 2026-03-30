@@ -145,6 +145,7 @@ struct TuffApp: App {
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                 screenTimeManager.recheckAuthorization()
                 screenTimeManager.applyAlwaysOnBlocking()
+                screenTimeManager.registerBlockingSchedules()
             }
         }
     }

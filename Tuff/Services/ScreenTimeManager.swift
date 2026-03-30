@@ -16,6 +16,7 @@ class ScreenTimeManager: ObservableObject {
     @Published var isAuthorized = false
     @Published var blockTimerEndDate: Date? = nil
     @Published var isActivelyBlocking: Bool = false
+    @Published var liveActivitiesEnabled: Bool = true
 
     private var blockTimerTask: Task<Void, Never>?
     private var liveActivity: Activity<BlockTimerAttributes>?
@@ -23,6 +24,9 @@ class ScreenTimeManager: ObservableObject {
     private var authObserver: AnyCancellable?
 
     private static let hasAuthorizedKey = "tuff_hasAuthorizedScreenTime"
+    // Shared with the TuffDeviceActivity extension so it can check break state
+    static let sharedDefaults = UserDefaults(suiteName: "group.com.collinboler.tuff")
+    static let breakEndDateKey = "tuff_breakEndDate"
 
     private init() {
         store = ManagedSettingsStore()
@@ -43,6 +47,21 @@ class ScreenTimeManager: ObservableObject {
                     self.isAuthorized = status || UserDefaults.standard.bool(forKey: Self.hasAuthorizedKey)
                 }
             }
+
+        // Restore break timer that may have been active when the app was killed.
+        // If the break is still valid, restart the relock task so apps re-lock on time.
+        // If it already expired, clear it — applyAlwaysOnBlocking() will re-lock on launch.
+        if let savedEnd = Self.sharedDefaults?.object(forKey: Self.breakEndDateKey) as? Date {
+            if Date() < savedEnd {
+                blockTimerEndDate = savedEnd
+                scheduleRelock(endDate: savedEnd)
+                // Leave store cleared — apps should still be unlocked during the break
+            } else {
+                Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
+            }
+        }
+
+        liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
     }
 
     /// Call this when the app becomes active so the status is always fresh.
@@ -91,23 +110,32 @@ class ScreenTimeManager: ObservableObject {
 
         let end = Date().addingTimeInterval(duration)
         blockTimerEndDate = end
+        // Persist so the extension and a relaunched app both know we're on a break
+        Self.sharedDefaults?.set(end, forKey: Self.breakEndDateKey)
 
         // Unblock apps for the break duration
         store?.clearAllSettings()
         isActivelyBlocking = false
 
+        scheduleRelock(endDate: end)
+        startLiveActivity(endDate: end)
+    }
+
+    /// Shared relock scheduling — used by startBlockTimer and break restoration on init.
+    private func scheduleRelock(endDate: Date) {
+        blockTimerTask?.cancel()
         blockTimerTask = Task {
-            let delay = end.timeIntervalSince(Date())
+            let delay = endDate.timeIntervalSince(Date())
             if delay > 0 {
                 try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             }
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 self.blockTimerEndDate = nil
-                self.blockSelectedApps()  // Re-lock when break ends
+                Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
+                self.blockSelectedApps()
             }
         }
-        startLiveActivity(endDate: end)
     }
 
     /// End the break early and immediately re-lock.
@@ -115,8 +143,27 @@ class ScreenTimeManager: ObservableObject {
         blockTimerTask?.cancel()
         blockTimerTask = nil
         blockTimerEndDate = nil
+        Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
         endLiveActivity()
         blockSelectedApps()
+    }
+
+    /// Register 24 hourly DeviceActivity schedules (no events — just for the
+    /// intervalDidStart callback that re-applies shields when the app is killed).
+    func registerBlockingSchedules() {
+        guard isAuthorized else { return }
+        let center = DeviceActivityCenter()
+        let calendar = Calendar.current
+        let base = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: Date())!
+        for hour in 0...23 {
+            let startDate = calendar.date(byAdding: .hour, value: hour, to: base)!
+            let endDate = calendar.date(byAdding: .hour, value: 1, to: startDate)!.addingTimeInterval(-1)
+            let start = calendar.dateComponents([.hour, .minute, .second], from: startDate)
+            let end = calendar.dateComponents([.hour, .minute, .second], from: endDate)
+            let schedule = DeviceActivitySchedule(intervalStart: start, intervalEnd: end, repeats: true)
+            try? center.startMonitoring(DeviceActivityName("tuff.block.\(hour)"), during: schedule)
+        }
+        print("[Tuff] Registered 24 hourly blocking schedules")
     }
 
     /// Purchase a break: unblock for `minutes`, then atomically increment each active league's
@@ -159,8 +206,9 @@ class ScreenTimeManager: ObservableObject {
 
     private func startLiveActivity(endDate: Date) {
         let info = ActivityAuthorizationInfo()
+        liveActivitiesEnabled = info.areActivitiesEnabled
         guard info.areActivitiesEnabled else {
-            print("[Tuff] Live Activities disabled by system")
+            print("[Tuff] Live Activities disabled — user should enable in Settings > Tuff > Live Activities")
             return
         }
         endLiveActivity()
@@ -201,6 +249,7 @@ class ScreenTimeManager: ObservableObject {
             try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
             isAuthorized = true
             UserDefaults.standard.set(true, forKey: Self.hasAuthorizedKey)
+            registerBlockingSchedules()
             print("[Tuff] Screen Time authorized ✓")
         } catch {
             print("[Tuff] Screen Time auth failed: \(error)")

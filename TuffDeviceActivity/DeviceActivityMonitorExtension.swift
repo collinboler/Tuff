@@ -1,47 +1,35 @@
 import DeviceActivity
+import ManagedSettings
 import Foundation
 
 class TuffDeviceActivityMonitor: DeviceActivityMonitor {
 
     private let groupID = "group.com.collinboler.tuff"
+    private let breakEndDateKey = "tuff_breakEndDate"
 
+    /// Called at the start of each registered hourly window.
+    /// Re-applies shields if no break is active — this keeps blocking alive
+    /// even when the main app process has been killed by iOS.
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
-        appendLog("start,\(activity.rawValue)")
+
+        guard activity.rawValue.hasPrefix("tuff.block.") else { return }
+
+        let defaults = UserDefaults(suiteName: groupID)
+        // If a break is still in progress, don't re-lock
+        if let breakEnd = defaults?.object(forKey: breakEndDateKey) as? Date,
+           Date() < breakEnd {
+            return
+        }
+
+        // Re-apply shields — handles the case where the app was killed and
+        // ManagedSettingsStore was cleared by iOS
+        let store = ManagedSettingsStore()
+        store.shield.applicationCategories = .all()
+        store.shield.webDomainCategories = .all()
     }
 
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
-        appendLog("end,\(activity.rawValue)")
-    }
-
-    override func eventDidReachThreshold(
-        _ event: DeviceActivityEvent.Name,
-        activity: DeviceActivityName
-    ) {
-        super.eventDidReachThreshold(event, activity: activity)
-        appendLog("threshold,1,\(event.rawValue)")
-    }
-
-    /// Append a line to the shared log file.
-    /// File-based writes avoid the iOS 17 CFPreferences crash that kills
-    /// extensions reading UserDefaults in App Group containers.
-    private func appendLog(_ entry: String) {
-        guard let url = FileManager.default
-            .containerURL(forSecurityApplicationGroupIdentifier: groupID)?
-            .appendingPathComponent("monitor_log.txt") else { return }
-
-        let line = "\(Int(Date().timeIntervalSince1970)),\(entry)\n"
-        guard let data = line.data(using: .utf8) else { return }
-
-        if FileManager.default.fileExists(atPath: url.path) {
-            if let handle = try? FileHandle(forWritingTo: url) {
-                handle.seekToEndOfFile()
-                handle.write(data)
-                try? handle.close()
-            }
-        } else {
-            try? data.write(to: url, options: .atomic)
-        }
     }
 }

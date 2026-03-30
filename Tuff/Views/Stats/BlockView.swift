@@ -62,6 +62,14 @@ struct BlockView: View {
                 Text("Apps unlocked until break ends")
                     .font(.system(size: 14))
                     .foregroundColor(TuffColors.textSecondary)
+
+                if !screenTimeManager.liveActivitiesEnabled {
+                    Label("Enable Live Activities in Settings › Tuff to see the timer in your Dynamic Island", systemImage: "bell.slash")
+                        .font(.system(size: 12))
+                        .foregroundColor(TuffColors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                }
             }
 
             if !activeLeagues.isEmpty {
