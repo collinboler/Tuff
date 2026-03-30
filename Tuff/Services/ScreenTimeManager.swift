@@ -81,14 +81,18 @@ class ScreenTimeManager: ObservableObject {
     }
 
     /// End any Live Activities that weren't cleaned up (e.g. app was killed mid-break).
+    /// Skips the currently tracked activity so it isn't accidentally killed.
     private func sweepStaleLiveActivities() {
+        let currentId = liveActivity?.id
+        let activeBreak = blockTimerEndDate
         Task {
             for activity in Activity<BlockTimerAttributes>.activities {
+                // Don't touch the activity we're actively tracking
+                if activity.id == currentId { continue }
                 let endDate = activity.content.state.endDate
-                // End if past end date or no active local timer
-                if Date() >= endDate || blockTimerEndDate == nil {
-                    let noContent: ActivityContent<BlockTimerAttributes.ContentState>? = nil
-                    await activity.end(noContent, dismissalPolicy: .immediate)
+                // End orphaned activities: past their end date, or no break is running
+                if Date() >= endDate || activeBreak == nil {
+                    await activity.end(nil, dismissalPolicy: .immediate)
                 }
             }
         }
@@ -211,7 +215,13 @@ class ScreenTimeManager: ObservableObject {
             print("[Tuff] Live Activities disabled — user should enable in Settings > Tuff > Live Activities")
             return
         }
-        endLiveActivity()
+
+        // Capture the old activity reference BEFORE requesting the new one.
+        // Ending it via an async Task after the new request avoids the race condition
+        // where the task would iterate Activity.activities and kill the newly created one.
+        let previousActivity = liveActivity
+        liveActivity = nil
+
         let attrs = BlockTimerAttributes(appCount: 0)
         let state = BlockTimerAttributes.ContentState(endDate: endDate, appCount: 0)
         let content = ActivityContent(state: state, staleDate: endDate.addingTimeInterval(60))
@@ -219,16 +229,27 @@ class ScreenTimeManager: ObservableObject {
             liveActivity = try Activity.request(attributes: attrs, content: content, pushType: nil)
             print("[Tuff] Live Activity started: \(liveActivity?.id ?? "?")")
         } catch {
-            print("[Tuff] Live Activity failed: \(error)")
+            print("[Tuff] Live Activity failed: \(error.localizedDescription)")
+        }
+
+        // End the previous activity and any orphans, but exclude the one we just created.
+        let newId = liveActivity?.id
+        Task {
+            await previousActivity?.end(nil, dismissalPolicy: .immediate)
+            for activity in Activity<BlockTimerAttributes>.activities where activity.id != newId {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
         }
     }
 
     private func endLiveActivity() {
+        let toEnd = liveActivity
         liveActivity = nil
         Task {
-            let noContent: ActivityContent<BlockTimerAttributes.ContentState>? = nil
+            await toEnd?.end(nil, dismissalPolicy: .immediate)
+            // Also sweep any orphans not tracked by the liveActivity property
             for activity in Activity<BlockTimerAttributes>.activities {
-                await activity.end(noContent, dismissalPolicy: .immediate)
+                await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
     }
