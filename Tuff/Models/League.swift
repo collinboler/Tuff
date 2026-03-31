@@ -14,7 +14,7 @@ struct League: Identifiable {
     var isActive: Bool
     var members: [LeagueMember]
 
-    /// Total virtual pool = sum of all members' boughtCents.
+    /// Total virtual pool = sum of all members' boughtCents (including DQ'd).
     var poolCents: Int { members.reduce(0) { $0 + $1.boughtCents } }
     var poolDollars: Double { Double(poolCents) / 100.0 }
 
@@ -24,13 +24,19 @@ struct League: Identifiable {
         return "\(formatter.string(from: startDate)) – \(formatter.string(from: endDate))"
     }
 
-    /// Winner takes all — person with lowest boughtCents wins the pool.
+    /// Winner takes all — person with lowest boughtCents (non-DQ) wins the pool.
     var payoutBreakdown: [(place: String, amount: String)] {
-        [("1st Place — Lowest spent wins", String(format: "$%.2f pool", poolDollars))]
+        let eligible = members.filter { !$0.isDQ }
+        let note = eligible.isEmpty ? "" : " (DQ'd members ineligible)"
+        return [("1st Place — Lowest spent wins\(note)", String(format: "$%.2f pool", poolDollars))]
     }
 
-    /// Sorted ascending by boughtCents (0 = winning; most disciplined user first).
-    var sortedMembers: [LeagueMember] { members.sorted { $0.boughtCents < $1.boughtCents } }
+    /// Active members first (sorted by boughtCents ascending), DQ'd members at the bottom.
+    var sortedMembers: [LeagueMember] {
+        let active = members.filter { !$0.isDQ }.sorted { $0.boughtCents < $1.boughtCents }
+        let disqualified = members.filter { $0.isDQ }.sorted { $0.boughtCents < $1.boughtCents }
+        return active + disqualified
+    }
 
     // MARK: - Firestore parsing
 
@@ -44,6 +50,7 @@ struct League: Identifiable {
         // ledger is a top-level map { uid: { boughtCents: Int, boughtMinutes: Int } }
         // This allows atomic FieldValue.increment updates without transactions.
         let ledger = data["ledger"] as? [String: [String: Any]] ?? [:]
+        let dqdUids = Set(data["dqdUids"] as? [String] ?? [])
 
         let memberProfiles = data["memberProfiles"] as? [[String: Any]] ?? []
         let members: [LeagueMember] = memberProfiles.enumerated().map { i, profile in
@@ -68,7 +75,8 @@ struct League: Identifiable {
                 rank: i + 1,
                 lastUpdated: Date(),
                 boughtCents: entry["boughtCents"] as? Int ?? 0,
-                boughtMinutes: entry["boughtMinutes"] as? Int ?? 0
+                boughtMinutes: entry["boughtMinutes"] as? Int ?? 0,
+                isDQ: dqdUids.contains(uid)
             )
         }
 

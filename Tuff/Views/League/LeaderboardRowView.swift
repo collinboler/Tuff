@@ -7,44 +7,68 @@ struct LeaderboardRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text("\(rank)")
-                .font(TuffFonts.lbRank())
-                .foregroundColor(rankColor)
-                .frame(width: 24, alignment: .center)
+            Group {
+                if member.isDQ {
+                    Text("DQ")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color.red.opacity(0.75))
+                        .clipShape(RoundedRectangle(cornerRadius: 4))
+                        .frame(width: 24, alignment: .center)
+                } else {
+                    Text("\(rank)")
+                        .font(TuffFonts.lbRank())
+                        .foregroundColor(rankColor)
+                        .frame(width: 24, alignment: .center)
+                }
+            }
 
             ProfileImageView(
                 imageName: member.user.imageName,
                 size: 40
             )
+            .opacity(member.isDQ ? 0.45 : 1)
 
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 4) {
                     Text(member.user.name.uppercased())
                         .font(TuffFonts.lbName())
-                        .foregroundColor(.black)
+                        .foregroundColor(member.isDQ ? TuffColors.textSecondary : .black)
                         .tracking(0.03 * 15)
+                        .strikethrough(member.isDQ, color: TuffColors.textSecondary)
 
                     if isCurrentUser {
                         Text("(YOU)")
                             .font(TuffFonts.lbName())
-                            .foregroundColor(.black)
+                            .foregroundColor(member.isDQ ? TuffColors.textSecondary : .black)
                     }
                 }
 
-                Text(member.formattedBoughtTime)
-                    .font(TuffFonts.caption(11))
-                    .foregroundColor(TuffColors.textSecondary)
+                HStack(spacing: 4) {
+                    Text(member.formattedBoughtTime)
+                        .font(TuffFonts.caption(11))
+                        .foregroundColor(TuffColors.textSecondary)
+
+                    if member.isDQ {
+                        Text("· left league")
+                            .font(TuffFonts.caption(11))
+                            .foregroundColor(Color.red.opacity(0.7))
+                    }
+                }
             }
 
             Spacer()
 
             Text(member.formattedBoughtCost)
                 .font(TuffFonts.lbTime())
-                .foregroundColor(member.boughtCents == 0 ? TuffColors.accent : .black)
+                .foregroundColor(member.isDQ ? TuffColors.textSecondary : (member.boughtCents == 0 ? TuffColors.accent : .black))
                 .monospacedDigit()
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 10)
+        .opacity(member.isDQ ? 0.75 : 1)
     }
 
     private var rankColor: Color {

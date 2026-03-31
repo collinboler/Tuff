@@ -27,6 +27,7 @@ class TuffDeviceActivityMonitor: DeviceActivityMonitor {
         let store = ManagedSettingsStore()
         store.shield.applicationCategories = .all()
         store.shield.webDomainCategories = .all()
+        store.application.denyAppRemoval = true
     }
 
     override func intervalDidEnd(for activity: DeviceActivityName) {

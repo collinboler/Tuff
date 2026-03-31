@@ -1,7 +1,6 @@
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
-import UIKit
 
 @MainActor
 class HomeViewModel: ObservableObject {
@@ -62,58 +61,32 @@ class HomeViewModel: ObservableObject {
             .addSnapshotListener { [weak self] snapshot, _ in
                 guard let self, let docs = snapshot?.documents else { return }
                 Task { @MainActor in
+                    // All leaderboard data (boughtCents/boughtMinutes) lives in the league
+                    // document's `ledger` map and is parsed directly by League.from().
+                    // No secondary user-document reads are needed.
                     self.leagues = docs.compactMap { League.from($0.data(), id: $0.documentID) }
-                    await self.refreshLeagueMemberScreenTimes()
                 }
             }
     }
 
-    /// Fetch screen time from each member's user doc (kept fresh by syncScreenTimeToFirestore).
-    private func refreshLeagueMemberScreenTimes() async {
-        var allUIDs = Set<String>()
-        for league in leagues {
-            for member in league.members where !member.user.uid.isEmpty {
-                allUIDs.insert(member.user.uid)
-            }
-        }
-        guard !allUIDs.isEmpty else { return }
-
-        let db = Firestore.firestore()
-        var uidToMinutes: [String: Int] = [:]
-        await withTaskGroup(of: (String, Int)?.self) { group in
-            for memberUID in allUIDs {
-                group.addTask {
-                    guard let doc = try? await db.collection("users").document(memberUID).getDocument(),
-                          let minutes = doc.data()?["screenTimeMinutes"] as? Int,
-                          minutes > 0 else { return nil }
-                    return (memberUID, minutes)
-                }
-            }
-            for await result in group {
-                if let (u, m) = result { uidToMinutes[u] = m }
-            }
-        }
-
-        guard !uidToMinutes.isEmpty else { return }
+    /// Immediately removes the refunded cost from local league state so the leaderboard
+    /// updates before the Firestore round-trip completes.
+    func applyOptimisticRefund(uid: String, refundMinutes: Int) {
         leagues = leagues.map { league in
+            guard league.isActive else { return league }
+            let refundCents = max(1, Int(round(Double(refundMinutes) / 60.0 * Double(league.pricePerHourCents))))
             var updated = league
             updated.members = league.members.map { member in
-                guard let minutes = uidToMinutes[member.user.uid] else { return member }
-                let seconds = TimeInterval(minutes * 60)
-                let updatedUser = TuffUser(
-                    id: member.user.id, uid: member.user.uid,
-                    name: member.user.name, username: member.user.username,
-                    imageName: member.user.imageName, isCurrentUser: member.user.isCurrentUser,
-                    screenTimeMinutes: minutes,
-                    totalLeagues: member.user.totalLeagues,
-                    leaguesWon: member.user.leaguesWon,
-                    totalEarnings: member.user.totalEarnings
+                guard member.user.uid == uid else { return member }
+                return LeagueMember(
+                    id: member.id, user: member.user,
+                    currentScreenTime: member.currentScreenTime,
+                    rank: member.rank,
+                    lastUpdated: Date(),
+                    boughtCents: max(0, member.boughtCents - refundCents),
+                    boughtMinutes: max(0, member.boughtMinutes - refundMinutes),
+                    isDQ: member.isDQ
                 )
-                return LeagueMember(id: member.id, user: updatedUser,
-                                    currentScreenTime: seconds, rank: member.rank,
-                                    lastUpdated: Date(),
-                                    boughtCents: member.boughtCents,
-                                    boughtMinutes: member.boughtMinutes)
             }
             return updated
         }
@@ -134,7 +107,8 @@ class HomeViewModel: ObservableObject {
                     rank: member.rank,
                     lastUpdated: Date(),
                     boughtCents: member.boughtCents + costCents,
-                    boughtMinutes: member.boughtMinutes + minutes
+                    boughtMinutes: member.boughtMinutes + minutes,
+                    isDQ: member.isDQ
                 )
             }
             return updated

@@ -6,6 +6,9 @@ import ActivityKit
 // no longer redeclares this struct.
 struct BlockTimerAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
+        /// True while a break is active and apps are unlocked.
+        var isOnBreak: Bool
+        /// Only meaningful when isOnBreak == true.
         var endDate: Date
         var appCount: Int
     }

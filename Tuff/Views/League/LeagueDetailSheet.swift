@@ -37,11 +37,11 @@ struct LeagueDetailSheet: View {
             isPresented: $showLeaveConfirm,
             titleVisibility: .visible
         ) {
-            Button("Leave League", role: .destructive) {
+            Button("Leave & Forfeit", role: .destructive) {
                 Task { await leaveLeague() }
             }
         } message: {
-            Text("You will be removed from this league.")
+            Text("Your spent amount stays in the pool, but you'll be marked DQ'd and ineligible to win.")
         }
         .confirmationDialog(
             "Delete \"\(league.name)\"?",
@@ -226,21 +226,15 @@ struct LeagueDetailSheet: View {
         isLoading = true
         defer { isLoading = false }
         let db = Firestore.firestore()
-        let docRef = db.collection("leagues").document(league.id)
         let uid = currentUID
         do {
-            try await db.runTransaction { transaction, errorPointer in
-                let doc: DocumentSnapshot
-                do { doc = try transaction.getDocument(docRef) }
-                catch let e as NSError { errorPointer?.pointee = e; return nil }
-                var profiles = doc.data()?["memberProfiles"] as? [[String: Any]] ?? []
-                profiles.removeAll { $0["uid"] as? String == uid }
-                transaction.updateData([
-                    "memberUids": FieldValue.arrayRemove([uid]),
-                    "memberProfiles": profiles
-                ], forDocument: docRef)
-                return nil
-            }
+            // Keep the member in the league so their score counts toward the pool,
+            // but add them to dqdUids so they're ineligible to win. Also remove
+            // them from the Firestore query filter so the league stops showing for them.
+            try await db.collection("leagues").document(league.id).updateData([
+                "memberUids": FieldValue.arrayRemove([uid]),
+                "dqdUids": FieldValue.arrayUnion([uid])
+            ])
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

@@ -15,6 +15,7 @@ class ScreenTimeManager: ObservableObject {
 
     @Published var isAuthorized = false
     @Published var blockTimerEndDate: Date? = nil
+    @Published var breakStartDate: Date? = nil    // persisted so refund calc survives restarts
     @Published var isActivelyBlocking: Bool = false
     @Published var liveActivitiesEnabled: Bool = true
 
@@ -26,7 +27,8 @@ class ScreenTimeManager: ObservableObject {
     private static let hasAuthorizedKey = "tuff_hasAuthorizedScreenTime"
     // Shared with the TuffDeviceActivity extension so it can check break state
     static let sharedDefaults = UserDefaults(suiteName: "group.com.collinboler.tuff")
-    static let breakEndDateKey = "tuff_breakEndDate"
+    static let breakEndDateKey   = "tuff_breakEndDate"
+    static let breakStartDateKey = "tuff_breakStartDate"
 
     private init() {
         store = ManagedSettingsStore()
@@ -49,15 +51,14 @@ class ScreenTimeManager: ObservableObject {
             }
 
         // Restore break timer that may have been active when the app was killed.
-        // If the break is still valid, restart the relock task so apps re-lock on time.
-        // If it already expired, clear it — applyAlwaysOnBlocking() will re-lock on launch.
         if let savedEnd = Self.sharedDefaults?.object(forKey: Self.breakEndDateKey) as? Date {
             if Date() < savedEnd {
                 blockTimerEndDate = savedEnd
+                breakStartDate = Self.sharedDefaults?.object(forKey: Self.breakStartDateKey) as? Date
                 scheduleRelock(endDate: savedEnd)
-                // Leave store cleared — apps should still be unlocked during the break
             } else {
                 Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
+                Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
             }
         }
 
@@ -80,18 +81,17 @@ class ScreenTimeManager: ObservableObject {
         sweepStaleLiveActivities()
     }
 
-    /// End any Live Activities that weren't cleaned up (e.g. app was killed mid-break).
-    /// Skips the currently tracked activity so it isn't accidentally killed.
+    /// Clean up any orphaned Live Activities from previous sessions.
+    /// Only ends ones that are truly stale (break expired). The current
+    /// activity is left running — it will be updated to locked state.
     private func sweepStaleLiveActivities() {
         let currentId = liveActivity?.id
-        let activeBreak = blockTimerEndDate
         Task {
             for activity in Activity<BlockTimerAttributes>.activities {
-                // Don't touch the activity we're actively tracking
                 if activity.id == currentId { continue }
-                let endDate = activity.content.state.endDate
-                // End orphaned activities: past their end date, or no break is running
-                if Date() >= endDate || activeBreak == nil {
+                // Only end orphans whose break has already expired
+                if activity.content.state.isOnBreak,
+                   Date() >= activity.content.state.endDate {
                     await activity.end(nil, dismissalPolicy: .immediate)
                 }
             }
@@ -112,17 +112,20 @@ class ScreenTimeManager: ObservableObject {
         blockTimerTask?.cancel()
         blockTimerTask = nil
 
-        let end = Date().addingTimeInterval(duration)
+        let start = Date()
+        let end = start.addingTimeInterval(duration)
         blockTimerEndDate = end
-        // Persist so the extension and a relaunched app both know we're on a break
-        Self.sharedDefaults?.set(end, forKey: Self.breakEndDateKey)
+        breakStartDate = start
+        Self.sharedDefaults?.set(end,   forKey: Self.breakEndDateKey)
+        Self.sharedDefaults?.set(start, forKey: Self.breakStartDateKey)
 
-        // Unblock apps for the break duration
+        // Unblock apps for the break duration and re-enable app removal
         store?.clearAllSettings()
+        store?.application.denyAppRemoval = false
         isActivelyBlocking = false
 
         scheduleRelock(endDate: end)
-        startLiveActivity(endDate: end)
+        updateLiveActivityForBreak(endDate: end)
     }
 
     /// Shared relock scheduling — used by startBlockTimer and break restoration on init.
@@ -136,23 +139,86 @@ class ScreenTimeManager: ObservableObject {
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 self.blockTimerEndDate = nil
+                self.breakStartDate = nil
                 Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
-                // End the Live Activity BEFORE re-locking so the Dynamic Island
-                // dismisses cleanly instead of showing a frozen spinner at 0:00.
-                self.endLiveActivity()
+                Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
                 self.blockSelectedApps()
+                self.ensureLockedLiveActivity()
             }
         }
     }
 
-    /// End the break early and immediately re-lock.
+    /// End the break early, re-lock immediately, and refund the unused time.
+    ///
+    /// Charging rule — only FULL minutes actually used are kept:
+    ///   • Used 1m 30s → charge 1 min  (floor of seconds used / 60)
+    ///   • Used 0m 30s → charge 0 min  (full refund)
+    ///
+    /// This means `refundMinutes = originalMinutes - floor(secondsUsed / 60)`.
+    /// Returns the number of minutes refunded (0 if none).
+    @discardableResult
+    func cancelBreakEarly(uid: String, leagues: [League]) async -> Int {
+        let endDate   = blockTimerEndDate
+        let startDate = breakStartDate ?? Self.sharedDefaults?.object(forKey: Self.breakStartDateKey) as? Date
+
+        // Re-lock immediately
+        blockTimerTask?.cancel()
+        blockTimerTask = nil
+        blockTimerEndDate = nil
+        breakStartDate = nil
+        Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
+        Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
+        blockSelectedApps()
+        ensureLockedLiveActivity()
+
+        guard let endDate, let startDate else { return 0 }
+
+        // originalMinutes = what the user paid for upfront
+        let originalMinutes = Int((endDate.timeIntervalSince(startDate) / 60).rounded())
+        // minutesKept = full minutes the break was actually used (floor)
+        let secondsUsed     = max(0, Date().timeIntervalSince(startDate))
+        let minutesKept     = Int(secondsUsed / 60)          // floor — sub-minute use → 0
+        let refundMinutes   = max(0, originalMinutes - minutesKept)
+
+        print("[Tuff] earlyEnd: used \(Int(secondsUsed))s → kept \(minutesKept)m / refund \(refundMinutes)m of \(originalMinutes)m")
+        guard refundMinutes > 0 else { return 0 }
+
+        let activeLeagues = leagues.filter { $0.isActive }
+        guard !activeLeagues.isEmpty else { return refundMinutes }
+
+        let db = Firestore.firestore()
+        await withTaskGroup(of: Void.self) { group in
+            for league in activeLeagues {
+                let refundCents = max(0, Int(round(Double(refundMinutes) / 60.0 * Double(league.pricePerHourCents))))
+                guard refundCents > 0 else { continue }
+                let docRef = db.collection("leagues").document(league.id)
+                let lid = league.id
+                group.addTask {
+                    do {
+                        try await docRef.updateData([
+                            "ledger.\(uid).boughtCents":   FieldValue.increment(-Int64(refundCents)),
+                            "ledger.\(uid).boughtMinutes": FieldValue.increment(-Int64(refundMinutes))
+                        ])
+                        print("[Tuff] earlyEnd: -\(refundCents)¢ / -\(refundMinutes)m refund → league \(lid)")
+                    } catch {
+                        print("[Tuff] earlyEnd: refund FAILED for league \(lid): \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
+        return refundMinutes
+    }
+
+    /// Re-lock without any refund (used when no leagues are active or break expired naturally).
     func cancelBlockTimer() {
         blockTimerTask?.cancel()
         blockTimerTask = nil
         blockTimerEndDate = nil
+        breakStartDate = nil
         Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
-        endLiveActivity()
+        Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
         blockSelectedApps()
+        ensureLockedLiveActivity()
     }
 
     /// Register 24 hourly DeviceActivity schedules (no events — just for the
@@ -210,32 +276,68 @@ class ScreenTimeManager: ObservableObject {
     }
 
     // MARK: - Live Activity
+    // The Live Activity runs continuously while blocking is active:
+    //   • Locked state  → T logo + lock icon (no break)
+    //   • Break state   → T logo + countdown timer
+    // We update the content state rather than ending/restarting to avoid flicker.
 
-    private func startLiveActivity(endDate: Date) {
-        let info = ActivityAuthorizationInfo()
-        liveActivitiesEnabled = info.areActivitiesEnabled
-        guard info.areActivitiesEnabled else {
-            print("[Tuff] Live Activities disabled — user should enable in Settings > Tuff > Live Activities")
-            return
+    /// Ensure a Live Activity exists and is showing the "locked" state.
+    func ensureLockedLiveActivity() {
+        liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+        guard liveActivitiesEnabled else { return }
+
+        let lockedState = BlockTimerAttributes.ContentState(
+            isOnBreak: false,
+            endDate: Date.distantFuture,
+            appCount: 0
+        )
+
+        if let existing = liveActivity {
+            // Update existing activity to locked state
+            Task {
+                await existing.update(ActivityContent(state: lockedState, staleDate: nil))
+            }
+        } else {
+            // No activity running — start one
+            requestFreshActivity(state: lockedState)
         }
+    }
 
-        // Capture the old activity reference BEFORE requesting the new one.
-        // Ending it via an async Task after the new request avoids the race condition
-        // where the task would iterate Activity.activities and kill the newly created one.
+    /// Switch the Live Activity to break mode with a countdown.
+    private func updateLiveActivityForBreak(endDate: Date) {
+        liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+        guard liveActivitiesEnabled else { return }
+
+        let breakState = BlockTimerAttributes.ContentState(
+            isOnBreak: true,
+            endDate: endDate,
+            appCount: 0
+        )
+
+        if let existing = liveActivity {
+            Task {
+                await existing.update(ActivityContent(state: breakState, staleDate: endDate))
+            }
+        } else {
+            requestFreshActivity(state: breakState)
+        }
+    }
+
+    private func requestFreshActivity(state: BlockTimerAttributes.ContentState) {
         let previousActivity = liveActivity
         liveActivity = nil
-
-        let attrs = BlockTimerAttributes(appCount: 0)
-        let state = BlockTimerAttributes.ContentState(endDate: endDate, appCount: 0)
-        let content = ActivityContent(state: state, staleDate: endDate)
+        let stale: Date? = state.isOnBreak ? state.endDate : nil
+        let content = ActivityContent(state: state, staleDate: stale)
         do {
-            liveActivity = try Activity.request(attributes: attrs, content: content, pushType: nil)
+            liveActivity = try Activity.request(
+                attributes: BlockTimerAttributes(appCount: 0),
+                content: content,
+                pushType: nil
+            )
             print("[Tuff] Live Activity started: \(liveActivity?.id ?? "?")")
         } catch {
             print("[Tuff] Live Activity failed: \(error.localizedDescription)")
         }
-
-        // End the previous activity and any orphans, but exclude the one we just created.
         let newId = liveActivity?.id
         Task {
             await previousActivity?.end(nil, dismissalPolicy: .immediate)
@@ -250,7 +352,6 @@ class ScreenTimeManager: ObservableObject {
         liveActivity = nil
         Task {
             await toEnd?.end(nil, dismissalPolicy: .immediate)
-            // Also sweep any orphans not tracked by the liveActivity property
             for activity in Activity<BlockTimerAttributes>.activities {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
@@ -292,8 +393,10 @@ class ScreenTimeManager: ObservableObject {
         }
         store.shield.applicationCategories = .all()
         store.shield.webDomainCategories = .all()
+        store.application.denyAppRemoval = true
         isActivelyBlocking = true
         print("[Tuff] Shield applied — all app categories and web domains blocked")
+        ensureLockedLiveActivity()
     }
 
     func unblockAllApps() {

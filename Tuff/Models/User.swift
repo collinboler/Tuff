@@ -42,9 +42,10 @@ struct LeagueMember: Identifiable {
     var lastUpdated: Date
     var boughtCents: Int    // total virtual cents spent on breaks in this league
     var boughtMinutes: Int  // total minutes of breaks purchased
+    var isDQ: Bool          // left the league mid-season — score counts toward pool but can't win
 
     init(id: UUID, user: TuffUser, currentScreenTime: TimeInterval,
-         rank: Int, lastUpdated: Date, boughtCents: Int = 0, boughtMinutes: Int = 0) {
+         rank: Int, lastUpdated: Date, boughtCents: Int = 0, boughtMinutes: Int = 0, isDQ: Bool = false) {
         self.id = id
         self.user = user
         self.currentScreenTime = currentScreenTime
@@ -52,6 +53,7 @@ struct LeagueMember: Identifiable {
         self.lastUpdated = lastUpdated
         self.boughtCents = boughtCents
         self.boughtMinutes = boughtMinutes
+        self.isDQ = isDQ
     }
 
     var screenTimeMinutes: Int { Int(currentScreenTime) / 60 }
