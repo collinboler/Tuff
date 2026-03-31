@@ -357,14 +357,15 @@ struct BlockView: View {
     }
 
     /// Minutes that would be refunded if the break is ended right now.
-    /// = originalMinutes - floor(secondsUsed / 60)
-    /// Matches the rule: only full minutes used are charged; sub-minute = 0.
+    /// Rule: if less than 1 full minute has been used, no refund (can't game the system).
+    /// Otherwise: originalMinutes - floor(secondsUsed / 60).
     private var refundMinutesAvailable: Int {
         guard let startDate = screenTimeManager.breakStartDate,
               let endDate   = screenTimeManager.blockTimerEndDate else { return 0 }
+        let secondsUsed = max(0, Date().timeIntervalSince(startDate))
+        guard secondsUsed >= 60 else { return 0 }
         let originalMinutes = Int((endDate.timeIntervalSince(startDate) / 60).rounded())
-        let secondsUsed     = max(0, Date().timeIntervalSince(startDate))
-        let minutesKept     = Int(secondsUsed / 60)          // floor
+        let minutesKept     = Int(secondsUsed / 60)
         return max(0, originalMinutes - minutesKept)
     }
 
@@ -378,10 +379,13 @@ struct BlockView: View {
     }
 
     private var refundSummaryText: String? {
-        let mins = refundMinutesAvailable
-        guard mins > 0, !activeLeagues.isEmpty else { return nil }
+        guard refundMinutesAvailable > 1, !activeLeagues.isEmpty else { return nil }
+        guard let endDate = screenTimeManager.blockTimerEndDate else { return nil }
+        // Use floor of remaining countdown so the label matches the visible timer.
+        let remainingMins = Int(max(0, endDate.timeIntervalSince(Date())) / 60)
+        guard remainingMins > 1 else { return nil }
         let dollars = String(format: "$%.2f", Double(totalRefundCents) / 100.0)
-        return "End \(mins)m early → save \(dollars)"
+        return "End \(remainingMins)m early → save \(dollars)"
     }
 }
 

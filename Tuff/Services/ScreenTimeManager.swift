@@ -173,11 +173,17 @@ class ScreenTimeManager: ObservableObject {
 
         guard let endDate, let startDate else { return 0 }
 
-        // originalMinutes = what the user paid for upfront
+        let secondsUsed = max(0, Date().timeIntervalSince(startDate))
+
+        // If less than 1 full minute was used, keep the full charge — no refund.
+        // This prevents gaming (buy break, cancel immediately for free).
+        guard secondsUsed >= 60 else {
+            print("[Tuff] earlyEnd: used \(Int(secondsUsed))s < 60 — no refund")
+            return 0
+        }
+
         let originalMinutes = Int((endDate.timeIntervalSince(startDate) / 60).rounded())
-        // minutesKept = full minutes the break was actually used (floor)
-        let secondsUsed     = max(0, Date().timeIntervalSince(startDate))
-        let minutesKept     = Int(secondsUsed / 60)          // floor — sub-minute use → 0
+        let minutesKept     = Int(secondsUsed / 60)          // floor
         let refundMinutes   = max(0, originalMinutes - minutesKept)
 
         print("[Tuff] earlyEnd: used \(Int(secondsUsed))s → kept \(minutesKept)m / refund \(refundMinutes)m of \(originalMinutes)m")
