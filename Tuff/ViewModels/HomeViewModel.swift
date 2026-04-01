@@ -137,12 +137,16 @@ class HomeViewModel: ObservableObject {
             let firstName = userData?["firstName"] as? String ?? ""
             let lastName  = userData?["lastName"]  as? String ?? ""
             let username  = userData?["username"]  as? String ?? ""
-            let memberProfile: [String: Any] = [
+            var memberProfile: [String: Any] = [
                 "uid": uid,
                 "name": "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces),
                 "username": username,
-                "screenTimeMinutes": 0
+                "screenTimeMinutes": 0,
+                "joinedAt": FieldValue.serverTimestamp()
             ]
+            if let photoURL = userData?["photoURL"] as? String {
+                memberProfile["photoURL"] = photoURL
+            }
 
             try await db.collection("leagues").document(leagueId).updateData([
                 "memberUids": FieldValue.arrayUnion([uid]),

@@ -38,6 +38,15 @@ struct League: Identifiable {
         return active + disqualified
     }
 
+    /// True if the member joined after 20% of the league's duration had elapsed.
+    func isLateJoiner(_ member: LeagueMember) -> Bool {
+        guard let joinedAt = member.joinedAt else { return false }
+        let totalDuration = endDate.timeIntervalSince(startDate)
+        guard totalDuration > 0 else { return false }
+        let threshold = startDate.addingTimeInterval(totalDuration * 0.20)
+        return joinedAt > threshold
+    }
+
     // MARK: - Firestore parsing
 
     static func from(_ data: [String: Any], id: String) -> League? {
@@ -62,12 +71,14 @@ struct League: Identifiable {
                 name: profile["name"] as? String ?? "Unknown",
                 username: profile["username"] as? String ?? "",
                 imageName: "",
+                photoURL: profile["photoURL"] as? String,
                 isCurrentUser: uid == currentUID,
                 screenTimeMinutes: profile["screenTimeMinutes"] as? Int ?? 0,
                 totalLeagues: 0,
                 leaguesWon: 0,
                 totalEarnings: 0
             )
+            let joinedAt = (profile["joinedAt"] as? Timestamp)?.dateValue()
             return LeagueMember(
                 id: UUID(),
                 user: memberUser,
@@ -76,7 +87,8 @@ struct League: Identifiable {
                 lastUpdated: Date(),
                 boughtCents: entry["boughtCents"] as? Int ?? 0,
                 boughtMinutes: entry["boughtMinutes"] as? Int ?? 0,
-                isDQ: dqdUids.contains(uid)
+                isDQ: dqdUids.contains(uid),
+                joinedAt: joinedAt
             )
         }
 

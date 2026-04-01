@@ -4,6 +4,7 @@ struct LeaderboardRowView: View {
     let rank: Int
     let member: LeagueMember
     let isCurrentUser: Bool
+    var joinedLate: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -27,7 +28,8 @@ struct LeaderboardRowView: View {
 
             ProfileImageView(
                 imageName: member.user.imageName,
-                size: 40
+                size: 40,
+                photoURL: member.user.photoURL
             )
             .opacity(member.isDQ ? 0.45 : 1)
 
@@ -55,6 +57,10 @@ struct LeaderboardRowView: View {
                         Text("· left league")
                             .font(TuffFonts.caption(11))
                             .foregroundColor(Color.red.opacity(0.7))
+                    } else if joinedLate {
+                        Text("· joined late")
+                            .font(TuffFonts.caption(11))
+                            .foregroundColor(Color.orange.opacity(0.8))
                     }
                 }
             }

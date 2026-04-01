@@ -1,6 +1,7 @@
 import Foundation
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseStorage
 import UIKit
 
 // Presents Firebase's reCAPTCHA web view when APNs isn't available
@@ -135,24 +136,36 @@ class AuthViewModel: ObservableObject {
         markOnboardingComplete(for: user.uid)
         needsOnboarding = false
 
-        // Save profile image to local documents directory
-        if let image = profileImage,
-           let data = image.jpegData(compressionQuality: 0.8) {
-            let url = profileImageURL(for: user.uid)
-            try? data.write(to: url)
-        }
-
         let uid = user.uid
         let phone = user.phoneNumber ?? ""
+
+        // Save profile image locally and upload to Firebase Storage
+        var imageData: Data? = nil
+        if let image = profileImage, let data = image.jpegData(compressionQuality: 0.8) {
+            let localURL = profileImageURL(for: uid)
+            try? data.write(to: localURL)
+            imageData = data
+        }
+
         Task.detached {
             let db = Firestore.firestore()
-            try? await db.collection("users").document(uid).setData([
+            var userData: [String: Any] = [
                 "firstName": firstName,
                 "lastName": lastName,
                 "username": username,
                 "phone": phone,
                 "createdAt": FieldValue.serverTimestamp()
-            ], merge: true)
+            ]
+            // Upload photo and store URL
+            if let data = imageData {
+                let ref = Storage.storage().reference().child("profileImages/\(uid).jpg")
+                let meta = StorageMetadata(); meta.contentType = "image/jpeg"
+                if let _ = try? await ref.putDataAsync(data, metadata: meta),
+                   let url = try? await ref.downloadURL() {
+                    userData["photoURL"] = url.absoluteString
+                }
+            }
+            try? await db.collection("users").document(uid).setData(userData, merge: true)
         }
     }
 

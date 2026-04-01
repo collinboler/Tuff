@@ -7,6 +7,7 @@ struct TuffUser: Identifiable, Hashable {
     var name: String
     var username: String
     var imageName: String
+    var photoURL: String?   // Firebase Storage download URL
     var isCurrentUser: Bool
     var screenTimeMinutes: Int
     var totalLeagues: Int
@@ -29,7 +30,7 @@ struct TuffUser: Identifiable, Hashable {
 
     static var currentUser: TuffUser {
         TuffUser(id: UUID(), uid: "", name: "", username: "", imageName: "",
-                 isCurrentUser: true, screenTimeMinutes: 0,
+                 photoURL: nil, isCurrentUser: true, screenTimeMinutes: 0,
                  totalLeagues: 0, leaguesWon: 0, totalEarnings: 0)
     }
 }
@@ -43,9 +44,11 @@ struct LeagueMember: Identifiable {
     var boughtCents: Int    // total virtual cents spent on breaks in this league
     var boughtMinutes: Int  // total minutes of breaks purchased
     var isDQ: Bool          // left the league mid-season — score counts toward pool but can't win
+    var joinedAt: Date?     // when this member joined the league
 
     init(id: UUID, user: TuffUser, currentScreenTime: TimeInterval,
-         rank: Int, lastUpdated: Date, boughtCents: Int = 0, boughtMinutes: Int = 0, isDQ: Bool = false) {
+         rank: Int, lastUpdated: Date, boughtCents: Int = 0, boughtMinutes: Int = 0,
+         isDQ: Bool = false, joinedAt: Date? = nil) {
         self.id = id
         self.user = user
         self.currentScreenTime = currentScreenTime
@@ -54,6 +57,7 @@ struct LeagueMember: Identifiable {
         self.boughtCents = boughtCents
         self.boughtMinutes = boughtMinutes
         self.isDQ = isDQ
+        self.joinedAt = joinedAt
     }
 
     var screenTimeMinutes: Int { Int(currentScreenTime) / 60 }

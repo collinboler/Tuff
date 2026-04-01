@@ -126,7 +126,8 @@ struct LeagueDetailSheet: View {
                 LeaderboardRowView(
                     rank: index + 1,
                     member: member,
-                    isCurrentUser: member.user.isCurrentUser
+                    isCurrentUser: member.user.isCurrentUser,
+                    joinedLate: league.isLateJoiner(member)
                 )
 
                 if index < league.sortedMembers.count - 1 {

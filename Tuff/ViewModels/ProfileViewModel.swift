@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseStorage
 import UIKit
 import SwiftUI
 
@@ -42,20 +43,34 @@ class ProfileViewModel: ObservableObject {
             }
         }
 
-        // Save image locally
+        // Upload image to Firebase Storage and persist URL to Firestore + local cache
+        var photoURLString: String? = nil
         if let img = image, let data = img.jpegData(compressionQuality: 0.8) {
-            let url = AuthViewModel.profileImageURL(for: uid)
-            try? data.write(to: url)
+            let ref = Storage.storage().reference().child("profileImages/\(uid).jpg")
+            do {
+                let meta = StorageMetadata()
+                meta.contentType = "image/jpeg"
+                _ = try await ref.putDataAsync(data, metadata: meta)
+                let downloadURL = try await ref.downloadURL()
+                photoURLString = downloadURL.absoluteString
+            } catch {
+                return "Photo upload failed: \(error.localizedDescription)"
+            }
+            // Cache locally so the current device doesn't re-download
+            let localURL = AuthViewModel.profileImageURL(for: uid)
+            try? data.write(to: localURL)
             profileImage = img
         }
 
         // Save to Firestore
+        var firestoreUpdate: [String: Any] = [
+            "firstName": firstName.trimmingCharacters(in: .whitespaces),
+            "lastName": lastName.trimmingCharacters(in: .whitespaces),
+            "username": trimmedUsername
+        ]
+        if let url = photoURLString { firestoreUpdate["photoURL"] = url }
         do {
-            try await db.collection("users").document(uid).updateData([
-                "firstName": firstName.trimmingCharacters(in: .whitespaces),
-                "lastName": lastName.trimmingCharacters(in: .whitespaces),
-                "username": trimmedUsername
-            ])
+            try await db.collection("users").document(uid).updateData(firestoreUpdate)
         } catch {
             return error.localizedDescription
         }
@@ -78,12 +93,11 @@ class ProfileViewModel: ObservableObject {
 
     private func loadRealUser() {
         guard let firebaseUser = Auth.auth().currentUser else { return }
-
-        // Load saved profile photo
-        profileImage = AuthViewModel.savedProfileImage(for: firebaseUser.uid)
-
-        // Load name from Firestore
         let uid = firebaseUser.uid
+
+        // Load locally cached photo first for instant display
+        profileImage = AuthViewModel.savedProfileImage(for: uid)
+
         Task {
             let db = Firestore.firestore()
             guard let doc = try? await db.collection("users").document(uid).getDocument(),
@@ -94,21 +108,29 @@ class ProfileViewModel: ObservableObject {
             let fullName  = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
             let phone     = data["phone"]     as? String ?? firebaseUser.phoneNumber ?? ""
 
-            // Patch the current-user slot with real data, keep mock stats for now
-            var updated = self.user
-            updated = TuffUser(
-                id: updated.id,
-                uid: firebaseUser.uid,
+            self.user = TuffUser(
+                id: self.user.id,
+                uid: uid,
                 name: fullName.isEmpty ? "You" : fullName,
                 username: data["username"] as? String ?? phone,
                 imageName: "",
                 isCurrentUser: true,
-                screenTimeMinutes: updated.screenTimeMinutes,
-                totalLeagues: updated.totalLeagues,
-                leaguesWon: updated.leaguesWon,
-                totalEarnings: updated.totalEarnings
+                screenTimeMinutes: self.user.screenTimeMinutes,
+                totalLeagues: self.user.totalLeagues,
+                leaguesWon: self.user.leaguesWon,
+                totalEarnings: self.user.totalEarnings
             )
-            self.user = updated
+
+            // If there's a remote photo and no local cache, download it
+            if self.profileImage == nil,
+               let photoURLString = data["photoURL"] as? String,
+               let photoURL = URL(string: photoURLString),
+               let (imgData, _) = try? await URLSession.shared.data(from: photoURL),
+               let img = UIImage(data: imgData) {
+                let localURL = AuthViewModel.profileImageURL(for: uid)
+                try? imgData.write(to: localURL)
+                self.profileImage = img
+            }
         }
 
         // Load friends count from leagues
