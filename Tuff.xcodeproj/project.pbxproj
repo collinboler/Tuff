@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		DA001122334455667788AABB /* SharedKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001122334455667788AABC /* SharedKeys.swift */; };
 		020A7F4437034D638682A67C /* CreateLeagueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A99AC0FD5D7287ADDDBC164 /* CreateLeagueView.swift */; };
 		03EEA9C59A36A76A39E29AB3 /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86CCBDA2CCE6E9715DA96805 /* User.swift */; };
 		0A186B889D36AC90DDFA6795 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3DFF1FB986855FACD264B942 /* Assets.xcassets */; };
@@ -46,6 +45,10 @@
 		CC001122334455667788AA02 /* TuffDeviceActivity.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CC001122334455667788AA03 /* TuffShieldConfiguration.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D39F08284DAC58B9434BDEC3 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B20E94174CF30E8FFF26D8A /* ContentView.swift */; };
+		DA001122334455667788AABB /* SharedKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001122334455667788AABC /* SharedKeys.swift */; };
+		DA001122334455667788BB01 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA02 /* DeviceActivity.framework */; };
+		DA001122334455667788BB02 /* ExtensionFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA07 /* ExtensionFoundation.framework */; };
+		DA001122334455667788BB03 /* ExtensionKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA09 /* ExtensionKit.framework */; };
 		DB5CD2E5EE6267E98DD8EFAD /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D15B25B75621633E16BA8D3 /* HomeViewModel.swift */; };
 		DD001122334455667788AA01 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA02 /* DeviceActivity.framework */; };
 		DD001122334455667788AA04 /* _DeviceActivity_SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA05 /* _DeviceActivity_SwiftUI.framework */; };
@@ -55,9 +58,6 @@
 		E69A83DBACD63B28881AD279 /* FriendCarouselView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146D5441632C22A67744C333 /* FriendCarouselView.swift */; };
 		ED17F9694E0EC6B5B0D9B5C9 /* LeagueHistoryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E19A20D88869999A0353DD4C /* LeagueHistoryRow.swift */; };
 		EE001122334455667788AA01 /* ShieldActionExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE001122334455667788AA02 /* ShieldActionExtension.swift */; };
-		DA001122334455667788BB01 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA02 /* DeviceActivity.framework */; };
-		DA001122334455667788BB02 /* ExtensionFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA07 /* ExtensionFoundation.framework */; };
-		DA001122334455667788BB03 /* ExtensionKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA09 /* ExtensionKit.framework */; };
 		EE001122334455667788AA04 /* TuffShieldAction.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = EE001122334455667788AA03 /* TuffShieldAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FA001122334455667788AA01 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA02 /* AuthViewModel.swift */; };
 		FA001122334455667788AA03 /* PhoneSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA04 /* PhoneSignInView.swift */; };
@@ -212,6 +212,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DA001122334455667788BB10 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DA001122334455667788BB01 /* DeviceActivity.framework in Frameworks */,
+				DA001122334455667788BB02 /* ExtensionFoundation.framework in Frameworks */,
+				DA001122334455667788BB03 /* ExtensionKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		DD001122334455667788AA03 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -232,16 +242,6 @@
 				FB001122334455667788AA02 /* FirebaseCore in Frameworks */,
 				FB001122334455667788AA03 /* FirebaseFirestore in Frameworks */,
 				FB001122334455667788AA04 /* FirebaseStorage in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		DA001122334455667788BB10 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				DA001122334455667788BB01 /* DeviceActivity.framework in Frameworks */,
-				DA001122334455667788BB02 /* ExtensionFoundation.framework in Frameworks */,
-				DA001122334455667788BB03 /* ExtensionKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -299,7 +299,6 @@
 				4D50587DEA21E82879BDC096 /* Info.plist */,
 				60D71B943F1CF2EC9AB91009 /* TuffLiveActivity.entitlements */,
 			);
-			name = TuffLiveActivity;
 			path = TuffLiveActivity;
 			sourceTree = "<group>";
 		};

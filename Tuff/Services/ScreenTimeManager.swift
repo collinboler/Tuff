@@ -75,6 +75,10 @@ class ScreenTimeManager: ObservableObject {
             blockTimerTask?.cancel()
             blockTimerTask = nil
             blockTimerEndDate = nil
+            breakStartDate = nil
+            Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
+            Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
+            try? DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
             blockSelectedApps()
         }
         // Sweep any orphaned Live Activities from previous sessions
@@ -125,10 +129,13 @@ class ScreenTimeManager: ObservableObject {
         isActivelyBlocking = false
 
         scheduleRelock(endDate: end)
+        scheduleRelockViaExtension(endDate: end)
         updateLiveActivityForBreak(endDate: end)
     }
 
     /// Shared relock scheduling — used by startBlockTimer and break restoration on init.
+    /// Uses Task.sleep for accuracy when the app is foregrounded, but the companion
+    /// scheduleRelockViaExtension() handles the case where the app is suspended/killed.
     private func scheduleRelock(endDate: Date) {
         blockTimerTask?.cancel()
         blockTimerTask = Task {
@@ -144,7 +151,36 @@ class ScreenTimeManager: ObservableObject {
                 Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
                 self.blockSelectedApps()
                 self.ensureLockedLiveActivity()
+                // Cancel the one-shot extension schedule (it may not have fired yet)
+                try? DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
             }
+        }
+    }
+
+    /// Register a one-shot DeviceActivitySchedule that fires exactly when the break ends.
+    /// This ensures the TuffDeviceActivity extension re-applies shields even when the
+    /// main app process is suspended by iOS and Task.sleep never wakes up.
+    private func scheduleRelockViaExtension(endDate: Date) {
+        let center = DeviceActivityCenter()
+        // Cancel any previous one-shot schedule first
+        try? center.stopMonitoring([DeviceActivityName("tuff.breakEnd")])
+
+        let calendar = Calendar.current
+        let startComponents = calendar.dateComponents([.hour, .minute, .second], from: endDate)
+        // 1-minute window so intervalDidStart fires at the break end second
+        let windowEnd = endDate.addingTimeInterval(60)
+        let endComponents = calendar.dateComponents([.hour, .minute, .second], from: windowEnd)
+
+        let schedule = DeviceActivitySchedule(
+            intervalStart: startComponents,
+            intervalEnd:   endComponents,
+            repeats: false
+        )
+        do {
+            try center.startMonitoring(DeviceActivityName("tuff.breakEnd"), during: schedule)
+            print("[Tuff] One-shot breakEnd schedule registered for \(endDate)")
+        } catch {
+            print("[Tuff] Failed to register breakEnd schedule: \(error)")
         }
     }
 
@@ -168,6 +204,8 @@ class ScreenTimeManager: ObservableObject {
         breakStartDate = nil
         Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
         Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
+        // Cancel the one-shot extension schedule so it doesn't fire spuriously
+        try? DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
         blockSelectedApps()
         ensureLockedLiveActivity()
 
@@ -320,9 +358,13 @@ class ScreenTimeManager: ObservableObject {
             appCount: 0
         )
 
+        // Give a 90-second buffer past the break end before iOS shows the stale spinner.
+        // The one-shot DeviceActivity schedule + recheckAuthorization will update the
+        // activity to locked state within that window.
+        let staleDate = endDate.addingTimeInterval(90)
         if let existing = liveActivity {
             Task {
-                await existing.update(ActivityContent(state: breakState, staleDate: endDate))
+                await existing.update(ActivityContent(state: breakState, staleDate: staleDate))
             }
         } else {
             requestFreshActivity(state: breakState)
@@ -332,7 +374,8 @@ class ScreenTimeManager: ObservableObject {
     private func requestFreshActivity(state: BlockTimerAttributes.ContentState) {
         let previousActivity = liveActivity
         liveActivity = nil
-        let stale: Date? = state.isOnBreak ? state.endDate : nil
+        // Buffer 90s past break end before iOS shows the stale spinner
+        let stale: Date? = state.isOnBreak ? state.endDate.addingTimeInterval(90) : nil
         let content = ActivityContent(state: state, staleDate: stale)
         do {
             liveActivity = try Activity.request(
