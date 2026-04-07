@@ -31,6 +31,7 @@
 		9D91AB7247B450E4EE4DB36C /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 70EF686622536154E89620E5 /* SwiftUI.framework */; };
 		A0BFA49FAB7FF4F98191B316 /* BlockTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16584C51E6F908A182AF1CBE /* BlockTimerAttributes.swift */; };
 		A42D0096EC37EDF5B9FA65D5 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABAE5F4418FA24AF36A211B /* NotificationManager.swift */; };
+		F1B2C3D4E5F60718293A4B5C /* RemoteImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B2C3D4E5F60718293A4B5D /* RemoteImageCache.swift */; };
 		AA001122334455667788AABB /* SharedKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001122334455667788AABC /* SharedKeys.swift */; };
 		AC76B6B6EFF96EB2CBB9CFEC /* ScreenTimeData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D24FF406404BF607297917 /* ScreenTimeData.swift */; };
 		B69A2E965887F83B419B941A /* TuffLiveActivity.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = E6A0D0FFC4C90B02CC795104 /* TuffLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -153,6 +154,7 @@
 		86CCBDA2CCE6E9715DA96805 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
 		935D673557E80C6FE7B1CDF1 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		9ABAE5F4418FA24AF36A211B /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
+		F1B2C3D4E5F60718293A4B5D /* RemoteImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImageCache.swift; sourceTree = "<group>"; };
 		9D20E98B5328CE88A5A35EDA /* ScreenTimeChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTimeChartView.swift; sourceTree = "<group>"; };
 		9DD638A63F049BFA07CDBF4E /* LeagueDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeagueDetailSheet.swift; sourceTree = "<group>"; };
 		AA001122334455667788AABC /* SharedKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedKeys.swift; sourceTree = "<group>"; };
@@ -439,6 +441,7 @@
 				9ABAE5F4418FA24AF36A211B /* NotificationManager.swift */,
 				3EA453900CCC88739E566FB6 /* ScreenTimeManager.swift */,
 				16584C51E6F908A182AF1CBE /* BlockTimerAttributes.swift */,
+				F1B2C3D4E5F60718293A4B5D /* RemoteImageCache.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -705,6 +708,7 @@
 				5D6FCAD3F3FFFD4C3D2B0F58 /* LeagueDetailSheet.swift in Sources */,
 				ED17F9694E0EC6B5B0D9B5C9 /* LeagueHistoryRow.swift in Sources */,
 				A42D0096EC37EDF5B9FA65D5 /* NotificationManager.swift in Sources */,
+				F1B2C3D4E5F60718293A4B5C /* RemoteImageCache.swift in Sources */,
 				CBAE30B8B55D133F7DB56CB3 /* ProfileImageView.swift in Sources */,
 				FB001122334455667788AB09 /* ImagePicker.swift in Sources */,
 				64345E8B3394DC7D010637EE /* ProfileView.swift in Sources */,

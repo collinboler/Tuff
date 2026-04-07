@@ -157,19 +157,23 @@ class ScreenTimeManager: ObservableObject {
         }
     }
 
-    /// Register a one-shot DeviceActivitySchedule that fires exactly when the break ends.
-    /// This ensures the TuffDeviceActivity extension re-applies shields even when the
-    /// main app process is suspended by iOS and Task.sleep never wakes up.
+    /// Register a one-shot DeviceActivitySchedule that fires shortly after the break ends.
+    /// DeviceActivitySchedule only honours .hour and .minute (seconds are ignored), so we
+    /// schedule the window to START 1 minute after the break end time — guaranteeing that
+    /// when intervalDidStart fires the break will definitely be over and the extension's
+    /// `Date() < breakEnd` guard won't incorrectly skip the relock.
     private func scheduleRelockViaExtension(endDate: Date) {
         let center = DeviceActivityCenter()
-        // Cancel any previous one-shot schedule first
         try? center.stopMonitoring([DeviceActivityName("tuff.breakEnd")])
 
         let calendar = Calendar.current
-        let startComponents = calendar.dateComponents([.hour, .minute, .second], from: endDate)
-        // 1-minute window so intervalDidStart fires at the break end second
-        let windowEnd = endDate.addingTimeInterval(60)
-        let endComponents = calendar.dateComponents([.hour, .minute, .second], from: windowEnd)
+        // Add 1 full minute so the schedule start is always AFTER the break finishes,
+        // even accounting for the framework's second-level precision being dropped.
+        let fireDate    = endDate.addingTimeInterval(60)
+        let windowEnd   = fireDate.addingTimeInterval(120)   // 2-minute window
+        // Drop .second — DeviceActivitySchedule rounds to the minute
+        let startComponents = calendar.dateComponents([.hour, .minute], from: fireDate)
+        let endComponents   = calendar.dateComponents([.hour, .minute], from: windowEnd)
 
         let schedule = DeviceActivitySchedule(
             intervalStart: startComponents,
@@ -178,7 +182,7 @@ class ScreenTimeManager: ObservableObject {
         )
         do {
             try center.startMonitoring(DeviceActivityName("tuff.breakEnd"), during: schedule)
-            print("[Tuff] One-shot breakEnd schedule registered for \(endDate)")
+            print("[Tuff] breakEnd schedule registered: fires at \(fireDate)")
         } catch {
             print("[Tuff] Failed to register breakEnd schedule: \(error)")
         }
@@ -265,23 +269,31 @@ class ScreenTimeManager: ObservableObject {
         ensureLockedLiveActivity()
     }
 
-    /// Register 24 hourly DeviceActivity schedules (no events — just for the
-    /// intervalDidStart callback that re-applies shields when the app is killed).
+    /// Register 96 every-15-minute DeviceActivity schedules as a keep-alive fallback.
+    /// The one-shot "tuff.breakEnd" schedule is the primary relock mechanism; these
+    /// cover the rare case where that schedule is skipped, capping the worst-case
+    /// gap to ≤15 minutes instead of ≤59 minutes with hourly schedules.
+    /// Only registers once per app session; subsequent calls are no-ops.
     func registerBlockingSchedules() {
         guard isAuthorized else { return }
+        guard !schedulesRegistered else { return }
+        schedulesRegistered = true
+
         let center = DeviceActivityCenter()
         let calendar = Calendar.current
         let base = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: Date())!
-        for hour in 0...23 {
-            let startDate = calendar.date(byAdding: .hour, value: hour, to: base)!
-            let endDate = calendar.date(byAdding: .hour, value: 1, to: startDate)!.addingTimeInterval(-1)
-            let start = calendar.dateComponents([.hour, .minute, .second], from: startDate)
-            let end = calendar.dateComponents([.hour, .minute, .second], from: endDate)
+        for slot in 0...95 {            // 96 × 15-min slots = full day
+            let startDate = base.addingTimeInterval(TimeInterval(slot * 15 * 60))
+            let endDate   = startDate.addingTimeInterval(14 * 60 + 59)   // 14m 59s window
+            let start = calendar.dateComponents([.hour, .minute], from: startDate)
+            let end   = calendar.dateComponents([.hour, .minute], from: endDate)
             let schedule = DeviceActivitySchedule(intervalStart: start, intervalEnd: end, repeats: true)
-            try? center.startMonitoring(DeviceActivityName("tuff.block.\(hour)"), during: schedule)
+            try? center.startMonitoring(DeviceActivityName("tuff.block.\(slot)"), during: schedule)
         }
-        print("[Tuff] Registered 24 hourly blocking schedules")
+        print("[Tuff] Registered 96 × 15-min blocking schedules")
     }
+
+    private var schedulesRegistered = false
 
     /// Purchase a break: unblock for `minutes`, then atomically increment each active league's
     /// ledger entry for this user using FieldValue.increment (no transaction needed).

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Displays a profile photo. Priority order:
 ///   1. `uiImage`  — locally held UIImage (current user, just-taken photo)
-///   2. `photoURL` — remote URL string (league members loaded from Firestore)
+///   2. `photoURL` — remote URL string loaded via shared NSCache (league members)
 ///   3. `imageName` — asset-catalog image (legacy / placeholder)
 ///   4. System placeholder icon
 struct ProfileImageView: View {
@@ -17,19 +17,8 @@ struct ProfileImageView: View {
                 Image(uiImage: img)
                     .resizable()
                     .scaledToFill()
-            } else if let urlString = photoURL, let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image.resizable().scaledToFill()
-                    case .failure:
-                        placeholder
-                    case .empty:
-                        Color(hex: "EEEEEE")
-                    @unknown default:
-                        placeholder
-                    }
-                }
+            } else if photoURL != nil {
+                CachedRemoteImage(urlString: photoURL, size: size)
             } else if UIImage(named: imageName) != nil {
                 Image(imageName)
                     .resizable()
@@ -47,5 +36,28 @@ struct ProfileImageView: View {
             .resizable()
             .scaledToFit()
             .foregroundColor(Color(hex: "555555"))
+    }
+}
+
+// Backed by RemoteImageLoader which uses a shared NSCache — the same image
+// object is reused across every view that shows the same URL.
+private struct CachedRemoteImage: View {
+    let urlString: String?
+    let size: CGFloat
+
+    @StateObject private var loader = RemoteImageLoader()
+
+    var body: some View {
+        Group {
+            if let img = loader.image {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color(hex: "EEEEEE")
+            }
+        }
+        .onAppear { loader.load(from: urlString) }
+        .onDisappear { loader.cancel() }
     }
 }

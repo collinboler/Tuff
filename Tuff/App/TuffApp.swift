@@ -83,6 +83,14 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Register for remote notifications so Firebase can get the APNs token
         // needed for phone auth (silent push verification)
         application.registerForRemoteNotifications()
+
+        // Cap URLSession HTTP cache so downloaded images don't bloat disk/memory.
+        // RemoteImageCache (NSCache) handles the in-memory layer separately.
+        URLCache.shared = URLCache(
+            memoryCapacity: 10 * 1024 * 1024,  //  10 MB memory
+            diskCapacity:   50 * 1024 * 1024,  //  50 MB disk
+            diskPath: "tuff_url_cache"
+        )
         return true
     }
 
