@@ -28,6 +28,8 @@
 		88D420FEED3A0D721E6D35E5 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4414488435282DEF1F82A0F3 /* ActivityKit.framework */; };
 		8AD19E016668ACAD309BDDD4 /* LeaderboardRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7AFFCEB12E45B356774CED9 /* LeaderboardRowView.swift */; };
 		96FA6E60F06A1E589E8B5328 /* DeviceActivityMonitorExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = F08CC8CFC059AD9A8AE9931A /* DeviceActivityMonitorExtension.swift */; };
+		DA001122334455667788BC01 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4414488435282DEF1F82A0F3 /* ActivityKit.framework */; };
+		DA001122334455667788BC02 /* BlockTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16584C51E6F908A182AF1CBE /* BlockTimerAttributes.swift */; };
 		9D91AB7247B450E4EE4DB36C /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 70EF686622536154E89620E5 /* SwiftUI.framework */; };
 		A0BFA49FAB7FF4F98191B316 /* BlockTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16584C51E6F908A182AF1CBE /* BlockTimerAttributes.swift */; };
 		A42D0096EC37EDF5B9FA65D5 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABAE5F4418FA24AF36A211B /* NotificationManager.swift */; };
@@ -221,6 +223,7 @@
 				DA001122334455667788BB01 /* DeviceActivity.framework in Frameworks */,
 				DA001122334455667788BB02 /* ExtensionFoundation.framework in Frameworks */,
 				DA001122334455667788BB03 /* ExtensionKit.framework in Frameworks */,
+				DA001122334455667788BC01 /* ActivityKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -744,6 +747,7 @@
 			files = (
 				96FA6E60F06A1E589E8B5328 /* DeviceActivityMonitorExtension.swift in Sources */,
 				DA001122334455667788AABB /* SharedKeys.swift in Sources */,
+				DA001122334455667788BC02 /* BlockTimerAttributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
