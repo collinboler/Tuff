@@ -413,13 +413,14 @@ struct TuffDailyReportView: View {
                         .fill(appColor)
                         .frame(width: 10, height: 10)
 
-                    Label(app.application.token!)
-                        .labelStyle(.iconOnly)
-                        .scaleEffect(0.8)
-                        .frame(width: 28, height: 28)
+                    if let token = app.application.token {
+                        Label(token)
+                            .labelStyle(.iconOnly)
+                            .scaleEffect(0.8)
+                            .frame(width: 28, height: 28)
+                    }
 
-                    Label(app.application.token!)
-                        .labelStyle(.titleOnly)
+                    Text(app.application.localizedDisplayName ?? app.bundleID ?? "Unknown")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
                         .lineLimit(2)
