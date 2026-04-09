@@ -28,12 +28,9 @@
 		88D420FEED3A0D721E6D35E5 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4414488435282DEF1F82A0F3 /* ActivityKit.framework */; };
 		8AD19E016668ACAD309BDDD4 /* LeaderboardRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7AFFCEB12E45B356774CED9 /* LeaderboardRowView.swift */; };
 		96FA6E60F06A1E589E8B5328 /* DeviceActivityMonitorExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = F08CC8CFC059AD9A8AE9931A /* DeviceActivityMonitorExtension.swift */; };
-		DA001122334455667788BC01 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4414488435282DEF1F82A0F3 /* ActivityKit.framework */; };
-		DA001122334455667788BC02 /* BlockTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16584C51E6F908A182AF1CBE /* BlockTimerAttributes.swift */; };
 		9D91AB7247B450E4EE4DB36C /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 70EF686622536154E89620E5 /* SwiftUI.framework */; };
 		A0BFA49FAB7FF4F98191B316 /* BlockTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16584C51E6F908A182AF1CBE /* BlockTimerAttributes.swift */; };
 		A42D0096EC37EDF5B9FA65D5 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABAE5F4418FA24AF36A211B /* NotificationManager.swift */; };
-		F1B2C3D4E5F60718293A4B5C /* RemoteImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B2C3D4E5F60718293A4B5D /* RemoteImageCache.swift */; };
 		AA001122334455667788AABB /* SharedKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001122334455667788AABC /* SharedKeys.swift */; };
 		AC76B6B6EFF96EB2CBB9CFEC /* ScreenTimeData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D24FF406404BF607297917 /* ScreenTimeData.swift */; };
 		B69A2E965887F83B419B941A /* TuffLiveActivity.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = E6A0D0FFC4C90B02CC795104 /* TuffLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -52,6 +49,8 @@
 		DA001122334455667788BB01 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA02 /* DeviceActivity.framework */; };
 		DA001122334455667788BB02 /* ExtensionFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA07 /* ExtensionFoundation.framework */; };
 		DA001122334455667788BB03 /* ExtensionKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA09 /* ExtensionKit.framework */; };
+		DA001122334455667788BC01 /* ActivityKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4414488435282DEF1F82A0F3 /* ActivityKit.framework */; };
+		DA001122334455667788BC02 /* BlockTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16584C51E6F908A182AF1CBE /* BlockTimerAttributes.swift */; };
 		DB5CD2E5EE6267E98DD8EFAD /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D15B25B75621633E16BA8D3 /* HomeViewModel.swift */; };
 		DD001122334455667788AA01 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA02 /* DeviceActivity.framework */; };
 		DD001122334455667788AA04 /* _DeviceActivity_SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DD001122334455667788AA05 /* _DeviceActivity_SwiftUI.framework */; };
@@ -62,6 +61,7 @@
 		ED17F9694E0EC6B5B0D9B5C9 /* LeagueHistoryRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E19A20D88869999A0353DD4C /* LeagueHistoryRow.swift */; };
 		EE001122334455667788AA01 /* ShieldActionExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE001122334455667788AA02 /* ShieldActionExtension.swift */; };
 		EE001122334455667788AA04 /* TuffShieldAction.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = EE001122334455667788AA03 /* TuffShieldAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F1B2C3D4E5F60718293A4B5C /* RemoteImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B2C3D4E5F60718293A4B5D /* RemoteImageCache.swift */; };
 		FA001122334455667788AA01 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA02 /* AuthViewModel.swift */; };
 		FA001122334455667788AA03 /* PhoneSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA04 /* PhoneSignInView.swift */; };
 		FA001122334455667788AA07 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA08 /* OnboardingView.swift */; };
@@ -151,12 +151,11 @@
 		7A99AC0FD5D7287ADDDBC164 /* CreateLeagueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateLeagueView.swift; sourceTree = "<group>"; };
 		7B516A2A618E866EAF76DE08 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		7F28A14A8186E15C301A1C9F /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
-		800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffShieldConfiguration.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TuffShieldConfiguration.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		854D23246747BD86857D2EA7 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		86CCBDA2CCE6E9715DA96805 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
 		935D673557E80C6FE7B1CDF1 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		9ABAE5F4418FA24AF36A211B /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
-		F1B2C3D4E5F60718293A4B5D /* RemoteImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImageCache.swift; sourceTree = "<group>"; };
 		9D20E98B5328CE88A5A35EDA /* ScreenTimeChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenTimeChartView.swift; sourceTree = "<group>"; };
 		9DD638A63F049BFA07CDBF4E /* LeagueDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeagueDetailSheet.swift; sourceTree = "<group>"; };
 		AA001122334455667788AABC /* SharedKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedKeys.swift; sourceTree = "<group>"; };
@@ -165,9 +164,9 @@
 		BB001122334455667788AA06 /* TuffDailyReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuffDailyReportView.swift; sourceTree = "<group>"; };
 		BB001122334455667788AA08 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		BB001122334455667788AA09 /* TuffActivityReport.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TuffActivityReport.entitlements; sourceTree = "<group>"; };
-		BB001122334455667788AA0A /* TuffActivityReport.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffActivityReport.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BB001122334455667788AA0A /* TuffActivityReport.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TuffActivityReport.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE3F64079496ED1962BD451E /* TuffApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuffApp.swift; sourceTree = "<group>"; };
-		BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffDeviceActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TuffDeviceActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		C7AFFCEB12E45B356774CED9 /* LeaderboardRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardRowView.swift; sourceTree = "<group>"; };
 		D172378BAEC9ADB0E3BC5BC9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D37C07E37121E0FAB17CA247 /* ShieldConfigurationExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldConfigurationExtension.swift; sourceTree = "<group>"; };
@@ -184,9 +183,10 @@
 		E6A0D0FFC4C90B02CC795104 /* TuffLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TuffLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		E96F63DD46B3821E1B7FDFFA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		EE001122334455667788AA02 /* ShieldActionExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldActionExtension.swift; sourceTree = "<group>"; };
-		EE001122334455667788AA03 /* TuffShieldAction.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffShieldAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EE001122334455667788AA03 /* TuffShieldAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TuffShieldAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		EE001122334455667788AA05 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F08CC8CFC059AD9A8AE9931A /* DeviceActivityMonitorExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceActivityMonitorExtension.swift; sourceTree = "<group>"; };
+		F1B2C3D4E5F60718293A4B5D /* RemoteImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImageCache.swift; sourceTree = "<group>"; };
 		F23DF162A31993B916A581DB /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
 		F9F6A64B1B0C9B1E305E130E /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		FA001122334455667788AA02 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
@@ -897,7 +897,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = TuffShieldConfiguration/Info.plist;
+				INFOPLIST_FILE = "$(SRCROOT)/TuffShieldConfiguration/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -986,7 +986,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = TuffDeviceActivity/Info.plist;
+				INFOPLIST_FILE = "$(SRCROOT)/TuffDeviceActivity/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1011,7 +1011,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = TuffDeviceActivity/Info.plist;
+				INFOPLIST_FILE = "$(SRCROOT)/TuffDeviceActivity/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1034,8 +1034,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = TuffActivityReport/Info.plist;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "$(SRCROOT)/TuffActivityReport/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1058,8 +1058,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = TuffActivityReport/Info.plist;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "$(SRCROOT)/TuffActivityReport/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1079,13 +1079,16 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = Tuff/Tuff.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Tuff/Info.plist;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/Tuff/Info.plist";
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1094,7 +1097,7 @@
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -1102,13 +1105,16 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = Tuff/Tuff.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Tuff/Info.plist;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/Tuff/Info.plist";
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1117,7 +1123,7 @@
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -1204,7 +1210,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = TuffShieldConfiguration/Info.plist;
+				INFOPLIST_FILE = "$(SRCROOT)/TuffShieldConfiguration/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

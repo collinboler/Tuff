@@ -10,6 +10,8 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Tuff</string>
 	<key>CFBundlePackageType</key>
 	<string>XPC!</string>
 	<key>CFBundleShortVersionString</key>
@@ -21,7 +23,7 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.ManagedSettingsUI.shield-configuration-service</string>
 		<key>NSExtensionPrincipalClass</key>
-		<string>$(PRODUCT_MODULE_NAME).TuffShieldConfigurationExtension</string>
+		<string>TuffShieldConfiguration.TuffShieldConfigurationExtension</string>
 	</dict>
 </dict>
 </plist>
