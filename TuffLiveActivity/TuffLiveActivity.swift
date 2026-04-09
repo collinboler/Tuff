@@ -24,7 +24,7 @@ struct TuffLiveActivity: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if context.state.isOnBreak {
+                    if context.state.isOnBreak, context.state.endDate > Date() {
                         Text(timerInterval: Date()...context.state.endDate, countsDown: true)
                             .font(.system(size: 20, weight: .bold).monospacedDigit())
                             .foregroundColor(tuffGreen)
@@ -53,7 +53,7 @@ struct TuffLiveActivity: Widget {
             } compactLeading: {
                 tuffBadge(size: 20, fontSize: 10)
             } compactTrailing: {
-                if context.state.isOnBreak {
+                if context.state.isOnBreak, context.state.endDate > Date() {
                     Text(timerInterval: Date()...context.state.endDate, countsDown: true)
                         .font(.system(size: 12, weight: .bold).monospacedDigit())
                         .foregroundColor(tuffGreen)
@@ -101,7 +101,7 @@ struct TuffLiveActivity: Widget {
 
                 Spacer()
 
-                if context.state.isOnBreak {
+                if context.state.isOnBreak, context.state.endDate > Date() {
                     Text(timerInterval: Date()...context.state.endDate, countsDown: true)
                         .font(.system(size: 24, weight: .black).monospacedDigit())
                         .foregroundColor(tuffGreen)

@@ -269,10 +269,19 @@ class ScreenTimeManager: ObservableObject {
         ensureLockedLiveActivity()
     }
 
-    /// Register 96 every-15-minute DeviceActivity schedules as a keep-alive fallback.
-    /// The one-shot "tuff.breakEnd" schedule is the primary relock mechanism; these
-    /// cover the rare case where that schedule is skipped, capping the worst-case
-    /// gap to ≤15 minutes instead of ≤59 minutes with hourly schedules.
+    /// Register 24 hourly DeviceActivity schedules as a keep-alive fallback.
+    ///
+    /// Why 24, not 96 (× 15-min)?
+    /// DeviceActivityCenter has a hard limit of ~20 concurrent monitors per app.
+    /// Registering 96 slots with `try?` silently drops most of them AND saturates
+    /// the available slots so the critical one-shot "tuff.breakEnd" schedule
+    /// (registered later when a break starts) can never get a slot — causing the
+    /// post-break relock to silently fail.
+    ///
+    /// 24 hourly slots stay well under the limit, guaranteeing room for
+    /// "tuff.breakEnd" and capping worst-case latency at ≤60 minutes (the
+    /// one-shot schedule is still the primary sub-minute path).
+    ///
     /// Only registers once per app session; subsequent calls are no-ops.
     func registerBlockingSchedules() {
         guard isAuthorized else { return }
@@ -280,17 +289,23 @@ class ScreenTimeManager: ObservableObject {
         schedulesRegistered = true
 
         let center = DeviceActivityCenter()
+
+        // Remove legacy 15-min slots (indices 24–95) that may have been registered by
+        // a previous version and would otherwise occupy DeviceActivityCenter slots.
+        let legacySlots = (24...95).map { DeviceActivityName("tuff.block.\($0)") }
+        center.stopMonitoring(legacySlots)
+
         let calendar = Calendar.current
         let base = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: Date())!
-        for slot in 0...95 {            // 96 × 15-min slots = full day
-            let startDate = base.addingTimeInterval(TimeInterval(slot * 15 * 60))
-            let endDate   = startDate.addingTimeInterval(14 * 60 + 59)   // 14m 59s window
+        for hour in 0...23 {            // 24 × 60-min slots = full day
+            let startDate = base.addingTimeInterval(TimeInterval(hour * 3600))
+            let endDate   = startDate.addingTimeInterval(59 * 60 + 59)   // 59m 59s window
             let start = calendar.dateComponents([.hour, .minute], from: startDate)
             let end   = calendar.dateComponents([.hour, .minute], from: endDate)
             let schedule = DeviceActivitySchedule(intervalStart: start, intervalEnd: end, repeats: true)
-            try? center.startMonitoring(DeviceActivityName("tuff.block.\(slot)"), during: schedule)
+            try? center.startMonitoring(DeviceActivityName("tuff.block.\(hour)"), during: schedule)
         }
-        print("[Tuff] Registered 96 × 15-min blocking schedules")
+        print("[Tuff] Registered 24 × hourly blocking schedules")
     }
 
     private var schedulesRegistered = false
