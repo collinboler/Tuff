@@ -5,9 +5,22 @@ import FirebaseFirestore
 struct CreateLeagueView: View {
     @Environment(\.dismiss) private var dismiss
 
+    private enum LeagueDuration: String, CaseIterable {
+        case week = "WEEK"
+        case month = "MONTH"
+
+        var endDate: Date {
+            switch self {
+            case .week:
+                return Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+            case .month:
+                return Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
+            }
+        }
+    }
+
     @State private var leagueName = ""
-    @State private var startDate = Date()
-    @State private var endDate = Calendar.current.date(byAdding: .weekOfYear, value: 1, to: Date()) ?? Date()
+    @State private var selectedDuration: LeagueDuration = .week
     @State private var pricePerHourCents = "20"
     @State private var inviteCode = ""
     @State private var isCreating = false
@@ -18,7 +31,7 @@ struct CreateLeagueView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     nameField
-                    datesRow
+                    durationRow
                     pricePerHourField
                     inviteSection
                     if let err = errorMessage {
@@ -49,7 +62,7 @@ struct CreateLeagueView: View {
     private var nameField: some View {
         VStack(alignment: .leading, spacing: 6) {
             sectionLabel("LEAGUE NAME")
-            TextField("e.g. Work Squad", text: $leagueName)
+            TextField("e.g. E Club", text: $leagueName)
                 .font(TuffFonts.body(14))
                 .padding(12)
                 .background(TuffColors.tagBackground)
@@ -57,19 +70,33 @@ struct CreateLeagueView: View {
         }
     }
 
-    // MARK: - Dates
+    // MARK: - Duration
 
-    private var datesRow: some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                sectionLabel("START")
-                DatePicker("", selection: $startDate, displayedComponents: .date)
-                    .labelsHidden()
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                sectionLabel("END")
-                DatePicker("", selection: $endDate, displayedComponents: .date)
-                    .labelsHidden()
+    private var durationRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionLabel("DURATION")
+            HStack(spacing: 10) {
+                ForEach(LeagueDuration.allCases, id: \.self) { duration in
+                    let isSelected = selectedDuration == duration
+                    Button {
+                        selectedDuration = duration
+                    } label: {
+                        Text(duration.rawValue)
+                            .font(TuffFonts.newButton())
+                            .foregroundColor(isSelected ? .white : TuffColors.accent)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(isSelected ? TuffColors.accent : Color.white)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(TuffColors.accent.opacity(isSelected ? 0 : 0.55), lineWidth: 1.5)
+                            )
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
             }
         }
     }
@@ -112,7 +139,7 @@ struct CreateLeagueView: View {
                     .autocapitalization(.allCharacters)
                     .autocorrectionDisabled()
                 Button {
-                    inviteCode = String((0..<6).map { _ in "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".randomElement()! })
+                    inviteCode = generateInviteCode()
                 } label: {
                     Text("Generate")
                         .font(TuffFonts.tag())
@@ -143,11 +170,11 @@ struct CreateLeagueView: View {
                     .fill(leagueName.trimmingCharacters(in: .whitespaces).isEmpty ? Color(hex: "E0E0E0") : TuffColors.accent)
                     .frame(height: 54)
                 if isCreating {
-                    ProgressView().tint(.black)
+                    ProgressView().tint(.white)
                 } else {
                     Text("+ CREATE LEAGUE")
                         .font(TuffFonts.newButton())
-                        .foregroundColor(.black)
+                        .foregroundColor(.white)
                         .tracking(0.09 * 17)
                 }
             }
@@ -164,10 +191,12 @@ struct CreateLeagueView: View {
         errorMessage = nil
 
         let db = Firestore.firestore()
+        let startDate = Date()
+        let endDate = selectedDuration.endDate
 
         // Ensure invite code is unique, auto-retry up to 5 times
         var finalCode = inviteCode.isEmpty
-            ? String((0..<6).map { _ in "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".randomElement()! })
+            ? generateInviteCode()
             : inviteCode.uppercased()
         for _ in 0..<5 {
             let snap = try? await db.collection("leagues")
@@ -175,7 +204,7 @@ struct CreateLeagueView: View {
                 .limit(to: 1)
                 .getDocuments()
             if snap?.documents.isEmpty == true { break }
-            finalCode = String((0..<6).map { _ in "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".randomElement()! })
+            finalCode = generateInviteCode()
         }
         let code = finalCode
 
@@ -189,7 +218,7 @@ struct CreateLeagueView: View {
             "name": "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces),
             "username": username,
             "screenTimeMinutes": 0,
-            "joinedAt": FieldValue.serverTimestamp()
+            "joinedAt": Timestamp(date: Date())
         ]
         if let photoURL = userData?["photoURL"] as? String {
             memberProfile["photoURL"] = photoURL
@@ -222,6 +251,14 @@ struct CreateLeagueView: View {
             .font(TuffFonts.sectionHeader())
             .foregroundColor(TuffColors.textSecondary)
             .tracking(0.15 * 12)
+    }
+
+    private func generateInviteCode() -> String {
+        let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+        guard !alphabet.isEmpty else {
+            return String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(6))
+        }
+        return String((0..<6).compactMap { _ in alphabet.randomElement() })
     }
 }
 
@@ -273,11 +310,11 @@ struct JoinLeagueView: View {
                             .fill(code.isEmpty ? Color(hex: "E0E0E0") : TuffColors.accent)
                             .frame(height: 54)
                         if isJoining {
-                            ProgressView().tint(.black)
+                            ProgressView().tint(.white)
                         } else {
                             Text("JOIN LEAGUE")
                                 .font(TuffFonts.newButton())
-                                .foregroundColor(.black)
+                                .foregroundColor(.white)
                         }
                     }
                 }

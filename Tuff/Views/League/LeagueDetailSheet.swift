@@ -7,13 +7,10 @@ struct LeagueDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showLeaveConfirm = false
-    @State private var showDeleteConfirm = false
-    @State private var showEdit = false
     @State private var isLoading = false
     @State private var errorMessage: String?
 
     private var currentUID: String { Auth.auth().currentUser?.uid ?? "" }
-    private var isAdmin: Bool { league.createdBy == currentUID }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,9 +26,6 @@ struct LeagueDetailSheet: View {
             }
         }
         .background(Color.white)
-        .sheet(isPresented: $showEdit) {
-            EditLeagueView(league: league)
-        }
         .confirmationDialog(
             "Leave \"\(league.name)\"?",
             isPresented: $showLeaveConfirm,
@@ -42,17 +36,6 @@ struct LeagueDetailSheet: View {
             }
         } message: {
             Text("Your spent amount stays in the pool, but you'll be marked DQ'd and ineligible to win.")
-        }
-        .confirmationDialog(
-            "Delete \"\(league.name)\"?",
-            isPresented: $showDeleteConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Delete League", role: .destructive) {
-                Task { await deleteLeague() }
-            }
-        } message: {
-            Text("This will permanently delete the league for all members.")
         }
     }
 
@@ -186,16 +169,6 @@ struct LeagueDetailSheet: View {
                     .padding(.horizontal, 4)
             }
 
-            if isAdmin {
-                Button { showEdit = true } label: {
-                    actionRow("pencil", "Edit League", textColor: .black, bg: Color(hex: "F5F5F5"))
-                }
-
-                Button { showDeleteConfirm = true } label: {
-                    actionRow("trash", "Delete League", textColor: .red, bg: Color.red.opacity(0.07))
-                }
-            }
-
             Button { showLeaveConfirm = true } label: {
                 actionRow("rectangle.portrait.and.arrow.right", "Leave League",
                           textColor: .red, bg: Color.red.opacity(0.07))
@@ -242,17 +215,6 @@ struct LeagueDetailSheet: View {
         }
     }
 
-    private func deleteLeague() async {
-        isLoading = true
-        defer { isLoading = false }
-        let db = Firestore.firestore()
-        do {
-            try await db.collection("leagues").document(league.id).delete()
-            dismiss()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
 }
 
 // MARK: - Edit League Sheet
@@ -367,12 +329,13 @@ struct EditLeagueView: View {
         isSaving = true
         errorMessage = nil
         let db = Firestore.firestore()
+        let parsedPricePerHourCents = Int(pricePerHourCents) ?? 20
         do {
             try await db.collection("leagues").document(league.id).updateData([
                 "name": name.trimmingCharacters(in: .whitespaces),
                 "startDate": Timestamp(date: startDate),
                 "endDate": Timestamp(date: endDate),
-                "pricePerHourCents": Int(pricePerHourCents) ?? 20
+                "pricePerHourCents": parsedPricePerHourCents
             ])
             dismiss()
         } catch {

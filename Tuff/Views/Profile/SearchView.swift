@@ -159,7 +159,7 @@ struct UserSearchView: View {
             let myName = "\(d["firstName"] as? String ?? "") \(d["lastName"] as? String ?? "")"
                 .trimmingCharacters(in: .whitespaces)
             let myUsername = d["username"] as? String ?? ""
-            try? await db.collection("friendRequests").addDocument(data: [
+            _ = try? await db.collection("friendRequests").addDocument(data: [
                 "fromUid": myUid,
                 "toUid": user.id,
                 "fromName": myName,

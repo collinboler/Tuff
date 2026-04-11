@@ -84,7 +84,7 @@ struct OnboardingView: View {
 
     private var progressBar: some View {
         HStack(spacing: 6) {
-            ForEach(0..<totalSteps) { i in
+            ForEach(Array(0..<totalSteps), id: \.self) { i in
                 Capsule()
                     .fill(i <= progressIndex ? TuffColors.accent : Color(hex: "E0E0E0"))
                     .frame(height: 4)

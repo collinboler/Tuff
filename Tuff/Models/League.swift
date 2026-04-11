@@ -59,12 +59,22 @@ struct League: Identifiable {
         // ledger is a top-level map { uid: { boughtCents: Int, boughtMinutes: Int } }
         // This allows atomic FieldValue.increment updates without transactions.
         let ledger = data["ledger"] as? [String: [String: Any]] ?? [:]
+        let dailyLedger = data["dailyLedger"] as? [String: Any] ?? [:]
+        let todayLedger = dailyLedger[dayKey(for: Date())] as? [String: Any] ?? [:]
         let dqdUids = Set(data["dqdUids"] as? [String] ?? [])
+
+        func intValue(_ any: Any?) -> Int {
+            if let v = any as? Int { return v }
+            if let v = any as? Int64 { return Int(v) }
+            if let v = any as? NSNumber { return v.intValue }
+            return 0
+        }
 
         let memberProfiles = data["memberProfiles"] as? [[String: Any]] ?? []
         let members: [LeagueMember] = memberProfiles.enumerated().map { i, profile in
             let uid = profile["uid"] as? String ?? ""
             let entry = ledger[uid] ?? [:]
+            let todayEntry = todayLedger[uid] as? [String: Any] ?? [:]
             let memberUser = TuffUser(
                 id: UUID(),
                 uid: uid,
@@ -85,8 +95,9 @@ struct League: Identifiable {
                 currentScreenTime: Double((profile["screenTimeMinutes"] as? Int ?? 0) * 60),
                 rank: i + 1,
                 lastUpdated: Date(),
-                boughtCents: entry["boughtCents"] as? Int ?? 0,
-                boughtMinutes: entry["boughtMinutes"] as? Int ?? 0,
+                boughtCents: intValue(entry["boughtCents"]),
+                boughtMinutes: intValue(entry["boughtMinutes"]),
+                todayBoughtCents: intValue(todayEntry["boughtCents"]),
                 isDQ: dqdUids.contains(uid),
                 joinedAt: joinedAt
             )
@@ -103,6 +114,15 @@ struct League: Identifiable {
             isActive: data["isActive"] as? Bool ?? true,
             members: members
         )
+    }
+
+    static func dayKey(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyyMMdd"
+        return formatter.string(from: date)
     }
 }
 

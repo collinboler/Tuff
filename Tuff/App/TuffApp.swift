@@ -147,6 +147,7 @@ struct TuffApp: App {
                     ContentView()
                 }
             }
+            .buttonStyle(AppButtonFontStyle())
             .environmentObject(auth)
             .environmentObject(screenTimeManager)
             .environmentObject(notificationManager)
