@@ -1,4 +1,5 @@
 import DeviceActivity
+import FamilyControls
 import ManagedSettings
 import ActivityKit
 import Foundation
@@ -32,9 +33,19 @@ class TuffDeviceActivityMonitor: DeviceActivityMonitor {
         defaults?.removeObject(forKey: breakEndDateKey)
         defaults?.removeObject(forKey: breakStartDateKey)
 
-        // Re-apply ManagedSettings shields
+        // Re-apply ManagedSettings shields, honouring any league-defined allowed apps
         let store = ManagedSettingsStore()
-        store.shield.applicationCategories = .all()
+        let allowedSelectionKey = "tuff_allowedAppSelection"
+        var exemptTokens: Set<ApplicationToken> = []
+        if let data = defaults?.data(forKey: allowedSelectionKey),
+           let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
+            exemptTokens = selection.applicationTokens
+        }
+        if exemptTokens.isEmpty {
+            store.shield.applicationCategories = .all()
+        } else {
+            store.shield.applicationCategories = .all(except: exemptTokens)
+        }
         store.shield.webDomainCategories   = .all()
         store.application.denyAppRemoval   = true
 

@@ -1,16 +1,21 @@
 import SwiftUI
+import FamilyControls
 import FirebaseAuth
 import FirebaseFirestore
 
 struct LeagueDetailSheet: View {
     let league: League
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var screenTimeManager = ScreenTimeManager.shared
 
     @State private var showLeaveConfirm = false
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showEditLeague = false
+    @State private var showAllowedAppsPicker = false
 
     private var currentUID: String { Auth.auth().currentUser?.uid ?? "" }
+    private var isCreator: Bool { league.createdBy == currentUID }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,12 +25,28 @@ struct LeagueDetailSheet: View {
                 VStack(spacing: 0) {
                     leaderboardSection
                     payoutSection
+                    if league.allowedAppsCount > 0 || !league.allowedApps.isEmpty {
+                        allowedAppsSection
+                    }
                     actionButtons
                 }
                 .padding(.bottom, 40)
             }
         }
         .background(Color.white)
+        .sheet(isPresented: $showEditLeague) {
+            EditLeagueView(league: league)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showAllowedAppsPicker) {
+            AllowedAppsPickerSheet(
+                allowedAppsCount: max(league.allowedAppsCount, league.allowedApps.count),
+                selection: $screenTimeManager.allowedAppSelection
+            ) { selection in
+                screenTimeManager.saveAllowedSelection(selection)
+            }
+        }
         .confirmationDialog(
             "Leave \"\(league.name)\"?",
             isPresented: $showLeaveConfirm,
@@ -85,15 +106,30 @@ struct LeagueDetailSheet: View {
 
             Spacer()
 
-            Button {
-                dismiss()
-            } label: {
-                Text("✕")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(TuffColors.modalCloseText)
-                    .frame(width: 30, height: 30)
-                    .background(TuffColors.modalCloseBg)
-                    .clipShape(Circle())
+            HStack(spacing: 8) {
+                if isCreator {
+                    Button {
+                        showEditLeague = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(TuffColors.modalCloseText)
+                            .frame(width: 30, height: 30)
+                            .background(TuffColors.modalCloseBg)
+                            .clipShape(Circle())
+                    }
+                }
+
+                Button {
+                    dismiss()
+                } label: {
+                    Text("✕")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(TuffColors.modalCloseText)
+                        .frame(width: 30, height: 30)
+                        .background(TuffColors.modalCloseBg)
+                        .clipShape(Circle())
+                }
             }
         }
         .padding(.horizontal, 20)
@@ -156,6 +192,76 @@ struct LeagueDetailSheet: View {
                 .frame(height: 1)
         }
         .padding(.top, 8)
+    }
+
+    // MARK: - Allowed Apps
+
+    private var allowedAppsSection: some View {
+        let total = max(league.allowedAppsCount, league.allowedApps.count)
+        let myCount = screenTimeManager.allowedAppSelection.applicationTokens.count
+        return VStack(alignment: .leading, spacing: 10) {
+            Text("ALLOWED APPS")
+                .font(TuffFonts.payoutHeader())
+                .foregroundColor(TuffColors.textSecondary)
+                .tracking(0.14 * 11)
+
+            HStack(spacing: 6) {
+                Image(systemName: "lock.open.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(TuffColors.accent)
+                Text("\(total) app\(total == 1 ? "" : "s") allowed by this league")
+                    .font(TuffFonts.caption(12))
+                    .foregroundColor(TuffColors.textSecondary)
+            }
+
+            Button {
+                showAllowedAppsPicker = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: myCount == 0 ? "lock.open" : "checkmark.circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundColor(myCount == 0 ? TuffColors.textSecondary : TuffColors.accent)
+
+                    if myCount == 0 {
+                        Text("Configure My Allowed Apps")
+                            .font(TuffFonts.body(13))
+                            .foregroundColor(TuffColors.textSecondary)
+                    } else {
+                        Text("\(myCount) app\(myCount == 1 ? "" : "s") allowed on this device")
+                            .font(TuffFonts.body(13))
+                            .foregroundColor(TuffColors.accent)
+                    }
+
+                    Spacer()
+
+                    Text(myCount == 0 ? "Set Up" : "Change")
+                        .font(TuffFonts.caption(12))
+                        .foregroundColor(TuffColors.accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(TuffColors.accent.opacity(0.1))
+                        .clipShape(Capsule())
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .background(myCount == 0 ? TuffColors.tagBackground : TuffColors.accent.opacity(0.06))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
+            if myCount == 0 {
+                Text("Tap Set Up to choose which apps stay accessible while you're blocked.")
+                    .font(TuffFonts.caption(11))
+                    .foregroundColor(TuffColors.textSecondary)
+            }
+        }
+        .padding(20)
+        .background(TuffColors.payoutBg)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(TuffColors.divider)
+                .frame(height: 1)
+        }
+        .padding(.top, 0)
     }
 
     // MARK: - Action Buttons
@@ -227,6 +333,8 @@ struct EditLeagueView: View {
     @State private var startDate: Date
     @State private var endDate: Date
     @State private var pricePerHourCents: String
+    @State private var allowedAppSelection: FamilyActivitySelection
+    @State private var showAppPicker = false
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -236,6 +344,9 @@ struct EditLeagueView: View {
         _startDate = State(initialValue: league.startDate)
         _endDate = State(initialValue: league.endDate)
         _pricePerHourCents = State(initialValue: String(league.pricePerHourCents))
+        // Start with the currently saved local selection
+        let saved = ScreenTimeManager.shared.allowedAppSelection
+        _allowedAppSelection = State(initialValue: saved)
     }
 
     var body: some View {
@@ -282,6 +393,53 @@ struct EditLeagueView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     }
 
+                    // Allowed apps
+                    VStack(alignment: .leading, spacing: 8) {
+                        sectionLabel("ALLOWED APPS")
+                        Text("Apps that stay accessible even while blocking is active.")
+                            .font(TuffFonts.caption(12))
+                            .foregroundColor(TuffColors.textSecondary)
+
+                        Button {
+                            showAppPicker = true
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: allowedAppSelection.applicationTokens.isEmpty
+                                      ? "lock.open" : "checkmark.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(allowedAppSelection.applicationTokens.isEmpty
+                                                     ? TuffColors.textSecondary : TuffColors.accent)
+
+                                if allowedAppSelection.applicationTokens.isEmpty {
+                                    Text("Select Allowed Apps")
+                                        .font(TuffFonts.body(14))
+                                        .foregroundColor(TuffColors.textSecondary)
+                                } else {
+                                    Text("\(allowedAppSelection.applicationTokens.count) app\(allowedAppSelection.applicationTokens.count == 1 ? "" : "s") selected")
+                                        .font(TuffFonts.body(14))
+                                        .foregroundColor(TuffColors.accent)
+                                }
+
+                                Spacer()
+
+                                Text(allowedAppSelection.applicationTokens.isEmpty ? "Choose" : "Change")
+                                    .font(TuffFonts.caption(12))
+                                    .foregroundColor(TuffColors.accent)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(TuffColors.accent.opacity(0.1))
+                                    .clipShape(Capsule())
+                            }
+                            .padding(12)
+                            .background(TuffColors.tagBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
+
+                        Text("Suggestions: " + AllowedApp.suggestions.prefix(5).map { $0.displayName }.joined(separator: ", "))
+                            .font(TuffFonts.caption(11))
+                            .foregroundColor(TuffColors.textSecondary)
+                    }
+
                     if let err = errorMessage {
                         Text(err)
                             .font(.system(size: 13))
@@ -316,6 +474,21 @@ struct EditLeagueView: View {
             .navigationTitle("Edit League")
             .navigationBarTitleDisplayMode(.large)
             .colorScheme(.light)
+            .sheet(isPresented: $showAppPicker) {
+                NavigationStack {
+                    FamilyActivityPicker(selection: $allowedAppSelection)
+                        .navigationTitle("Allowed Apps")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .colorScheme(.light)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Done") { showAppPicker = false }
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(TuffColors.accent)
+                            }
+                        }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { dismiss() }
@@ -335,8 +508,11 @@ struct EditLeagueView: View {
                 "name": name.trimmingCharacters(in: .whitespaces),
                 "startDate": Timestamp(date: startDate),
                 "endDate": Timestamp(date: endDate),
-                "pricePerHourCents": parsedPricePerHourCents
+                "pricePerHourCents": parsedPricePerHourCents,
+                "allowedAppsCount": allowedAppSelection.applicationTokens.count
             ])
+            // Persist the token selection locally so blocking respects it immediately
+            await ScreenTimeManager.shared.saveAllowedSelection(allowedAppSelection)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
@@ -349,5 +525,105 @@ struct EditLeagueView: View {
             .font(TuffFonts.sectionHeader())
             .foregroundColor(TuffColors.textSecondary)
             .tracking(0.15 * 12)
+    }
+}
+
+// MARK: - Allowed Apps Picker Sheet
+
+struct AllowedAppsPickerSheet: View {
+    let allowedAppsCount: Int
+    @Binding var selection: FamilyActivitySelection
+    let onSave: (FamilyActivitySelection) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var localSelection: FamilyActivitySelection
+
+    init(allowedAppsCount: Int,
+         selection: Binding<FamilyActivitySelection>,
+         onSave: @escaping (FamilyActivitySelection) -> Void) {
+        self.allowedAppsCount = allowedAppsCount
+        self._selection = selection
+        self.onSave = onSave
+        _localSelection = State(initialValue: selection.wrappedValue)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("The league creator has allowed \(allowedAppsCount) app\(allowedAppsCount == 1 ? "" : "s"). Select which ones should stay unblocked on your device.")
+                        .font(TuffFonts.caption(12))
+                        .foregroundColor(TuffColors.textSecondary)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+                        .padding(.bottom, 8)
+                }
+
+                FamilyActivityPicker(selection: $localSelection)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .background(Color.white)
+            .navigationTitle("Allowed Apps")
+            .navigationBarTitleDisplayMode(.inline)
+            .colorScheme(.light)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(TuffColors.textSecondary)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") {
+                        onSave(localSelection)
+                        dismiss()
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(TuffColors.accent)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Flow Layout (wrapping HStack)
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? 0
+        var height: CGFloat = 0
+        var x: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > width, x > 0 {
+                height += rowHeight + spacing
+                x = 0
+                rowHeight = 0
+            }
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        height += rowHeight
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > bounds.maxX, x > bounds.minX {
+                y += rowHeight + spacing
+                x = bounds.minX
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
     }
 }

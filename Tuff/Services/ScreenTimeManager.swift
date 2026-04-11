@@ -18,6 +18,7 @@ class ScreenTimeManager: ObservableObject {
     @Published var breakStartDate: Date? = nil    // persisted so refund calc survives restarts
     @Published var isActivelyBlocking: Bool = false
     @Published var liveActivitiesEnabled: Bool = true
+    @Published var allowedAppSelection: FamilyActivitySelection = FamilyActivitySelection()
 
     private var blockTimerTask: Task<Void, Never>?
     private var liveActivity: Activity<BlockTimerAttributes>?
@@ -27,8 +28,9 @@ class ScreenTimeManager: ObservableObject {
     private static let hasAuthorizedKey = "tuff_hasAuthorizedScreenTime"
     // Shared with the TuffDeviceActivity extension so it can check break state
     static let sharedDefaults = UserDefaults(suiteName: "group.com.collinboler.tuff")
-    static let breakEndDateKey   = "tuff_breakEndDate"
-    static let breakStartDateKey = "tuff_breakStartDate"
+    static let breakEndDateKey        = "tuff_breakEndDate"
+    static let breakStartDateKey      = "tuff_breakStartDate"
+    static let allowedSelectionKey    = "tuff_allowedAppSelection"
 
     private init() {
         store = ManagedSettingsStore()
@@ -63,6 +65,12 @@ class ScreenTimeManager: ObservableObject {
         }
 
         liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
+
+        // Restore saved allowed-app selection from the shared app group
+        if let data = Self.sharedDefaults?.data(forKey: Self.allowedSelectionKey),
+           let decoded = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
+            allowedAppSelection = decoded
+        }
     }
 
     /// Call this when the app becomes active so the status is always fresh.
@@ -100,6 +108,16 @@ class ScreenTimeManager: ObservableObject {
                 }
             }
         }
+    }
+
+    // MARK: - Allowed App Selection
+
+    /// Persist a `FamilyActivitySelection` to the shared app group so both the main app
+    /// and the TuffDeviceActivity extension apply the same exemptions when relocking.
+    func saveAllowedSelection(_ selection: FamilyActivitySelection) {
+        allowedAppSelection = selection
+        guard let data = try? JSONEncoder().encode(selection) else { return }
+        Self.sharedDefaults?.set(data, forKey: Self.allowedSelectionKey)
     }
 
     // MARK: - Break Timer (apps are always locked; a break temporarily unblocks them)
@@ -466,18 +484,23 @@ class ScreenTimeManager: ObservableObject {
 
     // MARK: - App Blocking
 
-    /// Blocks all app categories and web domains automatically — no manual token selection needed.
-    /// The league defines the blocking policy; the default is to block everything non-essential.
+    /// Blocks all app categories and web domains, exempting any apps the user has
+    /// selected via `allowedAppSelection` (configured by the league creator).
     func blockSelectedApps() {
         guard let store else {
             print("[Tuff] blockSelectedApps: store is nil")
             return
         }
-        store.shield.applicationCategories = .all()
+        let exemptTokens = allowedAppSelection.applicationTokens
+        if exemptTokens.isEmpty {
+            store.shield.applicationCategories = .all()
+        } else {
+            store.shield.applicationCategories = .all(except: exemptTokens)
+        }
         store.shield.webDomainCategories = .all()
         store.application.denyAppRemoval = true
         isActivelyBlocking = true
-        print("[Tuff] Shield applied — all app categories and web domains blocked")
+        print("[Tuff] Shield applied — all apps blocked\(exemptTokens.isEmpty ? "" : " (except \(exemptTokens.count) allowed)")")
         ensureLockedLiveActivity()
     }
 

@@ -13,6 +13,10 @@ struct League: Identifiable {
     var inviteCode: String
     var isActive: Bool
     var members: [LeagueMember]
+    /// Bundle IDs of apps that are always allowed (kept for backwards-compat display).
+    var allowedApps: [String]
+    /// Number of apps the creator has marked as always allowed (shown to members).
+    var allowedAppsCount: Int
 
     /// Total virtual pool = sum of all members' boughtCents (including DQ'd).
     var poolCents: Int { members.reduce(0) { $0 + $1.boughtCents } }
@@ -112,7 +116,9 @@ struct League: Identifiable {
             pricePerHourCents: data["pricePerHourCents"] as? Int ?? 20,
             inviteCode: data["inviteCode"] as? String ?? "",
             isActive: data["isActive"] as? Bool ?? true,
-            members: members
+            members: members,
+            allowedApps: data["allowedApps"] as? [String] ?? [],
+            allowedAppsCount: intValue(data["allowedAppsCount"])
         )
     }
 
@@ -123,6 +129,31 @@ struct League: Identifiable {
         formatter.timeZone = .current
         formatter.dateFormat = "yyyyMMdd"
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Allowed App Suggestions
+
+struct AllowedApp: Identifiable {
+    let id: String        // bundle ID stored in Firestore
+    let displayName: String
+    let icon: String      // SF Symbol name
+
+    static let suggestions: [AllowedApp] = [
+        AllowedApp(id: "com.apple.MobileSMS",       displayName: "Messages",   icon: "message.fill"),
+        AllowedApp(id: "com.apple.mobilephone",     displayName: "Phone",      icon: "phone.fill"),
+        AllowedApp(id: "com.apple.mobileslideshow", displayName: "Photos",     icon: "photo.fill"),
+        AllowedApp(id: "com.apple.Music",           displayName: "Music",      icon: "music.note"),
+        AllowedApp(id: "com.apple.Maps",            displayName: "Maps",       icon: "map.fill"),
+        AllowedApp(id: "com.apple.facetime",        displayName: "FaceTime",   icon: "video.fill"),
+        AllowedApp(id: "com.apple.camera",          displayName: "Camera",     icon: "camera.fill"),
+        AllowedApp(id: "com.apple.Preferences",     displayName: "Settings",   icon: "gearshape.fill"),
+        AllowedApp(id: "com.apple.calculator",      displayName: "Calculator", icon: "plus.slash.minus"),
+        AllowedApp(id: "com.apple.mobilenotes",     displayName: "Notes",      icon: "note.text"),
+    ]
+
+    static func match(bundleID: String) -> AllowedApp? {
+        suggestions.first { $0.id == bundleID }
     }
 }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import FamilyControls
 import FirebaseAuth
 import FirebaseFirestore
 
@@ -23,6 +24,8 @@ struct CreateLeagueView: View {
     @State private var selectedDuration: LeagueDuration = .week
     @State private var pricePerHourCents = "20"
     @State private var inviteCode = ""
+    @State private var allowedAppSelection: FamilyActivitySelection = FamilyActivitySelection()
+    @State private var showAppPicker = false
     @State private var isCreating = false
     @State private var errorMessage: String?
 
@@ -34,6 +37,7 @@ struct CreateLeagueView: View {
                     durationRow
                     pricePerHourField
                     inviteSection
+                    allowedAppsSection
                     if let err = errorMessage {
                         Text(err)
                             .font(.system(size: 13))
@@ -48,6 +52,21 @@ struct CreateLeagueView: View {
             .navigationTitle("New League")
             .navigationBarTitleDisplayMode(.large)
             .colorScheme(.light)
+            .sheet(isPresented: $showAppPicker) {
+                NavigationStack {
+                    FamilyActivityPicker(selection: $allowedAppSelection)
+                        .navigationTitle("Allowed Apps")
+                        .navigationBarTitleDisplayMode(.inline)
+                        .colorScheme(.light)
+                        .toolbar {
+                            ToolbarItem(placement: .topBarTrailing) {
+                                Button("Done") { showAppPicker = false }
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(TuffColors.accent)
+                            }
+                        }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { dismiss() }
@@ -159,6 +178,57 @@ struct CreateLeagueView: View {
         }
     }
 
+    // MARK: - Allowed Apps
+
+    private var allowedAppsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionLabel("ALLOWED APPS")
+            Text("Apps that stay accessible even while blocking is active.")
+                .font(TuffFonts.caption(12))
+                .foregroundColor(TuffColors.textSecondary)
+
+            Button {
+                showAppPicker = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: allowedAppSelection.applicationTokens.isEmpty
+                          ? "lock.open" : "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(allowedAppSelection.applicationTokens.isEmpty
+                                         ? TuffColors.textSecondary : TuffColors.accent)
+
+                    if allowedAppSelection.applicationTokens.isEmpty {
+                        Text("Select Allowed Apps")
+                            .font(TuffFonts.body(14))
+                            .foregroundColor(TuffColors.textSecondary)
+                    } else {
+                        Text("\(allowedAppSelection.applicationTokens.count) app\(allowedAppSelection.applicationTokens.count == 1 ? "" : "s") selected")
+                            .font(TuffFonts.body(14))
+                            .foregroundColor(TuffColors.accent)
+                    }
+
+                    Spacer()
+
+                    Text(allowedAppSelection.applicationTokens.isEmpty ? "Choose" : "Change")
+                        .font(TuffFonts.caption(12))
+                        .foregroundColor(TuffColors.accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(TuffColors.accent.opacity(0.1))
+                        .clipShape(Capsule())
+                }
+                .padding(12)
+                .background(TuffColors.tagBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+
+            // Suggestions hint
+            Text("Suggestions: " + AllowedApp.suggestions.prefix(5).map { $0.displayName }.joined(separator: ", "))
+                .font(TuffFonts.caption(11))
+                .foregroundColor(TuffColors.textSecondary)
+        }
+    }
+
     // MARK: - Create Button
 
     private var createButton: some View {
@@ -236,9 +306,13 @@ struct CreateLeagueView: View {
                 "memberUids": [uid],
                 "memberProfiles": [memberProfile],
                 "isActive": true,
+                "allowedApps": [String](),
+                "allowedAppsCount": allowedAppSelection.applicationTokens.count,
                 "createdAt": FieldValue.serverTimestamp()
             ])
 
+            // Save the token selection locally so blocking immediately respects it
+            await ScreenTimeManager.shared.saveAllowedSelection(allowedAppSelection)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
