@@ -136,24 +136,11 @@ struct BlockView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.red.opacity(0.5))
-                                .offset(y: 4)
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(LinearGradient(
-                                    colors: [Color.red.opacity(0.9), Color.red.opacity(0.8)],
-                                    startPoint: .top, endPoint: .bottom
-                                ))
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(LinearGradient(
-                                    colors: [Color.white.opacity(0.2), Color.white.opacity(0)],
-                                    startPoint: .top, endPoint: .center
-                                ))
-                        }
+                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.red.opacity(0.88)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.white.opacity(0.16), lineWidth: 1)
                     )
-                    .shadow(color: Color.red.opacity(0.4), radius: 10, x: 0, y: 5)
                 }
                 .disabled(isEndingBreak)
                 .padding(.horizontal, 40)
@@ -223,25 +210,13 @@ struct BlockView: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
                             .background(
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(isSelected ? TuffColors.accent.opacity(0.5) : Color(hex: "E8E8E8"))
-                                        .offset(y: 3)
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(isSelected
-                                              ? LinearGradient(colors: [TuffColors.accent.opacity(0.95), TuffColors.accent],
-                                                               startPoint: .top, endPoint: .bottom)
-                                              : LinearGradient(colors: [Color.white, Color(hex: "F0F0F0")],
-                                                               startPoint: .top, endPoint: .bottom))
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(LinearGradient(
-                                            colors: [Color.white.opacity(0.2), Color.white.opacity(0)],
-                                            startPoint: .top, endPoint: .center
-                                        ))
-                                }
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(isSelected ? TuffColors.accent : Color(hex: "F0F0F0"))
                             )
-                            .shadow(color: isSelected ? TuffColors.accent.opacity(0.4) : Color.black.opacity(0.12),
-                                    radius: isSelected ? 8 : 4, x: 0, y: isSelected ? 4 : 2)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(isSelected ? TuffColors.accent.opacity(0.95) : Color(hex: "E0E0E0"), lineWidth: 1)
+                            )
                         }
                         .buttonStyle(PressableButtonStyle())
                     }
@@ -325,24 +300,11 @@ struct BlockView: View {
             .foregroundColor(.black)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 17)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(TuffColors.accent.opacity(0.55))
-                        .offset(y: 4)
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(LinearGradient(
-                            colors: [TuffColors.accent.opacity(0.95), TuffColors.accent],
-                            startPoint: .top, endPoint: .bottom
-                        ))
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(LinearGradient(
-                            colors: [Color.white.opacity(0.22), Color.white.opacity(0)],
-                            startPoint: .top, endPoint: .center
-                        ))
-                }
+            .background(RoundedRectangle(cornerRadius: 18).fill(TuffColors.accent))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.white.opacity(0.16), lineWidth: 1)
             )
-            .shadow(color: TuffColors.accent.opacity(0.45), radius: 12, x: 0, y: 6)
         }
         .disabled(isBuying)
         .padding(.horizontal, 32)

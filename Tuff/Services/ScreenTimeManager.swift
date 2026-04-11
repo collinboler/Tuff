@@ -78,7 +78,7 @@ class ScreenTimeManager: ObservableObject {
             breakStartDate = nil
             Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
             Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
-            try? DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
+            DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
             blockSelectedApps()
         }
         // Sweep any orphaned Live Activities from previous sessions
@@ -152,7 +152,7 @@ class ScreenTimeManager: ObservableObject {
                 self.blockSelectedApps()
                 self.ensureLockedLiveActivity()
                 // Cancel the one-shot extension schedule (it may not have fired yet)
-                try? DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
+                DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
             }
         }
     }
@@ -164,7 +164,7 @@ class ScreenTimeManager: ObservableObject {
     /// `Date() < breakEnd` guard won't incorrectly skip the relock.
     private func scheduleRelockViaExtension(endDate: Date) {
         let center = DeviceActivityCenter()
-        try? center.stopMonitoring([DeviceActivityName("tuff.breakEnd")])
+        center.stopMonitoring([DeviceActivityName("tuff.breakEnd")])
 
         let calendar = Calendar.current
         // Add 1 full minute so the schedule start is always AFTER the break finishes,
@@ -209,7 +209,7 @@ class ScreenTimeManager: ObservableObject {
         Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
         Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
         // Cancel the one-shot extension schedule so it doesn't fire spuriously
-        try? DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
+        DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
         blockSelectedApps()
         ensureLockedLiveActivity()
 
@@ -243,9 +243,12 @@ class ScreenTimeManager: ObservableObject {
                 let lid = league.id
                 group.addTask {
                     do {
+                        let todayKey = League.dayKey(for: Date())
                         try await docRef.updateData([
                             "ledger.\(uid).boughtCents":   FieldValue.increment(-Int64(refundCents)),
-                            "ledger.\(uid).boughtMinutes": FieldValue.increment(-Int64(refundMinutes))
+                            "ledger.\(uid).boughtMinutes": FieldValue.increment(-Int64(refundMinutes)),
+                            "dailyLedger.\(todayKey).\(uid).boughtCents": FieldValue.increment(-Int64(refundCents)),
+                            "dailyLedger.\(todayKey).\(uid).boughtMinutes": FieldValue.increment(-Int64(refundMinutes))
                         ])
                         print("[Tuff] earlyEnd: -\(refundCents)¢ / -\(refundMinutes)m refund → league \(lid)")
                     } catch {
@@ -331,11 +334,14 @@ class ScreenTimeManager: ObservableObject {
 
                 group.addTask {
                     do {
+                        let todayKey = League.dayKey(for: Date())
                         // ledger.{uid}.boughtCents / boughtMinutes are top-level map fields —
                         // FieldValue.increment is atomic and needs no transaction.
                         try await docRef.updateData([
                             "ledger.\(uid).boughtCents":   FieldValue.increment(Int64(costCents)),
-                            "ledger.\(uid).boughtMinutes": FieldValue.increment(Int64(minutes))
+                            "ledger.\(uid).boughtMinutes": FieldValue.increment(Int64(minutes)),
+                            "dailyLedger.\(todayKey).\(uid).boughtCents": FieldValue.increment(Int64(costCents)),
+                            "dailyLedger.\(todayKey).\(uid).boughtMinutes": FieldValue.increment(Int64(minutes))
                         ])
                         print("[Tuff] buyBreak: +\(costCents)¢ / +\(minutes)m → league \(leagueId)")
                     } catch {

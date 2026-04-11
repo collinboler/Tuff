@@ -1,5 +1,6 @@
 import UIKit
 import SwiftUI
+import FirebaseStorage
 
 // Shared, memory-pressure-aware image cache.
 // NSCache auto-evicts entries when the system is under memory pressure,
@@ -35,7 +36,25 @@ final class RemoteImageLoader: ObservableObject {
     private var task: URLSessionDataTask?
 
     func load(from urlString: String?) {
-        guard let urlString, let url = URL(string: urlString) else { return }
+        guard let urlString, !urlString.isEmpty else { return }
+
+        if urlString.lowercased().hasPrefix("gs://") {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                do {
+                    let httpsURL = try await Storage.storage().reference(forURL: urlString).downloadURL()
+                    self.load(from: httpsURL.absoluteString)
+                } catch {
+                    self.image = nil
+                }
+            }
+            return
+        }
+
+        guard let url = URL(string: urlString) else {
+            image = nil
+            return
+        }
 
         // Serve from cache immediately — no flicker on scroll
         if let cached = RemoteImageCache.shared.image(for: url) {
@@ -43,6 +62,7 @@ final class RemoteImageLoader: ObservableObject {
             return
         }
 
+        image = nil
         task?.cancel()
         task = URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
             guard let data,

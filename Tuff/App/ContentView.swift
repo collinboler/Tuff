@@ -1,25 +1,17 @@
 import SwiftUI
-import FamilyControls
 
 enum Tab: Int, CaseIterable {
-    case feed
     case leagues
     case block
     case profile
 }
 
 struct ContentView: View {
-    @EnvironmentObject var screenTimeManager: ScreenTimeManager
     @StateObject private var homeViewModel = HomeViewModel()
-    @State private var selectedTab: Tab = .feed
+    @State private var selectedTab: Tab = .block
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            FeedView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .opacity(selectedTab == .feed ? 1 : 0)
-                .allowsHitTesting(selectedTab == .feed)
-
             LeagueView()
                 .environmentObject(homeViewModel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -38,14 +30,7 @@ struct ContentView: View {
                 .allowsHitTesting(selectedTab == .profile)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                if selectedTab == .feed {
-                    breakStatusBar
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
-                }
-                bottomNav
-            }
+            bottomNav
         }
         .ignoresSafeArea(.keyboard)
         .onOpenURL { url in
@@ -55,81 +40,8 @@ struct ContentView: View {
         }
     }
 
-    // MARK: - Break Status Bar (Home tab only)
-
-    private var breakStatusBar: some View {
-        let isOnBreak = screenTimeManager.blockTimerEndDate != nil
-
-        return HStack(spacing: 8) {
-            Image(systemName: isOnBreak ? "lock.open.fill" : "lock.fill")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(isOnBreak ? TuffColors.accent : .white)
-
-            if isOnBreak, let end = screenTimeManager.blockTimerEndDate {
-                Text("BREAK — ")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(TuffColors.accent)
-                + Text(timerInterval: Date()...end, countsDown: true)
-                    .font(.system(size: 14, weight: .bold).monospacedDigit())
-                    .foregroundColor(TuffColors.accent)
-            } else {
-                Text("APPS LOCKED")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
-            }
-
-            Spacer()
-
-            if isOnBreak {
-                Button {
-                    screenTimeManager.cancelBlockTimer()
-                } label: {
-                    Text("End Break")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.red)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.red.opacity(0.18))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(PressableButtonStyle())
-            } else {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.22)) { selectedTab = .block }
-                } label: {
-                    Text("Buy Break")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(TuffColors.accent.opacity(0.5))
-                                    .offset(y: 2)
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(TuffColors.accent)
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(LinearGradient(
-                                        colors: [Color.white.opacity(0.22), Color.white.opacity(0)],
-                                        startPoint: .top, endPoint: .center
-                                    ))
-                            }
-                        )
-                        .shadow(color: TuffColors.accent.opacity(0.4), radius: 6, x: 0, y: 3)
-                }
-                .buttonStyle(PressableButtonStyle())
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 20).fill(Color(white: 0.13, opacity: 0.96)))
-        .colorScheme(.dark)
-    }
-
     private var bottomNav: some View {
         HStack {
-            navItem(.feed,    icon: "house",   filledIcon: "house.fill",  label: "Home")
             swordsNavItem()
             navItem(.block,   icon: "lock",    filledIcon: "lock.fill",   label: "Block")
             navItem(.profile, icon: "person",  filledIcon: "person.fill", label: "You")
@@ -173,7 +85,7 @@ struct ContentView: View {
         } label: {
             VStack(spacing: 3) {
                 CrossedSwordsIcon()
-                Text("League")
+                Text("Leauge")
                     .font(.system(size: 10, weight: .medium))
             }
             .foregroundColor(isActive ? TuffColors.accent : TuffColors.navInactive)

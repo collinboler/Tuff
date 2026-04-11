@@ -366,7 +366,6 @@ struct FeedPostCard: View {
         }
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 18))
-        .shadow(color: Color.black.opacity(0.07), radius: 12, x: 0, y: 4)
         .overlay(
             RoundedRectangle(cornerRadius: 18)
                 .stroke(Color.black.opacity(0.05), lineWidth: 1)
@@ -555,7 +554,6 @@ struct AppSegmentIcon: View {
                     .scaledToFill()
                     .frame(width: size, height: size)
                     .clipShape(RoundedRectangle(cornerRadius: size * 0.22))
-                    .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 2)
             } else {
                 // Initials fallback while loading
                 ZStack {
@@ -805,7 +803,7 @@ struct CommentsView: View {
             data["replyToName"]      = reply.displayName
             data["replyToCommentID"] = reply.id
         }
-        try? await db.collection("posts").document(postID)
+        _ = try? await db.collection("posts").document(postID)
             .collection("comments").addDocument(data: data)
         try? await db.collection("posts").document(postID)
             .updateData(["commentCount": FieldValue.increment(Int64(1))])

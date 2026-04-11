@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Colors (matched to HTML mockup CSS variables)
 
@@ -215,6 +216,13 @@ struct RankCircle: View {
                 .font(TuffFonts.historyRank())
                 .foregroundColor(.white)
         }
+    }
+}
+
+struct AppButtonFontStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(TuffFonts.newButton())
     }
 }
 

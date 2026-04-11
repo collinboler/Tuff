@@ -35,6 +35,7 @@ class AuthViewModel: ObservableObject {
 
     private var verificationID: String? = nil
     private let uiDelegate = PhoneAuthDelegate()
+    private var authStateListener: AuthStateDidChangeListenerHandle?
 
     init() {
         if let user = Auth.auth().currentUser {
@@ -49,7 +50,7 @@ class AuthViewModel: ObservableObject {
                 needsOnboarding = false
             }
         }
-        Auth.auth().addStateDidChangeListener { [weak self] _, user in
+        authStateListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
             Task { @MainActor in
                 guard let self else { return }
                 guard let user else {
@@ -63,6 +64,12 @@ class AuthViewModel: ObservableObject {
                 }
                 // Otherwise let verifyCode / resolveOnboardingStatus handle it
             }
+        }
+    }
+
+    deinit {
+        if let authStateListener {
+            Auth.auth().removeStateDidChangeListener(authStateListener)
         }
     }
 

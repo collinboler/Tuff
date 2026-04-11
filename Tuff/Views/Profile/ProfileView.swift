@@ -8,7 +8,6 @@ struct ProfileView: View {
     @EnvironmentObject var screenTimeManager: ScreenTimeManager
     @State private var showEdit = false
     @State private var showSettings = false
-    @State private var showSearch = false
     @State private var showFriends = false
 
     @State private var reportID = UUID()
@@ -61,9 +60,6 @@ struct ProfileView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
-        .sheet(isPresented: $showSearch) {
-            UserSearchView()
-        }
         .sheet(isPresented: $showFriends) {
             FriendsListView()
         }
@@ -76,7 +72,8 @@ struct ProfileView: View {
             ProfileImageView(
                 imageName: viewModel.user.imageName,
                 size: 56,
-                uiImage: viewModel.profileImage
+                uiImage: viewModel.profileImage,
+                photoURL: viewModel.user.photoURL
             )
 
             VStack(alignment: .leading, spacing: 3) {
@@ -117,13 +114,7 @@ struct ProfileView: View {
 
             Spacer()
 
-            // Search + Settings — top-aligned with profile image top
             HStack(spacing: 16) {
-                Button { showSearch = true } label: {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(.black)
-                }
                 Button { showSettings = true } label: {
                     Image(systemName: "gearshape")
                         .font(.system(size: 18, weight: .medium))
@@ -252,7 +243,8 @@ struct EditProfileView: View {
                             ProfileImageView(
                                 imageName: "",
                                 size: 90,
-                                uiImage: newImage ?? viewModel.profileImage
+                                uiImage: newImage ?? viewModel.profileImage,
+                                photoURL: viewModel.user.photoURL
                             )
                             Circle()
                                 .fill(TuffColors.accent)

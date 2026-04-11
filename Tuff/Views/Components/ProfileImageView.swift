@@ -58,6 +58,9 @@ private struct CachedRemoteImage: View {
             }
         }
         .onAppear { loader.load(from: urlString) }
+        .onChange(of: urlString) { _, newValue in
+            loader.load(from: newValue)
+        }
         .onDisappear { loader.cancel() }
     }
 }
