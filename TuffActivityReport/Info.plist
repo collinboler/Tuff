@@ -18,10 +18,17 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>EXAppExtensionAttributes</key>
+	<dict>
+		<key>EXExtensionPointIdentifier</key>
+		<string>com.apple.DeviceActivityUI.DeviceActivityReportExtension</string>
+	</dict>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.deviceactivityui.report-extension</string>
+		<key>NSExtensionPrincipalClass</key>
+		<string>TuffActivityReport.TuffActivityReportApp</string>
 	</dict>
 </dict>
 </plist>

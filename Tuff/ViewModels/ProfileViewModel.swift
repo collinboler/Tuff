@@ -62,7 +62,7 @@ class ProfileViewModel: ObservableObject {
             profileImage = img
         }
 
-        // Save to Firestore
+        // Save to Firestore users doc
         var firestoreUpdate: [String: Any] = [
             "firstName": firstName.trimmingCharacters(in: .whitespaces),
             "lastName": lastName.trimmingCharacters(in: .whitespaces),
@@ -75,8 +75,29 @@ class ProfileViewModel: ObservableObject {
             return error.localizedDescription
         }
 
+        // Propagate updated name / photoURL into every league's memberProfiles array
+        let fullName = "\(firstName.trimmingCharacters(in: .whitespaces)) \(lastName.trimmingCharacters(in: .whitespaces))".trimmingCharacters(in: .whitespaces)
+        if let leagueSnap = try? await db.collection("leagues")
+            .whereField("memberUids", arrayContains: uid)
+            .getDocuments() {
+            for leagueDoc in leagueSnap.documents {
+                var profiles = leagueDoc.data()["memberProfiles"] as? [[String: Any]] ?? []
+                var changed = false
+                for i in profiles.indices where profiles[i]["uid"] as? String == uid {
+                    profiles[i]["name"] = fullName
+                    profiles[i]["username"] = trimmedUsername
+                    if let url = photoURLString { profiles[i]["photoURL"] = url }
+                    changed = true
+                }
+                if changed {
+                    try? await db.collection("leagues").document(leagueDoc.documentID).updateData([
+                        "memberProfiles": profiles
+                    ])
+                }
+            }
+        }
+
         // Update local user
-        let fullName = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
         user = TuffUser(
             id: user.id, uid: uid,
             name: fullName.isEmpty ? "You" : fullName,

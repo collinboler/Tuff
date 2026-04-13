@@ -142,37 +142,46 @@ class AuthViewModel: ObservableObject {
         guard let user = Auth.auth().currentUser else { return }
         markOnboardingComplete(for: user.uid)
         needsOnboarding = false
+        isSignedIn = true   // was missing — new users were bounced back to PhoneSignInView
 
         let uid = user.uid
         let phone = user.phoneNumber ?? ""
 
-        // Save profile image locally and upload to Firebase Storage
+        // Cache photo locally for instant display
         var imageData: Data? = nil
         if let image = profileImage, let data = image.jpegData(compressionQuality: 0.8) {
-            let localURL = profileImageURL(for: uid)
-            try? data.write(to: localURL)
+            try? data.write(to: profileImageURL(for: uid))
             imageData = data
         }
 
-        Task.detached {
+        Task {
             let db = Firestore.firestore()
-            var userData: [String: Any] = [
+
+            // 1. Write core profile fields immediately so the user doc exists right away
+            let coreData: [String: Any] = [
                 "firstName": firstName,
                 "lastName": lastName,
                 "username": username,
                 "phone": phone,
                 "createdAt": FieldValue.serverTimestamp()
             ]
-            // Upload photo and store URL
-            if let data = imageData {
+            try? await db.collection("users").document(uid).setData(coreData, merge: true)
+
+            // 2. Upload photo separately; update photoURL once we have the download URL
+            guard let data = imageData else { return }
+            do {
                 let ref = Storage.storage().reference().child("profileImages/\(uid).jpg")
-                let meta = StorageMetadata(); meta.contentType = "image/jpeg"
-                if let _ = try? await ref.putDataAsync(data, metadata: meta),
-                   let url = try? await ref.downloadURL() {
-                    userData["photoURL"] = url.absoluteString
-                }
+                let meta = StorageMetadata()
+                meta.contentType = "image/jpeg"
+                _ = try await ref.putDataAsync(data, metadata: meta)
+                let url = try await ref.downloadURL()
+                try await db.collection("users").document(uid).updateData([
+                    "photoURL": url.absoluteString
+                ])
+                print("[Tuff] onboarding photo uploaded ✓")
+            } catch {
+                print("[Tuff] onboarding photo upload failed: \(error.localizedDescription)")
             }
-            try? await db.collection("users").document(uid).setData(userData, merge: true)
         }
     }
 
