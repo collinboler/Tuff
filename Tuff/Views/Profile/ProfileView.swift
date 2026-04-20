@@ -41,7 +41,6 @@ struct ProfileView: View {
                     .id(reportID)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.horizontal, 20)
-                    .onAppear { reportID = UUID() }
                     #else
                     statsPlaceholder
                     #endif
