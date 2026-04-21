@@ -8,12 +8,14 @@ enum StorageUploadError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .uploadFailed(let error):
-            // Firebase sometimes surfaces the weird "Object ... does not exist"
-            // error even when the file was written — reframe it so the user
-            // isn't left reading a misleading message.
+            // "Object ... does not exist" after we've already tried to read
+            // the file back means Storage Rules blocked access OR the bucket
+            // isn't initialised — guide the user to the real fix.
             let message = error.localizedDescription
-            if message.lowercased().contains("does not exist") {
-                return "Photo upload timed out while syncing. Please try again."
+            if message.lowercased().contains("does not exist") ||
+               message.lowercased().contains("permission") ||
+               message.lowercased().contains("unauthorized") {
+                return "Photo upload blocked by Firebase — check Storage rules & bucket."
             }
             return "Photo upload failed: \(message)"
         case .downloadURLFailed(let error):
@@ -43,11 +45,18 @@ enum StorageUploader {
     }
 
     /// Generic upload with retries + `gs://` fallback.
+    ///
+    /// Firebase's `putDataAsync` occasionally throws "Object does not exist"
+    /// even after the bytes made it to the server — the SDK's post-upload
+    /// metadata read races with Storage's indexing. We treat that error as
+    /// soft: first try to confirm the file exists via `downloadURL` /
+    /// `getMetadata`. If either succeeds, the upload is fine. If both also
+    /// fail we surface the original upload error to the caller.
     static func upload(data: Data, to ref: StorageReference, metadata: StorageMetadata) async throws -> String {
-        try await performUpload(data: data, to: ref, metadata: metadata)
+        let putError = await performUpload(data: data, to: ref, metadata: metadata)
 
-        // Try to resolve a download URL a few times. Firebase can take a
-        // second or two to index newly-written objects.
+        // Try to resolve a download URL a few times. If this succeeds, the
+        // upload actually worked regardless of what `putDataAsync` reported.
         var lastError: Error?
         for attempt in 0..<4 {
             do {
@@ -60,10 +69,16 @@ enum StorageUploader {
             }
         }
 
-        // The upload succeeded but we can't get an https URL right now.
-        // Return the gs:// URL instead — readers already resolve it lazily.
-        if !ref.bucket.isEmpty {
+        // downloadURL kept failing. Confirm the object exists via metadata —
+        // if it does, we still consider the upload successful and hand back
+        // a gs:// URL (RemoteImageLoader resolves gs:// lazily).
+        if (try? await ref.getMetadata()) != nil, !ref.bucket.isEmpty {
             return "gs://\(ref.bucket)/\(ref.fullPath)"
+        }
+
+        // Neither downloadURL nor metadata could find the file.
+        if let putError {
+            throw StorageUploadError.uploadFailed(putError)
         }
         throw StorageUploadError.downloadURLFailed(lastError ?? NSError(
             domain: "TuffStorage", code: -1,
@@ -71,13 +86,16 @@ enum StorageUploader {
         ))
     }
 
-    /// Performs the actual `putDataAsync` with one retry for transient failures.
-    private static func performUpload(data: Data, to ref: StorageReference, metadata: StorageMetadata) async throws {
+    /// Runs `putDataAsync` with a single retry for transient failures.
+    /// Returns `nil` on success, or the last error encountered on failure —
+    /// the caller decides whether to still treat the upload as successful
+    /// based on whether the file actually landed on the server.
+    private static func performUpload(data: Data, to ref: StorageReference, metadata: StorageMetadata) async -> Error? {
         var lastError: Error?
         for attempt in 0..<2 {
             do {
                 _ = try await ref.putDataAsync(data, metadata: metadata)
-                return
+                return nil
             } catch {
                 lastError = error
                 if attempt == 0 {
@@ -85,9 +103,9 @@ enum StorageUploader {
                 }
             }
         }
-        throw StorageUploadError.uploadFailed(lastError ?? NSError(
+        return lastError ?? NSError(
             domain: "TuffStorage", code: -2,
             userInfo: [NSLocalizedDescriptionKey: "Unknown upload error"]
-        ))
+        )
     }
 }

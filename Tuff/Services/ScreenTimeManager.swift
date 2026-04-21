@@ -470,7 +470,11 @@ class ScreenTimeManager: ObservableObject {
 
         if status == .approved {
             isAuthorized = true
-            print("[Tuff] Already authorized ✓")
+            UserDefaults.standard.set(true, forKey: Self.hasAuthorizedKey)
+            registerBlockingSchedules()
+            // Start blocking immediately — no welcome break.
+            applyAlwaysOnBlocking()
+            print("[Tuff] Already authorized ✓ (shield applied)")
             return
         }
 
@@ -479,7 +483,10 @@ class ScreenTimeManager: ObservableObject {
             isAuthorized = true
             UserDefaults.standard.set(true, forKey: Self.hasAuthorizedKey)
             registerBlockingSchedules()
-            print("[Tuff] Screen Time authorized ✓")
+            // Engage the shield the instant the user grants permission so
+            // there's no "automatic break" window after onboarding.
+            applyAlwaysOnBlocking()
+            print("[Tuff] Screen Time authorized ✓ (shield applied)")
         } catch {
             print("[Tuff] Screen Time auth failed: \(error)")
             isAuthorized = false
