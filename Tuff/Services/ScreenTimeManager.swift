@@ -249,7 +249,9 @@ class ScreenTimeManager: ObservableObject {
         print("[Tuff] earlyEnd: used \(Int(secondsUsed))s → kept \(minutesKept)m / refund \(refundMinutes)m of \(originalMinutes)m")
         guard refundMinutes > 0 else { return 0 }
 
-        let activeLeagues = leagues.filter { $0.isActive }
+        // `hasEnded` excludes leagues whose scheduled endDate has passed — we
+        // shouldn't refund ledger entries on settled leagues.
+        let activeLeagues = leagues.filter { $0.isActive && !$0.hasEnded }
         guard !activeLeagues.isEmpty else { return refundMinutes }
 
         let db = Firestore.firestore()
@@ -336,7 +338,9 @@ class ScreenTimeManager: ObservableObject {
     func buyBreak(minutes: Int, uid: String, leagues: [League]) async {
         startBlockTimer(duration: TimeInterval(minutes * 60))
 
-        let activeLeagues = leagues.filter { $0.isActive }
+        // `hasEnded` excludes leagues whose scheduled endDate has passed — we
+        // shouldn't charge new breaks against a settled league.
+        let activeLeagues = leagues.filter { $0.isActive && !$0.hasEnded }
         guard !activeLeagues.isEmpty else {
             print("[Tuff] buyBreak: no active leagues to charge")
             return

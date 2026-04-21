@@ -43,20 +43,18 @@ class ProfileViewModel: ObservableObject {
             }
         }
 
-        // Upload image to Firebase Storage and persist URL to Firestore + local cache
+        // Upload image to Firebase Storage and persist URL to Firestore + local cache.
+        // StorageUploader retries on transient failures and falls back to a gs://
+        // URL if Firebase can't return an https download URL right away —
+        // RemoteImageLoader already knows how to resolve those at read time.
         var photoURLString: String? = nil
         if let img = image, let data = img.jpegData(compressionQuality: 0.8) {
-            let ref = Storage.storage().reference().child("profileImages/\(uid).jpg")
             do {
-                let meta = StorageMetadata()
-                meta.contentType = "image/jpeg"
-                _ = try await ref.putDataAsync(data, metadata: meta)
-                let downloadURL = try await ref.downloadURL()
-                photoURLString = downloadURL.absoluteString
+                photoURLString = try await StorageUploader.uploadProfilePhoto(data: data, uid: uid)
             } catch {
-                return "Photo upload failed: \(error.localizedDescription)"
+                return (error as? LocalizedError)?.errorDescription
+                    ?? "Photo upload failed: \(error.localizedDescription)"
             }
-            // Cache locally so the current device doesn't re-download
             let localURL = AuthViewModel.profileImageURL(for: uid)
             try? data.write(to: localURL)
             profileImage = img

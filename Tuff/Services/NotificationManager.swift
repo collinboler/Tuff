@@ -79,6 +79,39 @@ class NotificationManager: ObservableObject {
         UNUserNotificationCenter.current().add(request)
     }
 
+    /// Fires when a league the user is in crosses its end date. Separate
+    /// notifications for "you won" vs "you owe" so the body reads correctly.
+    func scheduleLeagueEndedNotification(leagueId: String,
+                                         leagueName: String,
+                                         winnerName: String,
+                                         userWon: Bool,
+                                         netOutcomeCents: Int) {
+        let content = UNMutableNotificationContent()
+        let dollars = String(format: "$%.2f", Double(abs(netOutcomeCents)) / 100.0)
+        if userWon {
+            content.title = "You won \(leagueName)!"
+            content.body = "Lowest spent takes the pool — you earn \(dollars)."
+        } else if netOutcomeCents == 0 {
+            content.title = "\(leagueName) has ended"
+            content.body = "\(winnerName) won. You didn't spend anything — nothing owed."
+        } else {
+            content.title = "\(leagueName) has ended"
+            content.body = "\(winnerName) won the pool. You owe \(dollars)."
+        }
+        content.sound = .default
+        content.categoryIdentifier = "LEAGUE_ENDED"
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        // Stable identifier per-league prevents duplicate notifications
+        // if detection runs twice in quick succession.
+        let request = UNNotificationRequest(
+            identifier: "league_ended_\(leagueId)",
+            content: content,
+            trigger: trigger
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
     func registerNotificationCategories() {
         let checkAction = UNNotificationAction(
             identifier: "CHECK_LEAGUE",

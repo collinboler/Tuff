@@ -18,6 +18,18 @@ struct LeagueDetailSheet: View {
     private var isCreator: Bool { league.createdBy == currentUID }
 
     var body: some View {
+        Group {
+            if league.hasEnded {
+                // Once a league has ended, always show the results screen
+                // instead of the in-progress leaderboard/leave UI.
+                LeagueEndedView(league: league) { dismiss() }
+            } else {
+                activeLeagueBody
+            }
+        }
+    }
+
+    private var activeLeagueBody: some View {
         VStack(spacing: 0) {
             headerSection
 

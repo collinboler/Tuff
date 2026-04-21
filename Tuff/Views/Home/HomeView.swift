@@ -53,6 +53,16 @@ struct LeagueView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $viewModel.showLeagueEndedSheet,
+               onDismiss: { viewModel.dismissEndedLeagueSheet() }) {
+            if let league = viewModel.endedLeagueToShow {
+                LeagueEndedView(league: league) {
+                    viewModel.dismissEndedLeagueSheet()
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+            }
+        }
     }
 
     private var topBar: some View {
@@ -192,7 +202,13 @@ struct LeagueView: View {
                 VStack(spacing: 9) {
                     ForEach(viewModel.leagues) { league in
                         LeagueCardView(league: league)
-                            .onTapGesture { viewModel.selectLeague(league) }
+                            .onTapGesture {
+                                if league.hasEnded {
+                                    viewModel.presentEndedLeague(league)
+                                } else {
+                                    viewModel.selectLeague(league)
+                                }
+                            }
                     }
                 }
                 .padding(.horizontal, 16)

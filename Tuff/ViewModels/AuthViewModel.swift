@@ -163,14 +163,9 @@ class AuthViewModel: ObservableObject {
                 "phone": phone,
                 "createdAt": FieldValue.serverTimestamp()
             ]
-            // Upload photo and store URL
-            if let data = imageData {
-                let ref = Storage.storage().reference().child("profileImages/\(uid).jpg")
-                let meta = StorageMetadata(); meta.contentType = "image/jpeg"
-                if let _ = try? await ref.putDataAsync(data, metadata: meta),
-                   let url = try? await ref.downloadURL() {
-                    userData["photoURL"] = url.absoluteString
-                }
+            if let data = imageData,
+               let url = try? await StorageUploader.uploadProfilePhoto(data: data, uid: uid) {
+                userData["photoURL"] = url
             }
             try? await db.collection("users").document(uid).setData(userData, merge: true)
         }
