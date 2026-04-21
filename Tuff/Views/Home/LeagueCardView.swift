@@ -6,14 +6,27 @@ struct LeagueCardView: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text(league.name.uppercased())
-                    .font(TuffFonts.leagueCardName())
-                    .foregroundColor(.white)
-                    .tracking(0.05 * 16)
+                HStack(spacing: 6) {
+                    Text(league.name.uppercased())
+                        .font(TuffFonts.leagueCardName())
+                        .foregroundColor(.white)
+                        .tracking(0.05 * 16)
 
-                Text(league.dateRangeText)
+                    if league.hasEnded {
+                        Text("ENDED")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(TuffColors.goldBright)
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                            .tracking(0.6)
+                    }
+                }
+
+                Text(league.hasEnded ? league.dateRangeText : "\(league.dateRangeText) · \(league.timeRemainingText)")
                     .font(TuffFonts.caption(11))
-                    .foregroundColor(TuffColors.textSecondary)
+                    .foregroundColor(league.hasEnded ? TuffColors.goldBright.opacity(0.85) : TuffColors.textSecondary)
             }
 
             Spacer()
@@ -25,7 +38,7 @@ struct LeagueCardView: View {
                     .font(TuffFonts.leagueCardPot())
                     .foregroundColor(.white)
 
-                Text("\(league.pricePerHourCents)¢/hr")
+                Text(league.hasEnded ? "FINAL" : "\(league.pricePerHourCents)¢/hr")
                     .font(TuffFonts.caption(11))
                     .foregroundColor(TuffColors.textSecondary)
             }
@@ -34,6 +47,7 @@ struct LeagueCardView: View {
         .padding(.vertical, 12)
         .background(TuffColors.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .opacity(league.hasEnded ? 0.88 : 1)
     }
 
     private var memberAvatars: some View {

@@ -249,7 +249,9 @@ class ScreenTimeManager: ObservableObject {
         print("[Tuff] earlyEnd: used \(Int(secondsUsed))s → kept \(minutesKept)m / refund \(refundMinutes)m of \(originalMinutes)m")
         guard refundMinutes > 0 else { return 0 }
 
-        let activeLeagues = leagues.filter { $0.isActive }
+        // `hasEnded` excludes leagues whose scheduled endDate has passed — we
+        // shouldn't refund ledger entries on settled leagues.
+        let activeLeagues = leagues.filter { $0.isActive && !$0.hasEnded }
         guard !activeLeagues.isEmpty else { return refundMinutes }
 
         let db = Firestore.firestore()
@@ -336,7 +338,9 @@ class ScreenTimeManager: ObservableObject {
     func buyBreak(minutes: Int, uid: String, leagues: [League]) async {
         startBlockTimer(duration: TimeInterval(minutes * 60))
 
-        let activeLeagues = leagues.filter { $0.isActive }
+        // `hasEnded` excludes leagues whose scheduled endDate has passed — we
+        // shouldn't charge new breaks against a settled league.
+        let activeLeagues = leagues.filter { $0.isActive && !$0.hasEnded }
         guard !activeLeagues.isEmpty else {
             print("[Tuff] buyBreak: no active leagues to charge")
             return
@@ -466,7 +470,11 @@ class ScreenTimeManager: ObservableObject {
 
         if status == .approved {
             isAuthorized = true
-            print("[Tuff] Already authorized ✓")
+            UserDefaults.standard.set(true, forKey: Self.hasAuthorizedKey)
+            registerBlockingSchedules()
+            // Start blocking immediately — no welcome break.
+            applyAlwaysOnBlocking()
+            print("[Tuff] Already authorized ✓ (shield applied)")
             return
         }
 
@@ -475,7 +483,10 @@ class ScreenTimeManager: ObservableObject {
             isAuthorized = true
             UserDefaults.standard.set(true, forKey: Self.hasAuthorizedKey)
             registerBlockingSchedules()
-            print("[Tuff] Screen Time authorized ✓")
+            // Engage the shield the instant the user grants permission so
+            // there's no "automatic break" window after onboarding.
+            applyAlwaysOnBlocking()
+            print("[Tuff] Screen Time authorized ✓ (shield applied)")
         } catch {
             print("[Tuff] Screen Time auth failed: \(error)")
             isAuthorized = false

@@ -45,32 +45,36 @@ struct TuffDailyReportScene: DeviceActivityReportScene {
         var totalCategories = 0
         var totalApps = 0
 
-        for await activityData in data {
-            for await segment in activityData.activitySegments {
-                totalSegments += 1
-                let segmentDay = calendar.startOfDay(for: segment.dateInterval.start)
-                var entry = dayMap[segmentDay] ?? (total: 0, apps: [:])
-                entry.total += segment.totalActivityDuration
+        do {
+            for await activityData in data {
+                for await segment in activityData.activitySegments {
+                    totalSegments += 1
+                    let segmentDay = calendar.startOfDay(for: segment.dateInterval.start)
+                    var entry = dayMap[segmentDay] ?? (total: 0, apps: [:])
+                    entry.total += segment.totalActivityDuration
 
-                var catsInSegment = 0
-                var appsInSegment = 0
-                for await categoryActivity in segment.categories {
-                    catsInSegment += 1
-                    totalCategories += 1
-                    for await appActivity in categoryActivity.applications {
-                        appsInSegment += 1
-                        totalApps += 1
-                        let app = appActivity.application
-                        let dur = appActivity.totalActivityDuration
-                        guard let token = app.token else { continue }
-                        let existing = entry.apps[token]?.seconds ?? 0
-                        entry.apps[token] = (application: app, seconds: existing + dur)
+                    var catsInSegment = 0
+                    var appsInSegment = 0
+                    for await categoryActivity in segment.categories {
+                        catsInSegment += 1
+                        totalCategories += 1
+                        for await appActivity in categoryActivity.applications {
+                            appsInSegment += 1
+                            totalApps += 1
+                            let app = appActivity.application
+                            let dur = appActivity.totalActivityDuration
+                            guard let token = app.token else { continue }
+                            let existing = entry.apps[token]?.seconds ?? 0
+                            entry.apps[token] = (application: app, seconds: existing + dur)
+                        }
                     }
+                    let fmt = DateFormatter(); fmt.dateFormat = "MM-dd"
+                    print("[TuffReport] segment \(fmt.string(from: segmentDay)) total=\(Int(segment.totalActivityDuration/60))m cats=\(catsInSegment) apps=\(appsInSegment)")
+                    dayMap[segmentDay] = entry
                 }
-                let fmt = DateFormatter(); fmt.dateFormat = "MM-dd"
-                print("[TuffReport] segment \(fmt.string(from: segmentDay)) total=\(Int(segment.totalActivityDuration/60))m cats=\(catsInSegment) apps=\(appsInSegment)")
-                dayMap[segmentDay] = entry
             }
+        } catch {
+            print("[TuffReport] data iteration error: \(error)")
         }
         print("[TuffReport] DONE segments=\(totalSegments) categories=\(totalCategories) apps=\(totalApps) days=\(dayMap.count)")
 

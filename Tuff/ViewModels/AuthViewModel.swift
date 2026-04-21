@@ -142,46 +142,32 @@ class AuthViewModel: ObservableObject {
         guard let user = Auth.auth().currentUser else { return }
         markOnboardingComplete(for: user.uid)
         needsOnboarding = false
-        isSignedIn = true   // was missing — new users were bounced back to PhoneSignInView
 
         let uid = user.uid
         let phone = user.phoneNumber ?? ""
 
-        // Cache photo locally for instant display
+        // Save profile image locally and upload to Firebase Storage
         var imageData: Data? = nil
         if let image = profileImage, let data = image.jpegData(compressionQuality: 0.8) {
-            try? data.write(to: profileImageURL(for: uid))
+            let localURL = profileImageURL(for: uid)
+            try? data.write(to: localURL)
             imageData = data
         }
 
-        Task {
+        Task.detached {
             let db = Firestore.firestore()
-
-            // 1. Write core profile fields immediately so the user doc exists right away
-            let coreData: [String: Any] = [
+            var userData: [String: Any] = [
                 "firstName": firstName,
                 "lastName": lastName,
                 "username": username,
                 "phone": phone,
                 "createdAt": FieldValue.serverTimestamp()
             ]
-            try? await db.collection("users").document(uid).setData(coreData, merge: true)
-
-            // 2. Upload photo separately; update photoURL once we have the download URL
-            guard let data = imageData else { return }
-            do {
-                let ref = Storage.storage().reference().child("profileImages/\(uid).jpg")
-                let meta = StorageMetadata()
-                meta.contentType = "image/jpeg"
-                _ = try await ref.putDataAsync(data, metadata: meta)
-                let url = try await ref.downloadURL()
-                try await db.collection("users").document(uid).updateData([
-                    "photoURL": url.absoluteString
-                ])
-                print("[Tuff] onboarding photo uploaded ✓")
-            } catch {
-                print("[Tuff] onboarding photo upload failed: \(error.localizedDescription)")
+            if let data = imageData,
+               let url = try? await StorageUploader.uploadProfilePhoto(data: data, uid: uid) {
+                userData["photoURL"] = url
             }
+            try? await db.collection("users").document(uid).setData(userData, merge: true)
         }
     }
 
@@ -214,6 +200,160 @@ class AuthViewModel: ObservableObject {
             return
         }
         try? await user.delete()
+    }
+
+    // MARK: - Account Deletion (App Store Guideline 5.1.1(v))
+
+    enum DeleteAccountError: LocalizedError {
+        case notSignedIn
+        case requiresRecentLogin
+        case reauthFailed(String)
+        case deleteFailed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .notSignedIn:         return "You're not signed in."
+            case .requiresRecentLogin: return "Please verify your phone number again to delete your account."
+            case .reauthFailed(let m): return "Verification failed: \(m)"
+            case .deleteFailed(let m): return "Couldn't delete account: \(m)"
+            }
+        }
+    }
+
+    /// Send an SMS verification code to the current user's phone number so
+    /// they can re-authenticate before we delete the account. Returns a
+    /// verification ID that the caller passes back to
+    /// `deleteAccount(reauthVerificationID:code:)`.
+    func sendReauthCode() async throws -> String {
+        guard let user = Auth.auth().currentUser,
+              let phone = user.phoneNumber else {
+            throw DeleteAccountError.notSignedIn
+        }
+        let delegate = self.uiDelegate
+        return try await withCheckedThrowingContinuation { cont in
+            PhoneAuthProvider.provider().verifyPhoneNumber(phone, uiDelegate: delegate) { vid, error in
+                if let error {
+                    cont.resume(throwing: DeleteAccountError.reauthFailed(error.localizedDescription))
+                } else if let vid {
+                    cont.resume(returning: vid)
+                } else {
+                    cont.resume(throwing: DeleteAccountError.reauthFailed("No verification ID"))
+                }
+            }
+        }
+    }
+
+    /// Permanently delete the current user's account AND all of their data.
+    /// Pass `reauthVerificationID` + `code` obtained from `sendReauthCode()`
+    /// to satisfy Firebase's "recent login" requirement.
+    func deleteAccount(reauthVerificationID: String, code: String) async throws {
+        guard let user = Auth.auth().currentUser else {
+            throw DeleteAccountError.notSignedIn
+        }
+        let uid = user.uid
+
+        // 1) Re-authenticate with fresh SMS credential.
+        let credential = PhoneAuthProvider.provider().credential(
+            withVerificationID: reauthVerificationID,
+            verificationCode: code
+        )
+        do {
+            _ = try await user.reauthenticate(with: credential)
+        } catch {
+            throw DeleteAccountError.reauthFailed(error.localizedDescription)
+        }
+
+        // 2) Wipe all of this user's Firestore + Storage data while we still
+        //    hold a valid auth context. Any single failure is swallowed —
+        //    we prioritise completing the auth deletion so the user isn't
+        //    stuck with a zombie account.
+        await Self.purgeUserData(uid: uid)
+
+        // 3) Delete the Firebase Auth record.
+        do {
+            try await user.delete()
+        } catch {
+            let ns = error as NSError
+            if ns.code == AuthErrorCode.requiresRecentLogin.rawValue {
+                throw DeleteAccountError.requiresRecentLogin
+            }
+            throw DeleteAccountError.deleteFailed(error.localizedDescription)
+        }
+
+        // 4) Clear local state (UserDefaults flag, cached profile image).
+        UserDefaults.standard.removeObject(forKey: onboardingKey(for: uid))
+        try? FileManager.default.removeItem(at: Self.profileImageURL(for: uid))
+
+        // 5) Sign out to flip UI back to the phone sign-in screen.
+        try? Auth.auth().signOut()
+        self.isSignedIn = false
+        self.needsOnboarding = false
+    }
+
+    /// Best-effort wipe of every Firestore / Storage document associated
+    /// with `uid`. Called from `deleteAccount` — all failures are logged
+    /// rather than thrown so a single inaccessible doc can't prevent the
+    /// rest of the cleanup from running.
+    private static func purgeUserData(uid: String) async {
+        let db = Firestore.firestore()
+
+        // Leagues: remove the user from memberUids so they stop getting
+        // updates, and add to dqdUids so their score still counts toward
+        // the pool for remaining members (same semantics as "Leave League").
+        if let snap = try? await db.collection("leagues")
+            .whereField("memberUids", arrayContains: uid).getDocuments() {
+            await withTaskGroup(of: Void.self) { group in
+                for doc in snap.documents {
+                    let ref = doc.reference
+                    group.addTask {
+                        try? await ref.updateData([
+                            "memberUids": FieldValue.arrayRemove([uid]),
+                            "dqdUids":    FieldValue.arrayUnion([uid])
+                        ])
+                    }
+                }
+            }
+        }
+
+        // Posts authored by this user.
+        if let snap = try? await db.collection("posts")
+            .whereField("uid", isEqualTo: uid).getDocuments() {
+            await withTaskGroup(of: Void.self) { group in
+                for doc in snap.documents {
+                    let ref = doc.reference
+                    group.addTask { try? await ref.delete() }
+                }
+            }
+        }
+
+        // Outbound friend requests.
+        if let snap = try? await db.collection("friendRequests")
+            .whereField("fromUid", isEqualTo: uid).getDocuments() {
+            for doc in snap.documents { try? await doc.reference.delete() }
+        }
+        // Inbound friend requests.
+        if let snap = try? await db.collection("friendRequests")
+            .whereField("toUid", isEqualTo: uid).getDocuments() {
+            for doc in snap.documents { try? await doc.reference.delete() }
+        }
+
+        // My friends subcollection + mirror entries on each friend's side.
+        if let friendsSnap = try? await db.collection("users").document(uid)
+            .collection("friends").getDocuments() {
+            for doc in friendsSnap.documents {
+                let friendUid = doc.documentID
+                try? await db.collection("users").document(friendUid)
+                    .collection("friends").document(uid).delete()
+                try? await doc.reference.delete()
+            }
+        }
+
+        // User document itself.
+        try? await db.collection("users").document(uid).delete()
+
+        // Profile photo in Storage (best-effort — ignored if missing).
+        let ref = Storage.storage().reference().child("profileImages/\(uid).jpg")
+        _ = try? await ref.delete()
     }
 
     // MARK: - Onboarding persistence (keyed by uid so each user is independent)

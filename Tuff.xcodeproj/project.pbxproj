@@ -41,7 +41,7 @@
 		C49F1D7AEB9CA0DF852771CC /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F28A14A8186E15C301A1C9F /* StatsView.swift */; };
 		C5CD3BD3D935F825A5CFD665 /* LeagueCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA742DE8F5095D68611C7FF9 /* LeagueCardView.swift */; };
 		CBAE30B8B55D133F7DB56CB3 /* ProfileImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AF3671F1DD40875E13E116D /* ProfileImageView.swift */; };
-		CC001122334455667788AA01 /* TuffActivityReport.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BB001122334455667788AA0A /* TuffActivityReport.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		CC001122334455667788AA01 /* TuffActivityReport.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = BB001122334455667788AA0A /* TuffActivityReport.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CC001122334455667788AA02 /* TuffDeviceActivity.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		CC001122334455667788AA03 /* TuffShieldConfiguration.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		D39F08284DAC58B9434BDEC3 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B20E94174CF30E8FFF26D8A /* ContentView.swift */; };
@@ -62,6 +62,8 @@
 		EE001122334455667788AA01 /* ShieldActionExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE001122334455667788AA02 /* ShieldActionExtension.swift */; };
 		EE001122334455667788AA04 /* TuffShieldAction.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = EE001122334455667788AA03 /* TuffShieldAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F1B2C3D4E5F60718293A4B5C /* RemoteImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B2C3D4E5F60718293A4B5D /* RemoteImageCache.swift */; };
+		F1B2C3D4E5F60718293A4C01 /* StorageUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B2C3D4E5F60718293A4C02 /* StorageUploader.swift */; };
+		F1B2C3D4E5F60718293A4C03 /* LeagueEndedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B2C3D4E5F60718293A4C04 /* LeagueEndedView.swift */; };
 		FA001122334455667788AA01 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA02 /* AuthViewModel.swift */; };
 		FA001122334455667788AA03 /* PhoneSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA04 /* PhoneSignInView.swift */; };
 		FA001122334455667788AA07 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA001122334455667788AA08 /* OnboardingView.swift */; };
@@ -124,11 +126,21 @@
 			files = (
 				CC001122334455667788AA02 /* TuffDeviceActivity.appex in Embed App Extensions */,
 				CC001122334455667788AA03 /* TuffShieldConfiguration.appex in Embed App Extensions */,
-				CC001122334455667788AA01 /* TuffActivityReport.appex in Embed App Extensions */,
 				EE001122334455667788AA04 /* TuffShieldAction.appex in Embed App Extensions */,
 				B69A2E965887F83B419B941A /* TuffLiveActivity.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC001122334455667788BB01 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(EXTENSIONS_FOLDER_PATH)";
+			dstSubfolderSpec = 16;
+			files = (
+				CC001122334455667788AA01 /* TuffActivityReport.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -187,6 +199,8 @@
 		EE001122334455667788AA05 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F08CC8CFC059AD9A8AE9931A /* DeviceActivityMonitorExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceActivityMonitorExtension.swift; sourceTree = "<group>"; };
 		F1B2C3D4E5F60718293A4B5D /* RemoteImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImageCache.swift; sourceTree = "<group>"; };
+		F1B2C3D4E5F60718293A4C02 /* StorageUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageUploader.swift; sourceTree = "<group>"; };
+		F1B2C3D4E5F60718293A4C04 /* LeagueEndedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeagueEndedView.swift; sourceTree = "<group>"; };
 		F23DF162A31993B916A581DB /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
 		F9F6A64B1B0C9B1E305E130E /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		FA001122334455667788AA02 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
@@ -411,6 +425,7 @@
 				7A99AC0FD5D7287ADDDBC164 /* CreateLeagueView.swift */,
 				C7AFFCEB12E45B356774CED9 /* LeaderboardRowView.swift */,
 				9DD638A63F049BFA07CDBF4E /* LeagueDetailSheet.swift */,
+				F1B2C3D4E5F60718293A4C04 /* LeagueEndedView.swift */,
 			);
 			path = League;
 			sourceTree = "<group>";
@@ -445,6 +460,7 @@
 				3EA453900CCC88739E566FB6 /* ScreenTimeManager.swift */,
 				16584C51E6F908A182AF1CBE /* BlockTimerAttributes.swift */,
 				F1B2C3D4E5F60718293A4B5D /* RemoteImageCache.swift */,
+				F1B2C3D4E5F60718293A4C02 /* StorageUploader.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -562,6 +578,7 @@
 				FB001122334455667788AA00 /* Frameworks */,
 				93F6DDFE491B96452C9CC06A /* Resources */,
 				CC001122334455667788AA04 /* Embed App Extensions */,
+				CC001122334455667788BB01 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
@@ -712,6 +729,8 @@
 				ED17F9694E0EC6B5B0D9B5C9 /* LeagueHistoryRow.swift in Sources */,
 				A42D0096EC37EDF5B9FA65D5 /* NotificationManager.swift in Sources */,
 				F1B2C3D4E5F60718293A4B5C /* RemoteImageCache.swift in Sources */,
+				F1B2C3D4E5F60718293A4C01 /* StorageUploader.swift in Sources */,
+				F1B2C3D4E5F60718293A4C03 /* LeagueEndedView.swift in Sources */,
 				CBAE30B8B55D133F7DB56CB3 /* ProfileImageView.swift in Sources */,
 				FB001122334455667788AB09 /* ImagePicker.swift in Sources */,
 				64345E8B3394DC7D010637EE /* ProfileView.swift in Sources */,
@@ -813,7 +832,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = TuffLiveActivity/TuffLiveActivity.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TuffLiveActivity/Info.plist;
@@ -894,7 +913,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = TuffShieldConfiguration/TuffShieldConfiguration.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/TuffShieldConfiguration/Info.plist";
@@ -983,7 +1002,7 @@
 				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = TuffDeviceActivity/TuffDeviceActivity.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/TuffDeviceActivity/Info.plist";
@@ -1008,7 +1027,7 @@
 				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = TuffDeviceActivity/TuffDeviceActivity.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/TuffDeviceActivity/Info.plist";
@@ -1032,7 +1051,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = TuffActivityReport/TuffActivityReport.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/TuffActivityReport/Info.plist";
@@ -1056,7 +1075,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = TuffActivityReport/TuffActivityReport.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/TuffActivityReport/Info.plist";
@@ -1083,7 +1102,7 @@
 				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = Tuff/Tuff.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "$(SRCROOT)/Tuff/Info.plist";
@@ -1109,7 +1128,7 @@
 				CODE_SIGN_ALLOW_ENTITLEMENTS_MODIFICATION = YES;
 				CODE_SIGN_ENTITLEMENTS = Tuff/Tuff.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "$(SRCROOT)/Tuff/Info.plist";
@@ -1134,7 +1153,7 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = TuffLiveActivity/TuffLiveActivity.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TuffLiveActivity/Info.plist;
@@ -1159,7 +1178,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = TuffShieldAction/TuffShieldAction.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TuffShieldAction/Info.plist;
@@ -1183,7 +1202,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = TuffShieldAction/TuffShieldAction.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = TuffShieldAction/Info.plist;
@@ -1207,7 +1226,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = TuffShieldConfiguration/TuffShieldConfiguration.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = U2ZQ5ZX9M5;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/TuffShieldConfiguration/Info.plist";

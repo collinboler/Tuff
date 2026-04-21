@@ -35,6 +35,69 @@ struct League: Identifiable {
         return [("1st Place — Lowest spent wins\(note)", String(format: "$%.2f pool", poolDollars))]
     }
 
+    // MARK: - Ending
+
+    /// True once the scheduled end date has passed.
+    var hasEnded: Bool { Date() >= endDate }
+
+    /// Short label used in leaderboard cards — "3d left", "Ends today", "Ended".
+    var timeRemainingText: String {
+        if hasEnded { return "Ended" }
+        let seconds = endDate.timeIntervalSinceNow
+        let days = Int(seconds / 86_400)
+        let hours = Int(seconds / 3_600)
+        if days >= 2 { return "\(days)d left" }
+        if days == 1 { return "1d left" }
+        if hours >= 2 { return "\(hours)h left" }
+        if hours >= 1 { return "1h left" }
+        return "Ends soon"
+    }
+
+    /// The winner — lowest-spent non-DQ member. Ties broken by earliest-joined.
+    var winner: LeagueMember? {
+        let eligible = members.filter { !$0.isDQ }
+        guard !eligible.isEmpty else { return nil }
+        return eligible.min { lhs, rhs in
+            if lhs.boughtCents != rhs.boughtCents {
+                return lhs.boughtCents < rhs.boughtCents
+            }
+            switch (lhs.joinedAt, rhs.joinedAt) {
+            case let (l?, r?): return l < r
+            case (nil, _?):    return true
+            default:           return false
+            }
+        }
+    }
+
+    /// Per-person transactions if the league settled right now.
+    /// Every non-winner's `boughtCents` becomes a payment to the winner.
+    var finalPayments: [LeaguePayment] {
+        guard let winner else { return [] }
+        return members.compactMap { member in
+            guard member.id != winner.id, member.boughtCents > 0 else { return nil }
+            return LeaguePayment(
+                id: UUID(),
+                from: member,
+                to: winner,
+                amountCents: member.boughtCents
+            )
+        }.sorted { $0.amountCents > $1.amountCents }
+    }
+
+    /// Signed net outcome for a user in cents:
+    ///   winner → total pool contributed by others (positive = earnings)
+    ///   loser  → -boughtCents (negative = owed)
+    func netOutcomeCents(forUid uid: String) -> Int {
+        guard let winner else { return 0 }
+        if winner.user.uid == uid {
+            return members.filter { $0.id != winner.id }.reduce(0) { $0 + $1.boughtCents }
+        }
+        if let me = members.first(where: { $0.user.uid == uid }) {
+            return -me.boughtCents
+        }
+        return 0
+    }
+
     /// Active members first (sorted by boughtCents ascending), DQ'd members at the bottom.
     var sortedMembers: [LeagueMember] {
         let active = members.filter { !$0.isDQ }.sorted { $0.boughtCents < $1.boughtCents }
@@ -129,6 +192,19 @@ struct League: Identifiable {
         formatter.timeZone = .current
         formatter.dateFormat = "yyyyMMdd"
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - League Payments
+
+struct LeaguePayment: Identifiable {
+    let id: UUID
+    let from: LeagueMember   // payer (a losing member)
+    let to: LeagueMember     // winner, receiving their spend
+    let amountCents: Int
+
+    var amountText: String {
+        String(format: "$%.2f", Double(amountCents) / 100.0)
     }
 }
 

@@ -13,9 +13,19 @@ class HomeViewModel: ObservableObject {
     @Published var showCreateLeague = false
     @Published var showJoinLeague = false
 
+    /// A league whose end date has just passed that we want to surface to the
+    /// user in the final-results sheet. The UI observes this to auto-present
+    /// `LeagueEndedView`; `dismissEndedLeagueSheet()` clears it.
+    @Published var endedLeagueToShow: League?
+    @Published var showLeagueEndedSheet = false
+
     private var leaguesListener: ListenerRegistration?
     private var resolvedPhotoURLsByUID: [String: String] = [:]
     private var photoFetchInFlight: Set<String> = []
+    /// League IDs for which we've already notified / shown the end sheet
+    /// during this app lifetime — prevents repeatedly firing when Firestore
+    /// snapshots re-emit.
+    private var processedEndedLeagueIDs: Set<String> = []
 
     init() {
         loadCurrentUser()
@@ -76,6 +86,7 @@ class HomeViewModel: ObservableObject {
                     self.leagues = docs.compactMap { League.from($0.data(), id: $0.documentID) }
                     self.resolveMissingMemberPhotoURLs()
                     self.refreshSelectedCarouselUser()
+                    self.checkForNewlyEndedLeagues()
                 }
             }
     }
@@ -149,7 +160,7 @@ class HomeViewModel: ObservableObject {
     /// updates before the Firestore round-trip completes.
     func applyOptimisticRefund(uid: String, refundMinutes: Int) {
         leagues = leagues.map { league in
-            guard league.isActive else { return league }
+            guard league.isActive, !league.hasEnded else { return league }
             let refundCents = max(1, Int(round(Double(refundMinutes) / 60.0 * Double(league.pricePerHourCents))))
             var updated = league
             updated.members = league.members.map { member in
@@ -174,7 +185,7 @@ class HomeViewModel: ObservableObject {
     /// updates before the Firestore round-trip completes.
     func applyOptimisticBreakCharge(uid: String, minutes: Int) {
         leagues = leagues.map { league in
-            guard league.isActive else { return league }
+            guard league.isActive, !league.hasEnded else { return league }
             let costCents = max(1, Int(round(Double(minutes) / 60.0 * Double(league.pricePerHourCents))))
             var updated = league
             updated.members = league.members.map { member in
@@ -193,6 +204,67 @@ class HomeViewModel: ObservableObject {
             return updated
         }
         refreshSelectedCarouselUser()
+    }
+
+    // MARK: - League ending detection
+
+    /// Finds leagues whose `endDate` has passed but haven't been shown to this
+    /// user yet, fires a local notification, and surfaces the first one for
+    /// the UI to present.
+    private func checkForNewlyEndedLeagues() {
+        guard let uid = Auth.auth().currentUser?.uid, !uid.isEmpty else { return }
+
+        let seen = UserDefaults.standard.seenEndedLeagueIDs(for: uid)
+        let newlyEnded = leagues.filter { league in
+            league.hasEnded
+                && !seen.contains(league.id)
+                && !processedEndedLeagueIDs.contains(league.id)
+        }
+        guard !newlyEnded.isEmpty else { return }
+
+        for league in newlyEnded {
+            processedEndedLeagueIDs.insert(league.id)
+
+            let winnerName = league.winner?.user.name ?? "Nobody"
+            let userWon = league.winner?.user.uid == uid
+            let net = league.netOutcomeCents(forUid: uid)
+
+            NotificationManager.shared.scheduleLeagueEndedNotification(
+                leagueId: league.id,
+                leagueName: league.name,
+                winnerName: winnerName,
+                userWon: userWon,
+                netOutcomeCents: net
+            )
+        }
+
+        // Present the most recently-ended league first if the UI isn't already
+        // showing one.
+        if endedLeagueToShow == nil, !showLeagueEndedSheet {
+            endedLeagueToShow = newlyEnded.sorted { $0.endDate > $1.endDate }.first
+            if endedLeagueToShow != nil {
+                showLeagueEndedSheet = true
+            }
+        }
+    }
+
+    /// Called by the UI when the user dismisses the ending sheet.
+    /// Marks the league as seen so it isn't re-presented on next launch.
+    func dismissEndedLeagueSheet() {
+        if let league = endedLeagueToShow,
+           let uid = Auth.auth().currentUser?.uid, !uid.isEmpty {
+            UserDefaults.standard.markLeagueEndSeen(league.id, for: uid)
+        }
+        endedLeagueToShow = nil
+        showLeagueEndedSheet = false
+    }
+
+    /// Explicit request to view a league's ending screen (from a tap on an
+    /// already-ended league card). Doesn't change the "seen" state until the
+    /// user dismisses.
+    func presentEndedLeague(_ league: League) {
+        endedLeagueToShow = league
+        showLeagueEndedSheet = true
     }
 
     deinit {
@@ -258,6 +330,10 @@ class HomeViewModel: ObservableObject {
         aggregates[currentKey] = CarouselAggregate(user: currentUser, dailyCents: 0)
 
         for league in leagues {
+            // Ended leagues are settled — their today/daily spend should no
+            // longer roll into the live "$X today" figure shown in the
+            // carousel/member panel.
+            guard !league.hasEnded else { continue }
             for member in league.members {
                 guard !member.isDQ else { continue }
                 let key = userKey(for: member.user)
@@ -361,5 +437,24 @@ class HomeViewModel: ObservableObject {
         } else {
             selectedCarouselUser = users.first ?? currentUser
         }
+    }
+}
+
+// MARK: - Seen ended-league persistence
+// Tracked per-uid so that multiple users on the same device each get their
+// own ending prompts once (and only once) per league.
+extension UserDefaults {
+    private static let seenEndedLeaguesKeyPrefix = "seenEndedLeagues_"
+
+    func seenEndedLeagueIDs(for uid: String) -> Set<String> {
+        let key = Self.seenEndedLeaguesKeyPrefix + uid
+        return Set(stringArray(forKey: key) ?? [])
+    }
+
+    func markLeagueEndSeen(_ leagueId: String, for uid: String) {
+        let key = Self.seenEndedLeaguesKeyPrefix + uid
+        var existing = seenEndedLeagueIDs(for: uid)
+        existing.insert(leagueId)
+        set(Array(existing), forKey: key)
     }
 }
