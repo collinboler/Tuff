@@ -26,6 +26,9 @@ struct ProfileView: View {
             // Combined header: profile info + icons all top-aligned
             profileHeader
 
+            statsRow
+                .padding(.bottom, 14)
+
             if !viewModel.leagueHistory.isEmpty {
                 leagueHistory
             }

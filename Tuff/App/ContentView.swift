@@ -85,7 +85,7 @@ struct ContentView: View {
         } label: {
             VStack(spacing: 3) {
                 CrossedSwordsIcon()
-                Text("Leauge")
+                Text("League")
                     .font(.system(size: 10, weight: .medium))
             }
             .foregroundColor(isActive ? TuffColors.accent : TuffColors.navInactive)
