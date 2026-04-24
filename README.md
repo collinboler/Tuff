@@ -2,6 +2,8 @@
 
 A competitive screen time tracking iOS app that gamifies reducing phone usage through friend leagues, betting, and high-friction blocking.
 
+Download on the App Store now! [App Store Link](https://apps.apple.com/us/app/tuffscreentime/id6760532128)
+
 ## Architecture
 
 - **SwiftUI** with MVVM pattern
