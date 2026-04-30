@@ -10,10 +10,14 @@
   // rules_version = '2';
   // service firebase.storage {
   //   match /b/{bucket}/o {
-  //     // Users can write only their own profile photo.
-  //     match /profileImages/{uid}.jpg {
+  //     // Users can write only their own profile photo. Storage rules don't
+  //     // allow dots in path segments, so we match a wildcard `{filename}`
+  //     // and use a regex to enforce that the filename starts with the
+  //     // uploader's UID. The contentType check enforces images-only.
+  //     match /profileImages/{filename} {
   //       allow read: if request.auth != null;
-  //       allow write: if request.auth != null && request.auth.uid == uid
+  //       allow write: if request.auth != null
+  //                    && filename.matches(request.auth.uid + '\\.(jpg|jpeg|png|heic|webp)')
   //                    && request.resource.size < 5 * 1024 * 1024
   //                    && request.resource.contentType.matches('image/.*');
   //     }
@@ -29,6 +33,27 @@
         allow write: if request.auth != null && request.auth.uid == userId;
         match /friends/{friendId} {
           allow read, write: if request.auth != null;
+        }
+        // Cross-user notifications (e.g. payout confirmations). Anyone signed in
+        // can write a notification to another user as long as `fromUid` is set
+        // to themselves; only the recipient can read it or mark it delivered.
+        match /notifications/{notificationId} {
+          allow read, update, delete: if request.auth != null
+                                      && request.auth.uid == userId;
+          allow create: if request.auth != null
+                        && request.resource.data.fromUid == request.auth.uid;
+        }
+        // Implicit-friends ledger. Bidirectional: when user A and user B share
+        // a league, A writes to /users/A/implicitFriends/B AND
+        // /users/B/implicitFriends/A. The doc ID under the *other* user must
+        // equal the writer's own UID, so a malicious client can only insert
+        // *themselves* into someone else's friend list.
+        match /implicitFriends/{friendId} {
+          allow read: if request.auth != null && request.auth.uid == userId;
+          allow create, update: if request.auth != null
+                                && (request.auth.uid == userId
+                                    || request.auth.uid == friendId);
+          allow delete: if request.auth != null && request.auth.uid == userId;
         }
       }
       match /posts/{postId} {

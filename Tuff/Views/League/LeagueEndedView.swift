@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import FirebaseFirestore
 
 /// Final-results screen shown when a league's end date has passed.
 ///
@@ -8,12 +9,17 @@ import FirebaseAuth
 ///   * Every other member owes their `boughtCents` to the winner.
 ///
 /// The current user sees a personalized "You won" / "You owe" summary plus the
-/// full breakdown of who pays whom.
+/// full breakdown of who pays whom — and a Pay Out / Mark Settled button that
+/// archives the league (see HomeViewModel.archivedLeagues).
 struct LeagueEndedView: View {
     let league: League
     var onDismiss: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
+
+    @State private var showPayoutConfirm = false
+    @State private var isSettling = false
+    @State private var settleError: String?
 
     private var currentUID: String { Auth.auth().currentUser?.uid ?? "" }
     private var currentMember: LeagueMember? {
@@ -21,6 +27,8 @@ struct LeagueEndedView: View {
     }
     private var userWon: Bool { league.winner?.user.uid == currentUID }
     private var netCents: Int { league.netOutcomeCents(forUid: currentUID) }
+    private var alreadySettled: Bool { league.isPaidOut(uid: currentUID) }
+    private var owesAmount: Bool { netCents < 0 }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,12 +45,39 @@ struct LeagueEndedView: View {
                 .padding(20)
             }
 
-            doneButton
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
-                .padding(.top, 6)
+            VStack(spacing: 10) {
+                if let err = settleError {
+                    Text(err)
+                        .font(.system(size: 13))
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 4)
+                }
+
+                if !alreadySettled {
+                    payoutButton
+                }
+                doneButton
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+            .padding(.top, 6)
         }
         .background(Color.white)
+        .sheet(isPresented: $showPayoutConfirm) {
+            PayoutConfirmationSheet(
+                league: league,
+                currentUID: currentUID,
+                userWon: userWon,
+                netCents: netCents,
+                isSettling: $isSettling
+            ) { _ in
+                Task {
+                    await settle()
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - Header
@@ -338,5 +373,266 @@ struct LeagueEndedView: View {
             }
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    // MARK: - Pay Out Button
+
+    /// Red button shown above the green Done button on ended leagues. Label
+    /// changes based on the user's role:
+    ///   * Loser  → "PAY OUT" → opens confirmation with winner's payment info
+    ///   * Winner → "MARK AS SETTLED" → confirms they've collected
+    /// Either path archives the league for the current user.
+    private var payoutButton: some View {
+        Button {
+            showPayoutConfirm = true
+        } label: {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.red)
+                    .frame(height: 52)
+                if isSettling {
+                    ProgressView().tint(.white)
+                } else {
+                    Text(payoutButtonTitle)
+                        .font(TuffFonts.newButton())
+                        .foregroundColor(.white)
+                        .tracking(0.09 * 17)
+                }
+            }
+        }
+        .buttonStyle(PressableButtonStyle())
+        .disabled(isSettling)
+    }
+
+    private var payoutButtonTitle: String {
+        if currentMember == nil { return "ARCHIVE" }
+        if userWon { return "MARK AS SETTLED" }
+        if !owesAmount { return "ARCHIVE" }
+        return "PAY OUT"
+    }
+
+    // MARK: - Settle action
+
+    /// Marks the league as paid out for the current user and (when they owe
+    /// the winner) writes a notification doc into the winner's
+    /// `users/{winnerUid}/notifications` subcollection. The winner's app
+    /// listens for new entries and surfaces a local notification reading
+    /// "Congratulations! [Name] has paid you $X for [League name]".
+    private func settle() async {
+        guard !currentUID.isEmpty else { return }
+        isSettling = true
+        settleError = nil
+        defer { isSettling = false }
+
+        let db = Firestore.firestore()
+        let leagueRef = db.collection("leagues").document(league.id)
+
+        do {
+            try await leagueRef.updateData([
+                "paidOutUids": FieldValue.arrayUnion([currentUID])
+            ])
+        } catch {
+            settleError = error.localizedDescription
+            return
+        }
+
+        // Notify the winner only when the current user is actually paying.
+        if owesAmount, let winner = league.winner, winner.user.uid != currentUID {
+            let amountCents = abs(netCents)
+            let dollars = String(format: "$%.2f", Double(amountCents) / 100.0)
+            let myName = currentMember?.user.name.isEmpty == false
+                ? currentMember!.user.name
+                : (currentMember?.user.username ?? "Someone")
+
+            let notif: [String: Any] = [
+                "title": "You got paid!",
+                "body": "Congratulations! \(myName) has paid you \(dollars) for \(league.name)",
+                "type": "league_payout",
+                "leagueId": league.id,
+                "fromUid": currentUID,
+                "amountCents": amountCents,
+                "delivered": false,
+                "createdAt": FieldValue.serverTimestamp()
+            ]
+            _ = try? await db.collection("users").document(winner.user.uid)
+                .collection("notifications").addDocument(data: notif)
+        }
+
+        showPayoutConfirm = false
+        onDismiss()
+        dismiss()
+    }
+}
+
+// MARK: - Payout Confirmation Sheet
+
+/// Modal shown when the current user taps PAY OUT (loser) or MARK AS SETTLED
+/// (winner). Surfaces the winner's payment method + ID so the loser knows how
+/// to pay them, with Confirm/Cancel buttons that drive `settle()`.
+private struct PayoutConfirmationSheet: View {
+    let league: League
+    let currentUID: String
+    let userWon: Bool
+    let netCents: Int
+    @Binding var isSettling: Bool
+    let onConfirm: (League) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    private var owesAmount: Bool { netCents < 0 }
+    private var amountText: String {
+        String(format: "$%.2f", Double(abs(netCents)) / 100.0)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    summaryCard
+                    if let winner = league.winner, owesAmount, !userWon {
+                        winnerPaymentCard(winner: winner)
+                    }
+                    confirmButtons
+                }
+                .padding(20)
+            }
+            .background(Color.white)
+            .navigationTitle("Confirm Payout")
+            .navigationBarTitleDisplayMode(.inline)
+            .colorScheme(.light)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(TuffColors.textSecondary)
+                }
+            }
+        }
+    }
+
+    private var summaryCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(headline)
+                .font(TuffFonts.modalTitle())
+                .foregroundColor(.black)
+                .tracking(0.05 * 22)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(subheadline)
+                .font(TuffFonts.body(14))
+                .foregroundColor(TuffColors.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(TuffColors.payoutBg)
+        )
+    }
+
+    private var headline: String {
+        if userWon { return "MARK \(league.name.uppercased()) AS SETTLED?" }
+        if !owesAmount { return "ARCHIVE \(league.name.uppercased())?" }
+        guard let winner = league.winner else { return "ARCHIVE LEAGUE?" }
+        return "YOU OWE \(winner.user.name.uppercased()) \(amountText)"
+    }
+
+    private var subheadline: String {
+        if userWon {
+            return "Confirming will archive \(league.name) on your home screen. Use this once you've collected from everyone."
+        }
+        if !owesAmount {
+            return "You don't owe anything. Archiving moves \(league.name) to your archive list."
+        }
+        return "Send \(amountText) to \(league.winner?.user.name ?? "the winner") via the payment info below, then confirm. They'll get a notification once you do."
+    }
+
+    private func winnerPaymentCard(winner: LeagueMember) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("HOW TO PAY")
+                .font(TuffFonts.payoutHeader())
+                .foregroundColor(TuffColors.textSecondary)
+                .tracking(0.14 * 11)
+
+            HStack(spacing: 12) {
+                ProfileImageView(
+                    imageName: winner.user.imageName,
+                    size: 44,
+                    photoURL: winner.user.photoURL
+                )
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(winner.user.name)
+                        .font(TuffFonts.lbName())
+                        .foregroundColor(.black)
+                        .lineLimit(1)
+                    Text(winner.user.paymentDisplay)
+                        .font(TuffFonts.caption(13))
+                        .foregroundColor(TuffColors.textSecondary)
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                if !winner.user.paymentMethod.formattedID(winner.user.paymentID).isEmpty {
+                    Button {
+                        UIPasteboard.general.string =
+                            winner.user.paymentMethod.formattedID(winner.user.paymentID)
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(TuffColors.accent)
+                            .padding(8)
+                            .background(TuffColors.accent.opacity(0.1))
+                            .clipShape(Circle())
+                    }
+                }
+            }
+
+            if winner.user.paymentMethod == .none ||
+                winner.user.paymentMethod.formattedID(winner.user.paymentID).isEmpty {
+                Text("No payment method on file — reach out via @\(winner.user.username.isEmpty ? winner.user.name : winner.user.username) to settle up.")
+                    .font(TuffFonts.caption(11))
+                    .foregroundColor(TuffColors.textSecondary)
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(TuffColors.payoutBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(TuffColors.divider, lineWidth: 1)
+        )
+    }
+
+    private var confirmButtons: some View {
+        VStack(spacing: 10) {
+            Button {
+                onConfirm(league)
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(TuffColors.accent)
+                        .frame(height: 52)
+                    if isSettling {
+                        ProgressView().tint(.white)
+                    } else {
+                        Text("CONFIRM")
+                            .font(TuffFonts.newButton())
+                            .foregroundColor(.white)
+                            .tracking(0.09 * 17)
+                    }
+                }
+            }
+            .buttonStyle(PressableButtonStyle())
+            .disabled(isSettling)
+
+            Button("Cancel") { dismiss() }
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(TuffColors.textSecondary)
+        }
     }
 }

@@ -32,6 +32,9 @@ struct LeagueView: View {
                 memberPanel
                 divider
                 leaguesSection
+                if !viewModel.archivedLeagues.isEmpty {
+                    archivedSection
+                }
             }
             .padding(.bottom, 16)
         }
@@ -192,7 +195,7 @@ struct LeagueView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 11)
 
-            if viewModel.leagues.isEmpty {
+            if viewModel.activeLeagues.isEmpty {
                 Text("Join or create a league to start comparing daily stats.")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(TuffColors.textSecondary)
@@ -200,7 +203,7 @@ struct LeagueView: View {
                     .padding(.vertical, 10)
             } else {
                 VStack(spacing: 9) {
-                    ForEach(viewModel.leagues) { league in
+                    ForEach(viewModel.activeLeagues) { league in
                         LeagueCardView(league: league)
                             .onTapGesture {
                                 if league.hasEnded {
@@ -254,6 +257,91 @@ struct LeagueView: View {
             .padding(.horizontal, 16)
             .padding(.top, 4)
         }
+    }
+
+    // MARK: - Archive
+
+    private var archivedSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            archiveDivider
+                .padding(.top, 18)
+
+            Text("ARCHIVE")
+                .font(TuffFonts.sectionHeader())
+                .foregroundColor(TuffColors.textSecondary)
+                .tracking(0.15 * 12)
+                .padding(.horizontal, 20)
+                .padding(.top, 11)
+
+            VStack(spacing: 8) {
+                ForEach(viewModel.archivedLeagues) { league in
+                    archivedRow(for: league)
+                        .onTapGesture {
+                            viewModel.presentEndedLeague(league)
+                        }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private var archiveDivider: some View {
+        Rectangle()
+            .fill(TuffColors.divider)
+            .frame(height: 1)
+            .padding(.horizontal, 20)
+    }
+
+    private func archivedRow(for league: League) -> some View {
+        let net = league.netOutcomeCents(forUid: viewModel.currentUser.uid)
+        let won = league.winner?.user.uid == viewModel.currentUser.uid
+        let amountText: String = {
+            let dollars = Double(abs(net)) / 100.0
+            let formatted = Self.currencyFormatter.string(from: NSNumber(value: dollars)) ?? "$0.00"
+            if net > 0 { return "+\(formatted)" }
+            if net < 0 { return "-\(formatted)" }
+            return "$0.00"
+        }()
+        let amountColor: Color = {
+            if net > 0 { return TuffColors.accent }
+            if net < 0 { return TuffColors.negative }
+            return TuffColors.textSecondary
+        }()
+        let dateText: String = {
+            let f = DateFormatter()
+            f.dateFormat = "MMM d, yyyy"
+            return "Ended \(f.string(from: league.endDate))"
+        }()
+
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(league.name.uppercased())
+                    .font(TuffFonts.historyName())
+                    .foregroundColor(.black)
+                    .tracking(0.03 * 15)
+                    .lineLimit(1)
+
+                Text(won ? "You won · \(dateText)" : dateText)
+                    .font(TuffFonts.caption(11))
+                    .foregroundColor(TuffColors.textSecondary)
+            }
+
+            Spacer(minLength: 8)
+
+            Text(amountText)
+                .font(TuffFonts.historyPayout())
+                .foregroundColor(amountColor)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(TuffColors.payoutBg)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(TuffColors.divider, lineWidth: 1)
+        )
     }
 
     private func formattedTodayDollars(cents: Int) -> String {

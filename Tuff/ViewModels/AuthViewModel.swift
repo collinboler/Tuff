@@ -138,37 +138,49 @@ class AuthViewModel: ObservableObject {
 
     // MARK: - Onboarding
 
-    func completeOnboarding(firstName: String, lastName: String, username: String, profileImage: UIImage? = nil) {
+    /// Persist the new account's profile to Firestore (and Storage if a photo
+    /// was provided). Awaits the photo upload so that the very next view that
+    /// loads `users/{uid}` already has `photoURL` populated — previously the
+    /// upload ran in a detached task and frequently lost the race against
+    /// HomeViewModel's first read, which surfaced as "no profile picture".
+    func completeOnboarding(firstName: String, lastName: String, username: String,
+                            paymentMethod: PaymentMethod, paymentID: String,
+                            profileImage: UIImage? = nil) async {
         guard let user = Auth.auth().currentUser else { return }
-        markOnboardingComplete(for: user.uid)
-        needsOnboarding = false
-
         let uid = user.uid
         let phone = user.phoneNumber ?? ""
 
-        // Save profile image locally and upload to Firebase Storage
-        var imageData: Data? = nil
+        var photoURLString: String? = nil
         if let image = profileImage, let data = image.jpegData(compressionQuality: 0.8) {
             let localURL = profileImageURL(for: uid)
             try? data.write(to: localURL)
-            imageData = data
+            photoURLString = try? await StorageUploader.uploadProfilePhoto(data: data, uid: uid)
+            if photoURLString == nil {
+                print("[Tuff] Onboarding photo upload failed — will retry from edit profile")
+            }
         }
 
-        Task.detached {
-            let db = Firestore.firestore()
-            var userData: [String: Any] = [
-                "firstName": firstName,
-                "lastName": lastName,
-                "username": username,
-                "phone": phone,
-                "createdAt": FieldValue.serverTimestamp()
-            ]
-            if let data = imageData,
-               let url = try? await StorageUploader.uploadProfilePhoto(data: data, uid: uid) {
-                userData["photoURL"] = url
-            }
-            try? await db.collection("users").document(uid).setData(userData, merge: true)
+        let cleanPaymentID = paymentMethod.sanitize(paymentID)
+        var userData: [String: Any] = [
+            "firstName": firstName,
+            "lastName": lastName,
+            "username": username,
+            "phone": phone,
+            "paymentMethod": paymentMethod.rawValue,
+            "paymentID": cleanPaymentID,
+            "createdAt": FieldValue.serverTimestamp()
+        ]
+        if let url = photoURLString { userData["photoURL"] = url }
+
+        do {
+            try await Firestore.firestore().collection("users").document(uid)
+                .setData(userData, merge: true)
+        } catch {
+            print("[Tuff] Onboarding Firestore write failed: \(error.localizedDescription)")
         }
+
+        markOnboardingComplete(for: uid)
+        needsOnboarding = false
     }
 
     static func savedProfileImage(for uid: String) -> UIImage? {

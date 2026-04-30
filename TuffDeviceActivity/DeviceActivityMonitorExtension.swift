@@ -11,29 +11,44 @@ class TuffDeviceActivityMonitor: DeviceActivityMonitor {
     private let breakStartDateKey = "tuff_breakStartDate"
 
     /// Called at the start of each registered window.
-    /// Handles both the 15-min keep-alive schedules ("tuff.block.*") and the
-    /// one-shot schedule registered at break-end time ("tuff.breakEnd").
+    /// Handles both the 2-hour keep-alive schedules ("tuff.keepalive.*"),
+    /// the legacy hourly slots ("tuff.block.*"), and the one-shot schedule
+    /// registered at break-end time ("tuff.breakEnd").
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
+        reapplyShieldIfNeeded(reason: "intervalDidStart \(activity.rawValue)")
+    }
 
-        let isKeepAlive = activity.rawValue.hasPrefix("tuff.block.")
-        let isBreakEnd  = activity.rawValue == "tuff.breakEnd"
+    /// Also re-apply the shield when each window ENDS. This halves the
+    /// worst-case "shield drifts off" window from 2 hours to 1 hour and is
+    /// the documented mitigation for the "blocking fades away" symptom on
+    /// real devices: the system can occasionally drop ManagedSettings
+    /// configuration if the app+extension haven't refreshed it recently.
+    override func intervalDidEnd(for activity: DeviceActivityName) {
+        super.intervalDidEnd(for: activity)
+        reapplyShieldIfNeeded(reason: "intervalDidEnd \(activity.rawValue)")
+    }
+
+    // MARK: - Shield re-apply
+
+    /// Common shield-refresh logic shared between intervalDidStart and
+    /// intervalDidEnd. Skips re-locking while a break is in progress so we
+    /// never accidentally clobber an active break.
+    private func reapplyShieldIfNeeded(reason: String) {
+        let isKeepAlive = activityIsKeepAlive(reason: reason)
+        let isBreakEnd  = reason.contains("tuff.breakEnd")
         guard isKeepAlive || isBreakEnd else { return }
 
         let defaults = UserDefaults(suiteName: groupID)
 
-        // If a break is still in progress, don't re-lock
         if let breakEnd = defaults?.object(forKey: breakEndDateKey) as? Date,
            Date() < breakEnd {
             return
         }
 
-        // Clear break keys from shared UserDefaults so the main app
-        // immediately sees a clean state when it next becomes active.
         defaults?.removeObject(forKey: breakEndDateKey)
         defaults?.removeObject(forKey: breakStartDateKey)
 
-        // Re-apply ManagedSettings shields, honouring any league-defined allowed apps
         let store = ManagedSettingsStore()
         let allowedSelectionKey = "tuff_allowedAppSelection"
         var exemptTokens: Set<ApplicationToken> = []
@@ -49,13 +64,11 @@ class TuffDeviceActivityMonitor: DeviceActivityMonitor {
         store.shield.webDomainCategories   = .all()
         store.application.denyAppRemoval   = true
 
-        // Transition the Live Activity from break state to locked state so
-        // the Dynamic Island stops showing the spinner / stale countdown.
         endStaleLiveActivities()
     }
 
-    override func intervalDidEnd(for activity: DeviceActivityName) {
-        super.intervalDidEnd(for: activity)
+    private func activityIsKeepAlive(reason: String) -> Bool {
+        reason.contains("tuff.keepalive.") || reason.contains("tuff.block.")
     }
 
     // MARK: - Live Activity cleanup

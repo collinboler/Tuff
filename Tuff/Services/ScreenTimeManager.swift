@@ -25,6 +25,15 @@ class ScreenTimeManager: ObservableObject {
     private var store: ManagedSettingsStore?
     private var authObserver: AnyCancellable?
 
+    /// Foreground "heartbeat" that re-asserts the shield every 60 seconds.
+    /// The OS-side ManagedSettings configuration is normally durable, but
+    /// users have reported it occasionally getting cleared by iOS — re-writing
+    /// the same config every minute while Tuff is open is cheap, idempotent,
+    /// and closes that gap without waiting for the DeviceActivity extension's
+    /// 1–2 hour interval boundary. Started by `startShieldHeartbeat()` from
+    /// the `didBecomeActive` notification, stopped on background.
+    private var shieldHeartbeat: Task<Void, Never>?
+
     private static let hasAuthorizedKey = "tuff_hasAuthorizedScreenTime"
     // Shared with the TuffDeviceActivity extension so it can check break state
     static let sharedDefaults = UserDefaults(suiteName: "group.com.collinboler.tuff")
@@ -129,6 +138,33 @@ class ScreenTimeManager: ObservableObject {
         blockSelectedApps()
     }
 
+    /// Start the foreground heartbeat. Safe to call repeatedly (a no-op if
+    /// already running). Cancelled on background or when the user buys a
+    /// break (we don't want to clobber the active break window).
+    func startShieldHeartbeat() {
+        guard isAuthorized else { return }
+        guard shieldHeartbeat == nil else { return }
+        shieldHeartbeat = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    guard let self else { return }
+                    guard self.isAuthorized else { return }
+                    guard self.blockTimerEndDate == nil else { return }
+                    self.blockSelectedApps()
+                }
+            }
+        }
+    }
+
+    /// Stop the foreground heartbeat. Called when the app backgrounds or
+    /// when a break starts (so the heartbeat doesn't fight the unblock).
+    func stopShieldHeartbeat() {
+        shieldHeartbeat?.cancel()
+        shieldHeartbeat = nil
+    }
+
     /// Start a break: unblock apps for `duration`, then automatically re-lock.
     func startBlockTimer(duration: TimeInterval) {
         blockTimerTask?.cancel()
@@ -141,7 +177,9 @@ class ScreenTimeManager: ObservableObject {
         Self.sharedDefaults?.set(end,   forKey: Self.breakEndDateKey)
         Self.sharedDefaults?.set(start, forKey: Self.breakStartDateKey)
 
-        // Unblock apps for the break duration and re-enable app removal
+        // Unblock apps for the break duration and re-enable app removal.
+        // Stop the heartbeat so it doesn't immediately re-shield mid-break.
+        stopShieldHeartbeat()
         store?.clearAllSettings()
         store?.application.denyAppRemoval = false
         isActivelyBlocking = false
@@ -169,6 +207,7 @@ class ScreenTimeManager: ObservableObject {
                 Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
                 self.blockSelectedApps()
                 self.ensureLockedLiveActivity()
+                self.startShieldHeartbeat()
                 // Cancel the one-shot extension schedule (it may not have fired yet)
                 DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
             }
@@ -230,6 +269,7 @@ class ScreenTimeManager: ObservableObject {
         DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
         blockSelectedApps()
         ensureLockedLiveActivity()
+        startShieldHeartbeat()
 
         guard let endDate, let startDate else { return 0 }
 
@@ -290,20 +330,26 @@ class ScreenTimeManager: ObservableObject {
         Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
         blockSelectedApps()
         ensureLockedLiveActivity()
+        startShieldHeartbeat()
     }
 
-    /// Register 24 hourly DeviceActivity schedules as a keep-alive fallback.
+    /// Register 12 × 2-hour DeviceActivity schedules as a keep-alive fallback.
     ///
-    /// Why 24, not 96 (× 15-min)?
-    /// DeviceActivityCenter has a hard limit of ~20 concurrent monitors per app.
-    /// Registering 96 slots with `try?` silently drops most of them AND saturates
-    /// the available slots so the critical one-shot "tuff.breakEnd" schedule
-    /// (registered later when a break starts) can never get a slot — causing the
-    /// post-break relock to silently fail.
+    /// Why 12, not 24 or 96?
+    /// DeviceActivityCenter has a per-app slot cap (~20 historically; not
+    /// officially documented for iOS 17+). When you exceed the cap,
+    /// `try? center.startMonitoring(...)` SILENTLY drops slots — so the
+    /// extension stops getting woken to refresh the shield and the system's
+    /// `ManagedSettings` configuration drifts, which surfaces as "blocking
+    /// fades away after a while".
     ///
-    /// 24 hourly slots stay well under the limit, guaranteeing room for
-    /// "tuff.breakEnd" and capping worst-case latency at ≤60 minutes (the
-    /// one-shot schedule is still the primary sub-minute path).
+    /// 12 slots leaves comfortable headroom for the one-shot
+    /// `tuff.breakEnd` schedule (registered when a break starts) AND for any
+    /// future activity-monitor work without re-introducing the saturation
+    /// failure mode. Worst-case latency for re-applying the shield via the
+    /// extension is now ≤2 hours, which is fine because both
+    /// `intervalDidStart` AND `intervalDidEnd` now re-write the shield
+    /// (see TuffDeviceActivity), so coverage is effectively every ~60 min.
     ///
     /// Only registers once per app session; subsequent calls are no-ops.
     func registerBlockingSchedules() {
@@ -313,22 +359,33 @@ class ScreenTimeManager: ObservableObject {
 
         let center = DeviceActivityCenter()
 
-        // Remove legacy 15-min slots (indices 24–95) that may have been registered by
-        // a previous version and would otherwise occupy DeviceActivityCenter slots.
-        let legacySlots = (24...95).map { DeviceActivityName("tuff.block.\($0)") }
-        center.stopMonitoring(legacySlots)
+        // Remove legacy slot names from previous app versions so they don't
+        // occupy precious slots forever. Old layouts: 96 × 15min, 24 × 1h.
+        let legacy15Min = (0...95).map { DeviceActivityName("tuff.block.\($0)") }
+        center.stopMonitoring(legacy15Min)
 
         let calendar = Calendar.current
         let base = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: Date())!
-        for hour in 0...23 {            // 24 × 60-min slots = full day
-            let startDate = base.addingTimeInterval(TimeInterval(hour * 3600))
-            let endDate   = startDate.addingTimeInterval(59 * 60 + 59)   // 59m 59s window
+        var registered = 0
+        var failed: [Int] = []
+
+        // 12 × 2-hour slots = full day, well under the slot cap.
+        for slotIndex in 0..<12 {
+            let startDate = base.addingTimeInterval(TimeInterval(slotIndex * 2 * 3600))
+            let endDate   = startDate.addingTimeInterval(2 * 60 * 60 - 1) // 1h 59m 59s window
             let start = calendar.dateComponents([.hour, .minute], from: startDate)
             let end   = calendar.dateComponents([.hour, .minute], from: endDate)
             let schedule = DeviceActivitySchedule(intervalStart: start, intervalEnd: end, repeats: true)
-            try? center.startMonitoring(DeviceActivityName("tuff.block.\(hour)"), during: schedule)
+            do {
+                try center.startMonitoring(DeviceActivityName("tuff.keepalive.\(slotIndex)"),
+                                           during: schedule)
+                registered += 1
+            } catch {
+                failed.append(slotIndex)
+                print("[Tuff] keepalive slot \(slotIndex) FAILED: \(error.localizedDescription)")
+            }
         }
-        print("[Tuff] Registered 24 × hourly blocking schedules")
+        print("[Tuff] keepalive schedules registered: \(registered)/12 (failed: \(failed))")
     }
 
     private var schedulesRegistered = false

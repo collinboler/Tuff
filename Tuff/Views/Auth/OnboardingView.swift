@@ -18,13 +18,16 @@ struct OnboardingView: View {
     @State private var showCamera = false
     @State private var showLibrary = false
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var paymentMethod: PaymentMethod = .none
+    @State private var paymentID: String = ""
     @State private var isRequestingScreenTime = false
+    @State private var isFinishing = false
     @FocusState private var focusedField: Field?
 
-    private enum Step: Int { case name, username, photo, screenTime, notifications }
-    private enum Field { case firstName, lastName, username }
+    private enum Step: Int { case name, username, photo, payment, screenTime, notifications }
+    private enum Field { case firstName, lastName, username, paymentID }
 
-    private var totalSteps: Int { 5 }
+    private var totalSteps: Int { 6 }
     private var progressIndex: Int { step.rawValue }
 
     var body: some View {
@@ -42,6 +45,7 @@ struct OnboardingView: View {
                 case .name:          nameStep
                 case .username:      usernameStep
                 case .photo:         photoStep
+                case .payment:       paymentStep
                 case .screenTime:    screenTimeStep
                 case .notifications: notificationsStep
                 }
@@ -264,14 +268,124 @@ struct OnboardingView: View {
 
             VStack(spacing: 12) {
                 continueButton(title: "Continue", disabled: false) {
-                    step = .screenTime
+                    step = .payment
                 }
                 if profileImage == nil {
+                    Button("Skip for now") { step = .payment }
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundColor(TuffColors.textSecondary)
+                }
+            }
+        }
+    }
+
+    // MARK: - Payment step
+
+    private var paymentStep: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("HOW DO YOU GET PAID?")
+                    .font(.system(size: 28, weight: .black, design: .default).width(.condensed))
+                    .foregroundColor(.black)
+                    .tracking(1)
+                Text("Optional. Shown to friends when you win a league so they know how to pay you.")
+                    .font(.system(size: 15))
+                    .foregroundColor(TuffColors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            paymentMethodPicker
+
+            if paymentMethod != .none {
+                paymentIDField
+                    .transition(.opacity)
+            }
+
+            VStack(spacing: 12) {
+                continueButton(
+                    title: "Continue",
+                    disabled: paymentMethod != .none
+                              && paymentMethod.sanitize(paymentID).isEmpty
+                ) {
+                    step = .screenTime
+                }
+                if paymentMethod == .none {
                     Button("Skip for now") { step = .screenTime }
                         .font(.system(size: 15, weight: .medium))
                         .foregroundColor(TuffColors.textSecondary)
                 }
             }
+        }
+        .animation(.easeInOut(duration: 0.18), value: paymentMethod)
+    }
+
+    private var paymentMethodPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("PAYMENT METHOD")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(TuffColors.textSecondary)
+                .tracking(1)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                ForEach(PaymentMethod.allCases) { method in
+                    let isSelected = paymentMethod == method
+                    Button {
+                        paymentMethod = method
+                        if method == .none { paymentID = "" }
+                    } label: {
+                        Text(method.displayName)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(isSelected ? .white : .black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(isSelected ? TuffColors.accent : Color(hex: "F5F5F5"))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(isSelected ? .clear : Color(hex: "E0E0E0"), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var paymentIDField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("PAYMENT ID")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(TuffColors.textSecondary)
+                .tracking(1)
+
+            HStack(spacing: 0) {
+                if paymentMethod == .venmo || paymentMethod == .cashapp {
+                    Text("@")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.black)
+                        .padding(.leading, 16)
+                    Rectangle()
+                        .fill(Color(hex: "E0E0E0"))
+                        .frame(width: 1, height: 22)
+                        .padding(.horizontal, 10)
+                }
+                TextField(paymentMethod.idPlaceholder, text: $paymentID)
+                    .font(.system(size: 17))
+                    .autocapitalization(.none)
+                    .autocorrectionDisabled()
+                    .keyboardType(paymentMethod == .zelle ? .phonePad : .default)
+                    .focused($focusedField, equals: .paymentID)
+                    .onChange(of: paymentID) { _, newVal in
+                        paymentID = paymentMethod.sanitize(newVal)
+                    }
+                    .padding(.horizontal, paymentMethod == .venmo || paymentMethod == .cashapp ? 0 : 16)
+                    .padding(.trailing, 16)
+            }
+            .frame(height: 54)
+            .background(Color(hex: "F5F5F5"))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 
@@ -352,12 +466,19 @@ struct OnboardingView: View {
     // MARK: - Helpers
 
     private func finish() {
-        auth.completeOnboarding(
-            firstName: firstName.trimmingCharacters(in: .whitespaces),
-            lastName: lastName.trimmingCharacters(in: .whitespaces),
-            username: username,
-            profileImage: profileImage
-        )
+        guard !isFinishing else { return }
+        isFinishing = true
+        Task {
+            await auth.completeOnboarding(
+                firstName: firstName.trimmingCharacters(in: .whitespaces),
+                lastName: lastName.trimmingCharacters(in: .whitespaces),
+                username: username,
+                paymentMethod: paymentMethod,
+                paymentID: paymentID,
+                profileImage: profileImage
+            )
+            isFinishing = false
+        }
     }
 
     private func continueButton(title: String, disabled: Bool, action: @escaping () -> Void) -> some View {

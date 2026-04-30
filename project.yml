@@ -11,12 +11,36 @@ settings:
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_TEAM: ""
 
+# Swift Package Manager packages. Declared here so that running `xcodegen
+# generate` doesn't wipe the Firebase dependencies from the .xcodeproj —
+# previously they only existed inside project.pbxproj and any regen erased
+# them, breaking every `import Firebase*` site.
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: 12.10.0
+
 targets:
   Tuff:
     type: application
     platform: iOS
     sources:
       - path: Tuff
+      # Lives at the repo root, not inside Tuff/. Pulled in explicitly so
+      # XcodeGen regen doesn't drop it from the resources build phase, which
+      # would surface at launch as "FirebaseApp.configure() could not find a
+      # valid GoogleService-Info.plist".
+      - path: GoogleService-Info.plist
+        buildPhase: resources
+    dependencies:
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseCore
+      - package: Firebase
+        product: FirebaseFirestore
+      - package: Firebase
+        product: FirebaseStorage
     settings:
       base:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true

@@ -17,6 +17,10 @@ struct League: Identifiable {
     var allowedApps: [String]
     /// Number of apps the creator has marked as always allowed (shown to members).
     var allowedAppsCount: Int
+    /// UIDs that have confirmed they've settled their post-league payout
+    /// (or, for the winner, that they consider themselves paid). Drives the
+    /// "move to Archive" behaviour on the home screen.
+    var paidOutUids: [String]
 
     /// Total virtual pool = sum of all members' boughtCents (including DQ'd).
     var poolCents: Int { members.reduce(0) { $0 + $1.boughtCents } }
@@ -142,6 +146,7 @@ struct League: Identifiable {
             let uid = profile["uid"] as? String ?? ""
             let entry = ledger[uid] ?? [:]
             let todayEntry = todayLedger[uid] as? [String: Any] ?? [:]
+            let methodRaw = profile["paymentMethod"] as? String ?? PaymentMethod.none.rawValue
             let memberUser = TuffUser(
                 id: UUID(),
                 uid: uid,
@@ -153,7 +158,9 @@ struct League: Identifiable {
                 screenTimeMinutes: profile["screenTimeMinutes"] as? Int ?? 0,
                 totalLeagues: 0,
                 leaguesWon: 0,
-                totalEarnings: 0
+                totalEarnings: 0,
+                paymentMethod: PaymentMethod(rawValue: methodRaw) ?? .none,
+                paymentID: profile["paymentID"] as? String ?? ""
             )
             let joinedAt = (profile["joinedAt"] as? Timestamp)?.dateValue()
             return LeagueMember(
@@ -181,9 +188,13 @@ struct League: Identifiable {
             isActive: data["isActive"] as? Bool ?? true,
             members: members,
             allowedApps: data["allowedApps"] as? [String] ?? [],
-            allowedAppsCount: intValue(data["allowedAppsCount"])
+            allowedAppsCount: intValue(data["allowedAppsCount"]),
+            paidOutUids: data["paidOutUids"] as? [String] ?? []
         )
     }
+
+    /// True if the given user has marked their post-league obligation settled.
+    func isPaidOut(uid: String) -> Bool { paidOutUids.contains(uid) }
 
     static func dayKey(for date: Date) -> String {
         let formatter = DateFormatter()

@@ -155,6 +155,13 @@ struct TuffApp: App {
                 screenTimeManager.recheckAuthorization()
                 screenTimeManager.applyAlwaysOnBlocking()
                 screenTimeManager.registerBlockingSchedules()
+                // Re-asserts the shield once a minute while Tuff is open;
+                // closes the gap on the rare iOS-side ManagedSettings drift
+                // that surfaced as "blocking fades away after a while".
+                screenTimeManager.startShieldHeartbeat()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                screenTimeManager.stopShieldHeartbeat()
             }
         }
     }

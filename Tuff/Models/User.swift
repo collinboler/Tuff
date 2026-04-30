@@ -1,6 +1,68 @@
 import Foundation
 import SwiftUI
 
+/// Payment provider the user prefers to be paid through after a league.
+/// Stored on the user doc as the raw `id` string so it survives schema changes.
+enum PaymentMethod: String, CaseIterable, Identifiable, Hashable {
+    case none
+    case venmo
+    case zelle
+    case cashapp
+    case paypal
+    case other
+
+    var id: String { rawValue }
+
+    /// Human-readable label shown in the picker / profile.
+    var displayName: String {
+        switch self {
+        case .none:    return "None"
+        case .venmo:   return "Venmo"
+        case .zelle:   return "Zelle"
+        case .cashapp: return "Cash App"
+        case .paypal:  return "PayPal"
+        case .other:   return "Other"
+        }
+    }
+
+    /// Placeholder hint for the Payment ID field, tailored per provider.
+    var idPlaceholder: String {
+        switch self {
+        case .none:    return ""
+        case .venmo:   return "username"
+        case .zelle:   return "phone or email"
+        case .cashapp: return "cashtag"
+        case .paypal:  return "paypal.me handle or email"
+        case .other:   return "payment details"
+        }
+    }
+
+    /// Render the user's payment ID for display (e.g. Venmo handles get a `@` prefix).
+    func formattedID(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return "" }
+        switch self {
+        case .venmo, .cashapp:
+            return trimmed.hasPrefix("@") ? trimmed : "@\(trimmed)"
+        default:
+            return trimmed
+        }
+    }
+
+    /// Sanitize input as the user types — Venmo/Cash App should never store
+    /// duplicate `@` prefixes; Zelle should keep digits + `+` for phone numbers.
+    func sanitize(_ raw: String) -> String {
+        switch self {
+        case .venmo, .cashapp:
+            var s = raw
+            while s.hasPrefix("@") { s.removeFirst() }
+            return s.trimmingCharacters(in: .whitespaces)
+        default:
+            return raw.trimmingCharacters(in: .whitespaces)
+        }
+    }
+}
+
 struct TuffUser: Identifiable, Hashable {
     let id: UUID
     var uid: String         // Firebase uid
@@ -13,6 +75,21 @@ struct TuffUser: Identifiable, Hashable {
     var totalLeagues: Int
     var leaguesWon: Int
     var totalEarnings: Double
+    var paymentMethod: PaymentMethod
+    var paymentID: String
+
+    /// Display string for "how do I pay this person" — falls back to `@username`
+    /// so payouts always have something to show.
+    var paymentDisplay: String {
+        let formatted = paymentMethod.formattedID(paymentID)
+        if !formatted.isEmpty {
+            return "\(paymentMethod.displayName): \(formatted)"
+        }
+        if !username.isEmpty {
+            return "@\(username)"
+        }
+        return name
+    }
 
     var formattedScreenTime: String {
         let h = screenTimeMinutes / 60
@@ -31,7 +108,8 @@ struct TuffUser: Identifiable, Hashable {
     static var currentUser: TuffUser {
         TuffUser(id: UUID(), uid: "", name: "", username: "", imageName: "",
                  photoURL: nil, isCurrentUser: true, screenTimeMinutes: 0,
-                 totalLeagues: 0, leaguesWon: 0, totalEarnings: 0)
+                 totalLeagues: 0, leaguesWon: 0, totalEarnings: 0,
+                 paymentMethod: .none, paymentID: "")
     }
 }
 

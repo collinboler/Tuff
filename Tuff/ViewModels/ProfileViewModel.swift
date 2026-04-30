@@ -22,7 +22,9 @@ class ProfileViewModel: ObservableObject {
         loadRealUser()
     }
 
-    func updateProfile(firstName: String, lastName: String, username: String, image: UIImage?) async -> String? {
+    func updateProfile(firstName: String, lastName: String, username: String,
+                       paymentMethod: PaymentMethod, paymentID: String,
+                       image: UIImage?) async -> String? {
         guard let firebaseUser = Auth.auth().currentUser else { return "Not signed in" }
         let uid = firebaseUser.uid
         let db = Firestore.firestore()
@@ -60,11 +62,13 @@ class ProfileViewModel: ObservableObject {
             profileImage = img
         }
 
-        // Save to Firestore users doc
+        let cleanPaymentID = paymentMethod.sanitize(paymentID)
         var firestoreUpdate: [String: Any] = [
             "firstName": firstName.trimmingCharacters(in: .whitespaces),
             "lastName": lastName.trimmingCharacters(in: .whitespaces),
-            "username": trimmedUsername
+            "username": trimmedUsername,
+            "paymentMethod": paymentMethod.rawValue,
+            "paymentID": cleanPaymentID
         ]
         if let url = photoURLString { firestoreUpdate["photoURL"] = url }
         do {
@@ -84,6 +88,8 @@ class ProfileViewModel: ObservableObject {
                 for i in profiles.indices where profiles[i]["uid"] as? String == uid {
                     profiles[i]["name"] = fullName
                     profiles[i]["username"] = trimmedUsername
+                    profiles[i]["paymentMethod"] = paymentMethod.rawValue
+                    profiles[i]["paymentID"] = cleanPaymentID
                     if let url = photoURLString { profiles[i]["photoURL"] = url }
                     changed = true
                 }
@@ -95,7 +101,6 @@ class ProfileViewModel: ObservableObject {
             }
         }
 
-        // Update local user
         user = TuffUser(
             id: user.id, uid: uid,
             name: fullName.isEmpty ? "You" : fullName,
@@ -106,7 +111,9 @@ class ProfileViewModel: ObservableObject {
             screenTimeMinutes: user.screenTimeMinutes,
             totalLeagues: user.totalLeagues,
             leaguesWon: user.leaguesWon,
-            totalEarnings: user.totalEarnings
+            totalEarnings: user.totalEarnings,
+            paymentMethod: paymentMethod,
+            paymentID: cleanPaymentID
         )
         return nil
     }
@@ -128,6 +135,7 @@ class ProfileViewModel: ObservableObject {
             let fullName  = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
             let phone     = data["phone"]     as? String ?? firebaseUser.phoneNumber ?? ""
 
+            let methodRaw = data["paymentMethod"] as? String ?? PaymentMethod.none.rawValue
             self.user = TuffUser(
                 id: self.user.id,
                 uid: uid,
@@ -139,7 +147,9 @@ class ProfileViewModel: ObservableObject {
                 screenTimeMinutes: self.user.screenTimeMinutes,
                 totalLeagues: self.user.totalLeagues,
                 leaguesWon: self.user.leaguesWon,
-                totalEarnings: self.user.totalEarnings
+                totalEarnings: self.user.totalEarnings,
+                paymentMethod: PaymentMethod(rawValue: methodRaw) ?? .none,
+                paymentID: data["paymentID"] as? String ?? ""
             )
 
             // If there's a remote photo and no local cache, download it

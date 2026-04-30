@@ -20,16 +20,75 @@ class HomeViewModel: ObservableObject {
     @Published var showLeagueEndedSheet = false
 
     private var leaguesListener: ListenerRegistration?
+    private var implicitFriendsListener: ListenerRegistration?
+    private var notificationsListener: ListenerRegistration?
     private var resolvedPhotoURLsByUID: [String: String] = [:]
     private var photoFetchInFlight: Set<String> = []
+    /// Friend uids (excluding self) whose timer is still alive. Refreshed by
+    /// `ImplicitFriendsService` whenever leagues change.
+    private var implicitFriendUids: [String: ImplicitFriendEntry] = [:]
     /// League IDs for which we've already notified / shown the end sheet
     /// during this app lifetime — prevents repeatedly firing when Firestore
     /// snapshots re-emit.
     private var processedEndedLeagueIDs: Set<String> = []
+    /// Per-league record of who held first place during the previous snapshot.
+    /// Used to fire the "You're winning in [League]" notification when the
+    /// current user takes the lead more than 24h after the league started.
+    private var previousLeaderUidByLeague: [String: String] = [:]
+
+    /// Snapshot of `boughtCents` per (leagueId, uid). Used by
+    /// `detectBuyTimeLaggards` to detect when *another* member transitions
+    /// from 0 → >0 cents (i.e. just made a buy).
+    private var previousBoughtCentsByLeague: [String: [String: Int]] = [:]
 
     init() {
         loadCurrentUser()
         startLeaguesListener()
+        startImplicitFriendsListener()
+        startNotificationsListener()
+    }
+
+    private func startImplicitFriendsListener() {
+        implicitFriendsListener = ImplicitFriendsService.shared.observe { [weak self] entries in
+            guard let self else { return }
+            var byUid: [String: ImplicitFriendEntry] = [:]
+            for entry in entries { byUid[entry.uid] = entry }
+            self.implicitFriendUids = byUid
+            self.refreshSelectedCarouselUser()
+            self.objectWillChange.send()
+        }
+    }
+
+    /// Listens for cross-user notifications written into
+    /// `users/{myUid}/notifications` (e.g. someone paying me out for a league).
+    /// New entries are surfaced as local notifications and then marked
+    /// `delivered` so they aren't replayed on next launch.
+    private func startNotificationsListener() {
+        guard let myUid = Auth.auth().currentUser?.uid else { return }
+        let db = Firestore.firestore()
+        notificationsListener = db.collection("users").document(myUid)
+            .collection("notifications")
+            .whereField("delivered", isEqualTo: false)
+            .addSnapshotListener { [weak self] snapshot, _ in
+                guard let self, let docs = snapshot?.documents else { return }
+                Task { @MainActor in
+                    for doc in docs {
+                        let data = doc.data()
+                        let title = data["title"] as? String ?? "Tuff"
+                        let body  = data["body"]  as? String ?? ""
+                        NotificationManager.shared.fireImmediate(
+                            id: "remote_\(doc.documentID)",
+                            title: title,
+                            body: body
+                        )
+                        try? await doc.reference.updateData([
+                            "delivered": true,
+                            "deliveredAt": FieldValue.serverTimestamp()
+                        ])
+                    }
+                    _ = self
+                }
+            }
     }
 
     // MARK: - Load real user
@@ -45,6 +104,7 @@ class HomeViewModel: ObservableObject {
             let lastName  = data["lastName"]  as? String ?? ""
             let fullName  = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
             let username  = data["username"]  as? String ?? firebaseUser.phoneNumber ?? ""
+            let methodRaw = data["paymentMethod"] as? String ?? PaymentMethod.none.rawValue
             let user = TuffUser(
                 id: UUID(),
                 uid: uid,
@@ -56,7 +116,9 @@ class HomeViewModel: ObservableObject {
                 screenTimeMinutes: data["screenTimeMinutes"] as? Int ?? 0,
                 totalLeagues: data["totalLeagues"] as? Int ?? 0,
                 leaguesWon: data["leaguesWon"] as? Int ?? 0,
-                totalEarnings: data["totalEarnings"] as? Double ?? 0
+                totalEarnings: data["totalEarnings"] as? Double ?? 0,
+                paymentMethod: PaymentMethod(rawValue: methodRaw) ?? .none,
+                paymentID: data["paymentID"] as? String ?? ""
             )
             self.currentUser = user
             if let photoURL = user.photoURL, !photoURL.isEmpty {
@@ -83,10 +145,14 @@ class HomeViewModel: ObservableObject {
                     // All leaderboard data (boughtCents/boughtMinutes) lives in the league
                     // document's `ledger` map and is parsed directly by League.from().
                     // No secondary user-document reads are needed.
-                    self.leagues = docs.compactMap { League.from($0.data(), id: $0.documentID) }
+                    let newLeagues = docs.compactMap { League.from($0.data(), id: $0.documentID) }
+                    self.detectFirstPlaceTransitions(newLeagues: newLeagues)
+                    self.detectBuyTimeLaggards(newLeagues: newLeagues)
+                    self.leagues = newLeagues
                     self.resolveMissingMemberPhotoURLs()
                     self.refreshSelectedCarouselUser()
                     self.checkForNewlyEndedLeagues()
+                    Task { await ImplicitFriendsService.shared.refreshFromAllLeagues(newLeagues) }
                 }
             }
     }
@@ -269,6 +335,137 @@ class HomeViewModel: ObservableObject {
 
     deinit {
         leaguesListener?.remove()
+        implicitFriendsListener?.remove()
+        notificationsListener?.remove()
+    }
+
+    // MARK: - First-place detection
+
+    /// Compares the leader (lowest boughtCents, non-DQ) in each new snapshot
+    /// against the previous snapshot. If the current user just took 1st place
+    /// AND the league has been running for at least 24h, fire a local
+    /// "You're winning" notification.
+    private func detectFirstPlaceTransitions(newLeagues: [League]) {
+        guard let uid = Auth.auth().currentUser?.uid, !uid.isEmpty else { return }
+        let now = Date()
+
+        for league in newLeagues {
+            guard !league.hasEnded else {
+                previousLeaderUidByLeague[league.id] = nil
+                continue
+            }
+            let active = league.members.filter { !$0.isDQ }
+            guard let leader = active.min(by: { $0.boughtCents < $1.boughtCents }) else { continue }
+            let leaderUid = leader.user.uid
+            let previous = previousLeaderUidByLeague[league.id]
+            previousLeaderUidByLeague[league.id] = leaderUid
+
+            // Only notify on actual transitions where I'm the new leader. Skip
+            // the very first snapshot (`previous == nil`) so we don't spam the
+            // user with "you're winning" the moment we open the app.
+            guard previous != nil, previous != leaderUid, leaderUid == uid else { continue }
+            guard now.timeIntervalSince(league.startDate) >= 24 * 60 * 60 else { continue }
+
+            NotificationManager.shared.scheduleTookFirstPlaceNotification(
+                leagueId: league.id,
+                leagueName: league.name
+            )
+        }
+    }
+
+    // MARK: - Laggard detection
+
+    /// When another member just bought time in a league older than 2 days and
+    /// I haven't bought anything yet, schedule a 2-minute delayed local
+    /// notification reminding me I'm falling behind. Cancels the pending
+    /// reminder if I subsequently buy time before the 2 minutes elapses.
+    ///
+    /// Each device runs this independently against its own listener snapshot,
+    /// so the notification fires on the laggard's phone without needing a
+    /// server-side push.
+    private func detectBuyTimeLaggards(newLeagues: [League]) {
+        guard let myUid = Auth.auth().currentUser?.uid, !myUid.isEmpty else { return }
+        let now = Date()
+        let twoDays: TimeInterval = 2 * 24 * 60 * 60
+
+        for league in newLeagues {
+            guard !league.hasEnded else {
+                previousBoughtCentsByLeague[league.id] = nil
+                continue
+            }
+
+            // Build a fresh snapshot for next iteration.
+            var currentSnapshot: [String: Int] = [:]
+            for m in league.members {
+                currentSnapshot[m.user.uid] = m.boughtCents
+            }
+            let previousSnapshot = previousBoughtCentsByLeague[league.id]
+            defer { previousBoughtCentsByLeague[league.id] = currentSnapshot }
+
+            // Need a baseline + the league must be old enough for the rule to apply.
+            guard let previous = previousSnapshot else { continue }
+            guard now.timeIntervalSince(league.startDate) >= twoDays else { continue }
+
+            // Did I just buy time? Cancel any pending laggard reminder for myself.
+            let myCurrent = currentSnapshot[myUid] ?? 0
+            let myPrevious = previous[myUid] ?? 0
+            if myPrevious == 0 && myCurrent > 0 {
+                NotificationManager.shared.cancelLaggardReminder(
+                    leagueId: league.id,
+                    laggardUid: myUid
+                )
+            }
+
+            // Only schedule a reminder for myself if I'm the laggard.
+            guard myCurrent == 0 else { continue }
+
+            // Did *anyone else* transition from 0 → >0 cents in this snapshot?
+            let someoneJustBought = league.members.contains { m in
+                guard m.user.uid != myUid else { return false }
+                let prev = previous[m.user.uid] ?? 0
+                let cur  = currentSnapshot[m.user.uid] ?? 0
+                return prev == 0 && cur > 0
+            }
+            guard someoneJustBought else { continue }
+
+            // Show my own name in the body — the reminder is a self-callout
+            // ("Brian has not bought anything yet"). Falls back to "You" when
+            // the user record hasn't loaded yet.
+            let myName: String = {
+                if !currentUser.name.isEmpty && currentUser.name != "You" {
+                    return currentUser.name
+                }
+                if let me = league.members.first(where: { $0.user.uid == myUid }),
+                   !me.user.name.isEmpty {
+                    return me.user.name
+                }
+                return "You"
+            }()
+
+            NotificationManager.shared.scheduleLaggardReminder(
+                leagueId: league.id,
+                laggardUid: myUid,
+                laggardName: myName
+            )
+        }
+    }
+
+    // MARK: - Archive
+
+    /// Active leagues = anything not yet ended OR ended-but-not-paid-out by me.
+    /// These render in the main "LEAGUES" list so I can still pay out from them.
+    var activeLeagues: [League] {
+        guard let uid = Auth.auth().currentUser?.uid else { return leagues }
+        return leagues.filter { !$0.hasEnded || !$0.isPaidOut(uid: uid) }
+    }
+
+    /// Archived leagues = ended AND I've confirmed payout/settlement.
+    /// Sorted newest-first so the most recently settled appears at the top.
+    var archivedLeagues: [League] {
+        guard let uid = Auth.auth().currentUser?.uid else { return [] }
+        return leagues
+            .filter { $0.hasEnded && $0.isPaidOut(uid: uid) }
+            .sorted { $0.endDate > $1.endDate }
     }
 
     // MARK: - Join by invite code
@@ -296,7 +493,9 @@ class HomeViewModel: ObservableObject {
                 "name": "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces),
                 "username": username,
                 "screenTimeMinutes": 0,
-                "joinedAt": Timestamp(date: Date())
+                "joinedAt": Timestamp(date: Date()),
+                "paymentMethod": userData?["paymentMethod"] as? String ?? PaymentMethod.none.rawValue,
+                "paymentID": userData?["paymentID"] as? String ?? ""
             ]
             if let photoURL = userData?["photoURL"] as? String {
                 memberProfile["photoURL"] = photoURL
@@ -306,6 +505,8 @@ class HomeViewModel: ObservableObject {
                 "memberUids": FieldValue.arrayUnion([uid]),
                 "memberProfiles": FieldValue.arrayUnion([memberProfile])
             ])
+            // Refresh implicit-friends ledger for both me and the new co-members.
+            await ImplicitFriendsService.shared.refreshAfterJoin(leagueId: leagueId)
             return nil
         } catch {
             return error.localizedDescription
@@ -323,11 +524,35 @@ class HomeViewModel: ObservableObject {
         user.uid.isEmpty ? user.id.uuidString : user.uid
     }
 
+    /// Carousel = current user + every implicit friend (last 30 days).
+    /// Daily-spent figures still come from active leagues so the panel updates
+    /// in real time, but absence from a current league no longer hides a
+    /// friend — they stay visible until their implicit-friend timer expires.
     private func buildCarouselAggregates() -> [String: CarouselAggregate] {
         var aggregates: [String: CarouselAggregate] = [:]
 
         let currentKey = userKey(for: currentUser)
         aggregates[currentKey] = CarouselAggregate(user: currentUser, dailyCents: 0)
+
+        for entry in implicitFriendUids.values {
+            guard !entry.uid.isEmpty, entry.uid != currentUser.uid else { continue }
+            let user = TuffUser(
+                id: UUID(),
+                uid: entry.uid,
+                name: entry.name,
+                username: entry.username,
+                imageName: "",
+                photoURL: entry.photoURL.flatMap { $0.isEmpty ? nil : $0 },
+                isCurrentUser: false,
+                screenTimeMinutes: 0,
+                totalLeagues: 0,
+                leaguesWon: 0,
+                totalEarnings: 0,
+                paymentMethod: PaymentMethod(rawValue: entry.paymentMethod) ?? .none,
+                paymentID: entry.paymentID
+            )
+            aggregates[entry.uid] = CarouselAggregate(user: user, dailyCents: 0)
+        }
 
         for league in leagues {
             // Ended leagues are settled — their today/daily spend should no

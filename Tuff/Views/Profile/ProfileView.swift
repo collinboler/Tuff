@@ -23,11 +23,7 @@ struct ProfileView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Combined header: profile info + icons all top-aligned
             profileHeader
-
-            statsRow
-                .padding(.bottom, 14)
 
             if !viewModel.leagueHistory.isEmpty {
                 leagueHistory
@@ -129,33 +125,6 @@ struct ProfileView: View {
         .padding(.bottom, 14)
     }
 
-    // MARK: - Stats Row
-
-    private var statsRow: some View {
-        HStack(spacing: 8) {
-            profileStatBlock(value: "\(viewModel.user.totalLeagues)", label: "Leagues")
-            profileStatBlock(value: "\(viewModel.user.leaguesWon)", label: "Won", isGreen: true)
-            profileStatBlock(value: viewModel.totalEarningsFormatted, label: "Earned", isGreen: true)
-        }
-        .padding(.horizontal, 20)
-    }
-
-    private func profileStatBlock(value: String, label: String, isGreen: Bool = false) -> some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(TuffFonts.profileStatValue())
-                .foregroundColor(isGreen ? TuffColors.accent : .white)
-            Text(label.uppercased())
-                .font(TuffFonts.profileStatLabel())
-                .foregroundColor(.gray)
-                .tracking(0.08 * 10)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(TuffColors.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
     // MARK: - League History
 
     private var leagueHistory: some View {
@@ -227,6 +196,8 @@ struct EditProfileView: View {
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var username = ""
+    @State private var paymentMethod: PaymentMethod = .none
+    @State private var paymentID: String = ""
     @State private var newImage: UIImage? = nil
     @State private var showSourcePicker = false
     @State private var showCamera = false
@@ -301,6 +272,8 @@ struct EditProfileView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
 
+                    paymentSection
+
                     if let err = errorMessage {
                         Text(err).font(.system(size: 13)).foregroundColor(.red)
                     }
@@ -323,6 +296,8 @@ struct EditProfileView: View {
                                 firstName: firstName,
                                 lastName: lastName,
                                 username: username,
+                                paymentMethod: paymentMethod,
+                                paymentID: paymentID,
                                 image: newImage
                             ) {
                                 errorMessage = err
@@ -344,7 +319,10 @@ struct EditProfileView: View {
             firstName = parts.first.map(String.init) ?? ""
             lastName  = parts.dropFirst().first.map(String.init) ?? ""
             username  = viewModel.user.username
+            paymentMethod = viewModel.user.paymentMethod
+            paymentID = viewModel.user.paymentID
         }
+        .animation(.easeInOut(duration: 0.18), value: paymentMethod)
         .confirmationDialog("Change Photo", isPresented: $showSourcePicker) {
             if UIImagePickerController.isSourceTypeAvailable(.camera) {
                 Button("Take Photo") { showCamera = true }
@@ -367,6 +345,76 @@ struct EditProfileView: View {
                     }
                 }
                 .presentationDetents([.medium])
+        }
+    }
+
+    // MARK: - Payment Section
+
+    private var paymentSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("PAYMENT METHOD")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(TuffColors.textSecondary)
+                .tracking(1)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                ForEach(PaymentMethod.allCases) { method in
+                    let isSelected = paymentMethod == method
+                    Button {
+                        paymentMethod = method
+                        if method == .none { paymentID = "" }
+                    } label: {
+                        Text(method.displayName)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(isSelected ? .white : .black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(isSelected ? TuffColors.accent : Color(hex: "F5F5F5"))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(isSelected ? .clear : Color(hex: "E0E0E0"), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if paymentMethod != .none {
+                Text("PAYMENT ID")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(TuffColors.textSecondary)
+                    .tracking(1)
+                    .padding(.top, 2)
+
+                HStack(spacing: 0) {
+                    if paymentMethod == .venmo || paymentMethod == .cashapp {
+                        Text("@")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.black)
+                            .padding(.leading, 12)
+                        Rectangle()
+                            .fill(Color(hex: "E0E0E0"))
+                            .frame(width: 1, height: 20)
+                            .padding(.horizontal, 8)
+                    }
+                    TextField(paymentMethod.idPlaceholder, text: $paymentID)
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled()
+                        .keyboardType(paymentMethod == .zelle ? .phonePad : .default)
+                        .onChange(of: paymentID) { _, newVal in
+                            paymentID = paymentMethod.sanitize(newVal)
+                        }
+                        .padding(.horizontal,
+                                 paymentMethod == .venmo || paymentMethod == .cashapp ? 0 : 12)
+                        .padding(.trailing, 12)
+                }
+                .frame(height: 48)
+                .background(Color(hex: "F5F5F5"))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
         }
     }
 }

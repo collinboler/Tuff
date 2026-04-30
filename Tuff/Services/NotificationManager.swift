@@ -112,6 +112,63 @@ class NotificationManager: ObservableObject {
         UNUserNotificationCenter.current().add(request)
     }
 
+    /// Generic single-shot local notification with a stable identifier so
+    /// callers can replace any pending duplicate. Used by the cross-user
+    /// payout/notifications relay in HomeViewModel and by the laggard /
+    /// took-first-place triggers below.
+    func fireImmediate(id: String, title: String, body: String, after seconds: TimeInterval = 1) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(seconds, 0.1), repeats: false)
+        let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    /// "You're winning in [League]" — fired when the user moves into 1st place
+    /// at least 24h into the league (see HomeViewModel.detectFirstPlaceTransitions).
+    func scheduleTookFirstPlaceNotification(leagueId: String, leagueName: String) {
+        fireImmediate(
+            id: "league_first_place_\(leagueId)",
+            title: "You're winning in \(leagueName)",
+            body: "Lowest spent right now — keep it up to take the pool."
+        )
+    }
+
+    /// "[Name] has not bought anything yet" — scheduled 2 minutes after the
+    /// current user buys a break in a league that's more than 2 days old, when
+    /// at least one other member hasn't yet bought time. The reminder is
+    /// cancelled (see ScreenTimeManager.buyBreak) if the laggard buys first.
+    func scheduleLaggardReminder(leagueId: String,
+                                 laggardUid: String,
+                                 laggardName: String,
+                                 delay: TimeInterval = 120) {
+        let content = UNMutableNotificationContent()
+        content.title = "Heads up"
+        content.body = "\(laggardName) has not bought anything yet"
+        content.sound = .default
+
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: max(delay, 5),
+            repeats: false
+        )
+        let id = laggardReminderId(leagueId: leagueId, laggardUid: laggardUid)
+        let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Cancels a pending laggard reminder for the given league + laggard pair.
+    /// Called when the laggard finally buys time inside the 2-minute window.
+    func cancelLaggardReminder(leagueId: String, laggardUid: String) {
+        let id = laggardReminderId(leagueId: leagueId, laggardUid: laggardUid)
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
+    }
+
+    private func laggardReminderId(leagueId: String, laggardUid: String) -> String {
+        "laggard_\(leagueId)_\(laggardUid)"
+    }
+
     func registerNotificationCategories() {
         let checkAction = UNNotificationAction(
             identifier: "CHECK_LEAGUE",

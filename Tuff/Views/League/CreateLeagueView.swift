@@ -288,7 +288,9 @@ struct CreateLeagueView: View {
             "name": "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces),
             "username": username,
             "screenTimeMinutes": 0,
-            "joinedAt": Timestamp(date: Date())
+            "joinedAt": Timestamp(date: Date()),
+            "paymentMethod": userData?["paymentMethod"] as? String ?? PaymentMethod.none.rawValue,
+            "paymentID": userData?["paymentID"] as? String ?? ""
         ]
         if let photoURL = userData?["photoURL"] as? String {
             memberProfile["photoURL"] = photoURL
@@ -311,8 +313,8 @@ struct CreateLeagueView: View {
                 "createdAt": FieldValue.serverTimestamp()
             ])
 
-            // Save the token selection locally so blocking immediately respects it
             await ScreenTimeManager.shared.saveAllowedSelection(allowedAppSelection)
+            await ImplicitFriendsService.shared.refreshAfterJoin(leagueId: docRef.documentID)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
