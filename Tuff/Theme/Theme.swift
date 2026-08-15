@@ -251,3 +251,13 @@ extension Color {
         )
     }
 }
+
+// MARK: - Shared button affordance (used across Home, legacy league UI, etc.)
+
+struct PressableButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}

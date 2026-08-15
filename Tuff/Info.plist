@@ -42,7 +42,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Tuff uses your camera to set a profile photo.</string>
+	<string>Tuff uses the camera for your profile photo and for pose‑based reps when you unlock apps with workouts.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Tuff accesses your photo library to set a profile photo.</string>
 	<key>NSSupportsLiveActivities</key>

@@ -1,5 +1,5 @@
-import Foundation
 import ManagedSettings
+import UIKit
 
 class TuffShieldActionExtension: ShieldActionDelegate {
 
@@ -8,8 +8,7 @@ class TuffShieldActionExtension: ShieldActionDelegate {
         for application: ApplicationToken,
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
-        // "Stay Focused" — just dismiss, never unblock
-        completionHandler(.close)
+        handle(action: action, completionHandler: completionHandler)
     }
 
     override func handle(
@@ -26,5 +25,22 @@ class TuffShieldActionExtension: ShieldActionDelegate {
         completionHandler: @escaping (ShieldActionResponse) -> Void
     ) {
         completionHandler(.close)
+    }
+
+    private func handle(
+        action: ShieldAction,
+        completionHandler: @escaping (ShieldActionResponse) -> Void
+    ) {
+        switch action {
+        case .secondaryButtonPressed:
+            if let url = URL(string: "tuff://challenge") {
+                UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            }
+            completionHandler(.close)
+        case .primaryButtonPressed:
+            completionHandler(.close)
+        @unknown default:
+            completionHandler(.close)
+        }
     }
 }

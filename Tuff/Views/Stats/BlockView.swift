@@ -1,362 +1,300 @@
 import SwiftUI
+import FamilyControls
 import FirebaseAuth
 
+/// Screen Time “block” hub: pick distracting apps, earn limited unlocks via challenges.
 struct BlockView: View {
     @EnvironmentObject var screenTimeManager: ScreenTimeManager
     @EnvironmentObject var homeViewModel: HomeViewModel
 
-    @State private var selectedMinutes: Int = 15
-    @State private var isBuying = false
-    @State private var isEndingBreak = false
+    @State private var pickerSelection = FamilyActivitySelection()
+    @State private var showBlockedPicker = false
 
-    private let breakOptions: [(label: String, minutes: Int)] = [
-        ("1 min", 1),
+    @State private var challengeKind = UnlockChallengeKind.loadSaved()
+    @State private var selectedUnlockMinutes = 15
+
+    @State private var showChallengeFlow = false
+    @State private var showFlashcardEditor = false
+
+    @State private var isEndingUnlock = false
+
+    private let unlockOptions: [(label: String, minutes: Int)] = [
         ("5 min", 5),
+        ("10 min", 10),
         ("15 min", 15),
+        ("20 min", 20),
         ("30 min", 30),
-        ("1 hr", 60),
-        ("2 hr", 120),
-        ("4 hr", 240)
+        ("45 min", 45)
     ]
 
-    private var isOnBreak: Bool { screenTimeManager.blockTimerEndDate != nil }
+    private var hasBlockingSelections: Bool { screenTimeManager.blockedAppSelection.tuffHasBlockingSelections }
+
+    private var blockingSubtitle: String {
+        let s = screenTimeManager.blockedAppSelection
+        let a = s.applicationTokens.count
+        let c = s.categoryTokens.count
+        guard a > 0 || c > 0 else { return "" }
+        if a > 0 && c > 0 { return "\(a) apps · \(c) categories shielded" }
+        if c > 0 { return "\(c) categor\(c == 1 ? "y" : "ies") shielded" }
+        return "\(a) app\(a == 1 ? "" : "s") shielded"
+    }
+
+    private var isOnUnlockSession: Bool { screenTimeManager.blockTimerEndDate != nil }
     private var activeLeagues: [League] { homeViewModel.leagues.filter { $0.isActive } }
 
     var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                Spacer()
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 26) {
+                    if isOnUnlockSession {
+                        unlockSessionCard
+                    } else {
+                        idleHeader
+                    }
 
-                if isOnBreak {
-                    breakActiveView
-                } else {
-                    buyBreakView
-                }
+                    configurationCard
 
-                Spacer()
-            }
-        }
-    }
+                    if !isOnUnlockSession {
+                        startChallengeCard
+                    }
 
-    // MARK: - Break Active
-
-    private var breakActiveView: some View {
-        VStack(spacing: 32) {
-            VStack(spacing: 8) {
-                Image(systemName: "lock.open.fill")
-                    .font(.system(size: 52))
-                    .foregroundColor(TuffColors.accent)
-
-                Text("BREAK ACTIVE")
-                    .font(.system(size: 22, weight: .black, design: .default).width(.condensed))
-                    .foregroundColor(.black)
-                    .tracking(1)
-
-                if let end = screenTimeManager.blockTimerEndDate {
-                    Text(timerInterval: Date()...end, countsDown: true)
-                        .font(.system(size: 42, weight: .black, design: .monospaced).monospacedDigit())
-                        .foregroundColor(TuffColors.accent)
-                }
-
-                Text("Apps unlocked until break ends")
-                    .font(.system(size: 14))
-                    .foregroundColor(TuffColors.textSecondary)
-
-                if !screenTimeManager.liveActivitiesEnabled {
-                    Label("Enable Live Activities in Settings › Tuff to see the timer in your Dynamic Island", systemImage: "bell.slash")
+                    Text("Up to Screen Time limits (roughly 50 app and category tokens combined). You can choose individual apps or whole categories—category picks count even when the app-token count stayed at zero.")
                         .font(.system(size: 12))
                         .foregroundColor(TuffColors.textSecondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                }
-            }
-
-            if !activeLeagues.isEmpty {
-                VStack(spacing: 6) {
-                    Text("LEDGER UPDATE")
-                        .font(TuffFonts.sectionHeader())
-                        .foregroundColor(TuffColors.textSecondary)
-                        .tracking(0.15 * 12)
-                    ForEach(activeLeagues) { league in
-                        HStack {
-                            Text(league.name)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.black)
-                            Spacer()
-                            Text("–\(breakCostText(minutes: selectedMinutes, league: league))")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(.red)
-                        }
                         .padding(.horizontal, 20)
-                    }
                 }
-                .padding(.vertical, 12)
-                .background(Color(hex: "F8F8F8"))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 32)
+                .padding(.vertical, 28)
             }
-
-            VStack(spacing: 8) {
-                if let savings = refundSummaryText {
-                    Text(savings)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(TuffColors.accent)
-                }
-
-                Button {
-                    guard !isEndingBreak else { return }
-                    isEndingBreak = true
-                    guard let uid = Auth.auth().currentUser?.uid else {
-                        screenTimeManager.cancelBlockTimer()
-                        isEndingBreak = false
-                        return
-                    }
-                    let leagues = activeLeagues
-                    let refundMins = refundMinutesAvailable
-                    if refundMins > 0 {
-                        homeViewModel.applyOptimisticRefund(uid: uid, refundMinutes: refundMins)
-                    }
-                    Task {
-                        await screenTimeManager.cancelBreakEarly(uid: uid, leagues: leagues)
-                        await MainActor.run { isEndingBreak = false }
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        if isEndingBreak {
-                            ProgressView().tint(.white)
-                        } else {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 15, weight: .semibold))
-                            Text("End Break Early")
-                                .font(.system(size: 16, weight: .bold))
-                        }
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.red.opacity(0.88)))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.white.opacity(0.16), lineWidth: 1)
-                    )
-                }
-                .disabled(isEndingBreak)
-                .padding(.horizontal, 40)
-                .buttonStyle(PressableButtonStyle())
-            }
+        }
+        .sheet(isPresented: $showBlockedPicker) {
+            blockedAppsPickerSheet
+        }
+        .sheet(isPresented: $showFlashcardEditor) {
+            UnlockFlashcardEditorSheet()
+        }
+        .fullScreenCover(isPresented: $showChallengeFlow) {
+            ChallengeGateView(
+                preferredKind: challengeKind,
+                unlockMinutes: selectedUnlockMinutes,
+                onDismiss: { showChallengeFlow = false },
+                onEarnedUnlock: { showChallengeFlow = false }
+            )
+            .environmentObject(screenTimeManager)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .tuffOpenChallengeGate)) { _ in
+            showChallengeFlow = true
+        }
+        .onChange(of: showBlockedPicker) { _, open in
+            if open { pickerSelection = screenTimeManager.blockedAppSelection }
         }
     }
 
-    // MARK: - Buy Break
+    // MARK: - Sections
 
-    private var buyBreakView: some View {
-        VStack(spacing: 28) {
-            lockStatusHeader
-
-            durationPicker
-
-            if !activeLeagues.isEmpty {
-                costBreakdown
-            }
-
-            buyButton
-        }
-    }
-
-    private var lockStatusHeader: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "lock.fill")
+    private var idleHeader: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "hand.raised.fill")
                 .font(.system(size: 44))
                 .foregroundColor(.black)
-
-            Text("APPS LOCKED")
-                .font(.system(size: 22, weight: .black, design: .default).width(.condensed))
-                .foregroundColor(.black)
+            Text("FOCUSED BLOCKING")
+                .font(.system(size: 22, weight: .black).width(.condensed))
                 .tracking(1)
-
-            Text("All app categories blocked by your league")
+            Text("Shield only the temptations you picked. Earn time off with a challenge.")
                 .font(.system(size: 14))
                 .foregroundColor(TuffColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 36)
         }
     }
 
-    private var durationPicker: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("BREAK DURATION")
-                .font(TuffFonts.sectionHeader())
-                .foregroundColor(TuffColors.textSecondary)
-                .tracking(0.15 * 12)
-                .padding(.horizontal, 24)
+    private var unlockSessionCard: some View {
+        VStack(spacing: 22) {
+            VStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 42))
+                    .foregroundColor(TuffColors.accent)
+                Text("UNLOCK ACTIVE")
+                    .font(.system(size: 20, weight: .heavy).width(.condensed))
+                if let end = screenTimeManager.blockTimerEndDate {
+                    Text(timerInterval: Date()...end, countsDown: true)
+                        .font(.system(size: 40, weight: .black, design: .monospaced).monospacedDigit())
+                        .foregroundColor(TuffColors.accent)
+                }
+                Text("Blocked apps open normally until this timer ends.")
+                    .font(.system(size: 13))
+                    .foregroundColor(TuffColors.textSecondary)
+            }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(breakOptions, id: \.minutes) { option in
-                        let isSelected = selectedMinutes == option.minutes
-                        Button {
-                            selectedMinutes = option.minutes
-                        } label: {
-                            VStack(spacing: 2) {
-                                Text(option.label)
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(isSelected ? .white : .black)
-                                if !activeLeagues.isEmpty, let firstLeague = activeLeagues.first {
-                                    Text(breakCostText(minutes: option.minutes, league: firstLeague))
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundColor(isSelected ? Color.white.opacity(0.8) : TuffColors.textSecondary)
-                                }
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(isSelected ? TuffColors.accent : Color(hex: "F0F0F0"))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(isSelected ? TuffColors.accent.opacity(0.95) : Color(hex: "E0E0E0"), lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(PressableButtonStyle())
+            Button {
+                guard !isEndingUnlock else { return }
+                isEndingUnlock = true
+                let uid = Auth.auth().currentUser?.uid ?? ""
+                let leagues = activeLeagues
+                Task {
+                    await screenTimeManager.cancelBreakEarly(uid: uid, leagues: leagues)
+                    await MainActor.run { isEndingUnlock = false }
+                }
+            } label: {
+                HStack {
+                    if isEndingUnlock { ProgressView().tint(.white) }
+                    else {
+                        Image(systemName: "lock.fill")
+                        Text("End unlock early")
+                            .font(.system(size: 16, weight: .bold))
                     }
                 }
-                .padding(.horizontal, 24)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(RoundedRectangle(cornerRadius: 16).fill(Color.red.opacity(0.88)))
+            }
+            .disabled(isEndingUnlock)
+            .padding(.horizontal, 24)
+        }
+    }
+
+    private var configurationCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader("APPS TO BLOCK")
+            Button {
+                showBlockedPicker = true
+            } label: {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(hasBlockingSelections ? blockingSubtitle : "Choose distracting apps or categories.")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(.black)
+                        Text("Uses the private Apple picker — Tuff never sees app names.")
+                            .font(.system(size: 12))
+                            .foregroundColor(TuffColors.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(TuffColors.accent)
+                }
+                .padding(16)
+                .background(RoundedRectangle(cornerRadius: 14).fill(Color(hex: "F6F6F6")))
+            }
+
+            sectionHeader("DEFAULT CHALLENGE")
+            Picker("Challenge", selection: $challengeKind) {
+                ForEach(UnlockChallengeKind.allCases) { kind in
+                    Text(kind.title).tag(kind)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(.black)
+            .onChange(of: challengeKind) { _, new in new.savePreferred() }
+
+            Text(challengeKind.subtitle)
+                .font(.system(size: 12))
+                .foregroundColor(TuffColors.textSecondary)
+
+            if challengeKind == .flashcardQuiz {
+                Button {
+                    showFlashcardEditor = true
+                } label: {
+                    Label("Edit flashcard deck", systemImage: "rectangle.on.rectangle.angled")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(TuffColors.accent)
+                }
+            }
+
+            sectionHeader("UNLOCK LENGTH")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(unlockOptions, id: \.minutes) { opt in
+                        let selected = selectedUnlockMinutes == opt.minutes
+                        Button {
+                            selectedUnlockMinutes = opt.minutes
+                        } label: {
+                            Text(opt.label)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(selected ? .black : TuffColors.textSecondary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(selected ? TuffColors.accent : Color(hex: "EEEEEE"))
+                                )
+                        }
+                    }
+                }
                 .padding(.vertical, 4)
             }
         }
+        .padding(.horizontal, 20)
     }
 
-    private var costBreakdown: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("COST PER LEAGUE")
-                    .font(TuffFonts.sectionHeader())
-                    .foregroundColor(TuffColors.textSecondary)
-                    .tracking(0.15 * 12)
-                Spacer()
-                Text("\(selectedMinutes) min break")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(TuffColors.textSecondary)
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 8)
-
-            VStack(spacing: 0) {
-                ForEach(Array(activeLeagues.enumerated()), id: \.element.id) { i, league in
-                    HStack(spacing: 10) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(league.name)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.black)
-                            Text("\(league.pricePerHourCents)¢/hr rate")
-                                .font(.system(size: 11))
-                                .foregroundColor(TuffColors.textSecondary)
-                        }
-                        Spacer()
-                        Text("–\(breakCostText(minutes: selectedMinutes, league: league))")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(Color.red.opacity(0.8))
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-
-                    if i < activeLeagues.count - 1 {
-                        Divider().padding(.horizontal, 16)
-                    }
-                }
-            }
-            .background(Color(hex: "F8F8F8"))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "EEEEEE"), lineWidth: 1))
-            .padding(.horizontal, 24)
-        }
-    }
-
-    private var buyButton: some View {
-        Button {
-            guard !isBuying else { return }
-            isBuying = true
-            guard let uid = Auth.auth().currentUser?.uid else { isBuying = false; return }
-            let leagues = activeLeagues
-            let minutes = selectedMinutes
-            // Optimistic update — leaderboard reflects the charge immediately
-            homeViewModel.applyOptimisticBreakCharge(uid: uid, minutes: minutes)
-            Task {
-                await screenTimeManager.buyBreak(minutes: minutes, uid: uid, leagues: leagues)
-                await MainActor.run { isBuying = false }
-            }
-        } label: {
-            HStack(spacing: 10) {
-                if isBuying {
-                    ProgressView().tint(.black)
-                } else {
-                    Image(systemName: "lock.open.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Buy \(selectedMinutes) min Break")
+    private var startChallengeCard: some View {
+        VStack(spacing: 12) {
+            Button {
+                guard hasBlockingSelections else { return }
+                screenTimeManager.saveBlockedSelection(screenTimeManager.blockedAppSelection)
+                screenTimeManager.blockSelectedApps()
+                showChallengeFlow = true
+            } label: {
+                HStack {
+                    Image(systemName: "bolt.fill")
+                    Text("Start challenge for unlock")
                         .font(.system(size: 17, weight: .bold))
                 }
+                .foregroundColor(hasBlockingSelections ? .black : Color.white.opacity(0.6))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 17)
+                .background(
+                    RoundedRectangle(cornerRadius: 18)
+                        .fill(hasBlockingSelections ? TuffColors.accent : Color.black.opacity(0.18))
+                )
             }
-            .foregroundColor(.black)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 17)
-            .background(RoundedRectangle(cornerRadius: 18).fill(TuffColors.accent))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(Color.white.opacity(0.16), lineWidth: 1)
-            )
+            .disabled(!hasBlockingSelections)
+
+            if !hasBlockingSelections {
+                Text("Pick at least one app or category in the blocker list — category picks still count.")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.orange.opacity(0.9))
+                    .multilineTextAlignment(.center)
+            }
         }
-        .disabled(isBuying)
-        .padding(.horizontal, 32)
-        .buttonStyle(PressableButtonStyle())
+        .padding(.horizontal, 22)
     }
 
-    // MARK: - Helpers
-
-    private func breakCostText(minutes: Int, league: League) -> String {
-        let cents = max(1, Int(round(Double(minutes) / 60.0 * Double(league.pricePerHourCents))))
-        return String(format: "$%.2f", Double(cents) / 100.0)
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text)
+            .font(TuffFonts.sectionHeader())
+            .foregroundColor(TuffColors.textSecondary)
+            .tracking(0.15 * 12)
     }
 
-    /// Minutes that would be refunded if the break is ended right now.
-    /// Rule: if less than 1 full minute has been used, no refund (can't game the system).
-    /// Otherwise: originalMinutes - floor(secondsUsed / 60).
-    private var refundMinutesAvailable: Int {
-        guard let startDate = screenTimeManager.breakStartDate,
-              let endDate   = screenTimeManager.blockTimerEndDate else { return 0 }
-        let secondsUsed = max(0, Date().timeIntervalSince(startDate))
-        guard secondsUsed >= 60 else { return 0 }
-        let originalMinutes = Int((endDate.timeIntervalSince(startDate) / 60).rounded())
-        let minutesKept     = Int(secondsUsed / 60)
-        return max(0, originalMinutes - minutesKept)
-    }
+    private var blockedAppsPickerSheet: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Anything you select here will stay blocked until you finish a challenge and use your unlock timer.")
+                    .font(TuffFonts.caption(12))
+                    .foregroundColor(TuffColors.textSecondary)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
 
-    /// Total cents that would be refunded across all active leagues right now.
-    private var totalRefundCents: Int {
-        let mins = refundMinutesAvailable
-        guard mins > 0 else { return 0 }
-        return activeLeagues.reduce(0) { sum, league in
-            sum + max(0, Int(round(Double(mins) / 60.0 * Double(league.pricePerHourCents))))
+                FamilyActivityPicker(selection: $pickerSelection)
+            }
+            .navigationTitle("Blocked apps")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { showBlockedPicker = false }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Apply") {
+                        screenTimeManager.saveBlockedSelection(pickerSelection)
+                        screenTimeManager.blockSelectedApps()
+                        showBlockedPicker = false
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
         }
-    }
-
-    private var refundSummaryText: String? {
-        guard refundMinutesAvailable > 1, !activeLeagues.isEmpty else { return nil }
-        guard let endDate = screenTimeManager.blockTimerEndDate else { return nil }
-        // Use floor of remaining countdown so the label matches the visible timer.
-        let remainingMins = Int(max(0, endDate.timeIntervalSince(Date())) / 60)
-        guard remainingMins > 1 else { return nil }
-        let dollars = String(format: "$%.2f", Double(totalRefundCents) / 100.0)
-        return "End \(remainingMins)m early → save \(dollars)"
-    }
-}
-
-// MARK: - Press-down animation
-
-struct PressableButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }

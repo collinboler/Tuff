@@ -23,7 +23,7 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.ManagedSettings.shield-action-service</string>
 		<key>NSExtensionPrincipalClass</key>
-		<string>TuffShieldAction.TuffShieldActionExtension</string>
+		<string>$(PRODUCT_MODULE_NAME).TuffShieldActionExtension</string>
 	</dict>
 </dict>
 </plist>

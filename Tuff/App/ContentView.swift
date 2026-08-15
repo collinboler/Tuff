@@ -34,8 +34,13 @@ struct ContentView: View {
         }
         .ignoresSafeArea(.keyboard)
         .onOpenURL { url in
-            if url.scheme == "tuff", url.host == "block" {
+            guard url.scheme == "tuff" else { return }
+            if url.host == "block" {
                 withAnimation(.easeInOut(duration: 0.22)) { selectedTab = .block }
+            }
+            if url.host == "challenge" {
+                withAnimation(.easeInOut(duration: 0.22)) { selectedTab = .block }
+                NotificationCenter.default.post(name: .tuffOpenChallengeGate, object: nil)
             }
         }
     }

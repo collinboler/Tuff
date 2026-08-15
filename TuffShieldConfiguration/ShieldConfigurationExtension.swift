@@ -50,14 +50,19 @@ class TuffShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "Open Tuff to buy a break and temporarily unlock your apps.",
+                text: "Complete a tiny challenge inside Tuff to earn a timed unlock.",
                 color: subtitleGray
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
-                text: "Stay Focused",
+                text: "Stay focused",
                 color: .white
             ),
-            primaryButtonBackgroundColor: tuffGreen
+            primaryButtonBackgroundColor: tuffGreen,
+            secondaryButtonLabel: ShieldConfiguration.Label(
+                text: "Earn unlock",
+                color: offWhite
+            ),
+            secondaryButtonBackgroundColor: tuffGreenBright.withAlphaComponent(0.35)
         )
     }
 
@@ -71,11 +76,11 @@ class TuffShieldConfigurationExtension: ShieldConfigurationDataSource {
                 color: .white
             ),
             subtitle: ShieldConfiguration.Label(
-                text: "Open Tuff to buy a break and temporarily unlock your apps.",
+                text: "Tuff focuses on distracting apps rather than blanket web blocking.",
                 color: subtitleGray
             ),
             primaryButtonLabel: ShieldConfiguration.Label(
-                text: "Stay Focused",
+                text: "OK",
                 color: .white
             ),
             primaryButtonBackgroundColor: tuffGreen

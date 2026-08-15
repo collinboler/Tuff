@@ -25,6 +25,8 @@
 		5D6FCAD3F3FFFD4C3D2B0F58 /* LeagueDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DD638A63F049BFA07CDBF4E /* LeagueDetailSheet.swift */; };
 		6301672CDC4410D875746673 /* StatsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D89BE8CC594256ED05B0086C /* StatsViewModel.swift */; };
 		63432C1875B9698339930F04 /* ShieldConfigurationExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = D37C07E37121E0FAB17CA247 /* ShieldConfigurationExtension.swift */; };
+		E8D7C6B5A49382716059EED4 /* ShieldActionExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8D7C6B5A49382716059EED3 /* ShieldActionExtension.swift */; };
+		E8D7C6B5A49382716059EDD1 /* ChallengeUnlockFlows.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8D7C6B5A49382716059EDD2 /* ChallengeUnlockFlows.swift */; };
 		64345E8B3394DC7D010637EE /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 935D673557E80C6FE7B1CDF1 /* ProfileView.swift */; };
 		692F8250FF4D7CC7D6266ED2 /* League.swift in Sources */ = {isa = PBXBuildFile; fileRef = 349F7929AC5B7B6F327A0FF6 /* League.swift */; };
 		69365561FCEC42082BF7FCFD /* BlockTimerActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 702350101ABBD680FE399B3E /* BlockTimerActivity.swift */; };
@@ -69,6 +71,13 @@
 			remoteGlobalIDString = AEFD1829843980916525923B;
 			remoteInfo = Tuff;
 		};
+		E8D7C6B5A49382716059EED9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CACFD2EBBD3ED61D67074E70 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AEFD1829843980916525923B;
+			remoteInfo = Tuff;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
@@ -93,6 +102,7 @@
 		7E26E7D523C197C43347A4BB /* ImplicitFriendsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImplicitFriendsService.swift; sourceTree = "<group>"; };
 		7F28A14A8186E15C301A1C9F /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffShieldConfiguration.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		E8D7C6B5A49382716059EED1 /* TuffShieldAction.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TuffShieldAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		80C1AE724956703D8836B912 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		86342AE1D7901DA9BBC16A14 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
 		86CCBDA2CCE6E9715DA96805 /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = User.swift; sourceTree = "<group>"; };
@@ -117,6 +127,10 @@
 		DB1BEC7D7B5171B95123DF8C /* RemoteImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteImageCache.swift; sourceTree = "<group>"; };
 		E19A20D88869999A0353DD4C /* LeagueHistoryRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeagueHistoryRow.swift; sourceTree = "<group>"; };
 		E96F63DD46B3821E1B7FDFFA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E8D7C6B5A49382716059EDD0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E8D7C6B5A49382716059EED2 /* TuffShieldAction.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TuffShieldAction.entitlements; sourceTree = "<group>"; };
+		E8D7C6B5A49382716059EED3 /* ShieldActionExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShieldActionExtension.swift; sourceTree = "<group>"; };
+		E8D7C6B5A49382716059EDD2 /* ChallengeUnlockFlows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeUnlockFlows.swift; sourceTree = "<group>"; };
 		F08CC8CFC059AD9A8AE9931A /* DeviceActivityMonitorExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceActivityMonitorExtension.swift; sourceTree = "<group>"; };
 		F19D90E00E56A382AF1913D1 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
 		F23DF162A31993B916A581DB /* ProfileViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViewModel.swift; sourceTree = "<group>"; };
@@ -160,6 +174,16 @@
 			path = TuffShieldConfiguration;
 			sourceTree = "<group>";
 		};
+		E8D7C6B5A49382716059EED5 /* TuffShieldAction */ = {
+			isa = PBXGroup;
+			children = (
+				E8D7C6B5A49382716059EDD0 /* Info.plist */,
+				E8D7C6B5A49382716059EED3 /* ShieldActionExtension.swift */,
+				E8D7C6B5A49382716059EED2 /* TuffShieldAction.entitlements */,
+			);
+			path = TuffShieldAction;
+			sourceTree = "<group>";
+		};
 		26316C8CE11E8D330230C222 /* Profile */ = {
 			isa = PBXGroup;
 			children = (
@@ -194,6 +218,7 @@
 				3A111654C6356B1BB1FFE270 /* Tuff */,
 				8971905DB8D9EC96C9B954F6 /* TuffDeviceActivity */,
 				06C52E49D012408CDECC5B24 /* TuffShieldConfiguration */,
+				E8D7C6B5A49382716059EED5 /* TuffShieldAction */,
 				5C6CD904F0FCC3C1E192B78F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -204,6 +229,7 @@
 				6BA99A1335B787C8FC8504DE /* Tuff.app */,
 				BFB5002A0F5EC83C64AF1F12 /* TuffDeviceActivity.appex */,
 				800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */,
+				E8D7C6B5A49382716059EED1 /* TuffShieldAction.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -299,6 +325,7 @@
 		E8760AFEE004F5A7CCE7B2A2 /* Stats */ = {
 			isa = PBXGroup;
 			children = (
+				E8D7C6B5A49382716059EDD2 /* ChallengeUnlockFlows.swift */,
 				B91BBD63513F534C7F1399A3 /* BlockView.swift */,
 				9D20E98B5328CE88A5A35EDA /* ScreenTimeChartView.swift */,
 				7F28A14A8186E15C301A1C9F /* StatsView.swift */,
@@ -342,6 +369,24 @@
 			);
 			productName = TuffShieldConfiguration;
 			productReference = 800FADA069A7C8B05029C021 /* TuffShieldConfiguration.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		E8D7C6B5A49382716059EED6 /* TuffShieldAction */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E8D7C6B5A49382716059EEDC /* Build configuration list for PBXNativeTarget "TuffShieldAction" */;
+			buildPhases = (
+				E8D7C6B5A49382716059EED7 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E8D7C6B5A49382716059EED8 /* PBXTargetDependency */,
+			);
+			name = TuffShieldAction;
+			packageProductDependencies = (
+			);
+			productName = TuffShieldAction;
+			productReference = E8D7C6B5A49382716059EED1 /* TuffShieldAction.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 		307FFB2C2F6506A5A6126A08 /* TuffDeviceActivity */ = {
@@ -400,6 +445,9 @@
 					307FFB2C2F6506A5A6126A08 = {
 						DevelopmentTeam = "";
 					};
+					E8D7C6B5A49382716059EED6 = {
+						DevelopmentTeam = "";
+					};
 				};
 			};
 			buildConfigurationList = D1E68F90D8C127D0AD24419C /* Build configuration list for PBXProject "Tuff" */;
@@ -422,6 +470,7 @@
 				AEFD1829843980916525923B /* Tuff */,
 				307FFB2C2F6506A5A6126A08 /* TuffDeviceActivity */,
 				23D9EDF1650F12E136CD1A3C /* TuffShieldConfiguration */,
+				E8D7C6B5A49382716059EED6 /* TuffShieldAction */,
 			);
 		};
 /* End PBXProject section */
@@ -455,6 +504,7 @@
 				69365561FCEC42082BF7FCFD /* BlockTimerActivity.swift in Sources */,
 				B44C8CB22D030FD518899E78 /* BlockTimerAttributes.swift in Sources */,
 				71B68AD92595BCAC46770A7F /* BlockView.swift in Sources */,
+				E8D7C6B5A49382716059EDD1 /* ChallengeUnlockFlows.swift in Sources */,
 				D39F08284DAC58B9434BDEC3 /* ContentView.swift in Sources */,
 				020A7F4437034D638682A67C /* CreateLeagueView.swift in Sources */,
 				0C5CE123795926BDD235DE3D /* FeedView.swift in Sources */,
@@ -499,6 +549,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E8D7C6B5A49382716059EED7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E8D7C6B5A49382716059EED4 /* ShieldActionExtension.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -511,6 +569,11 @@
 			isa = PBXTargetDependency;
 			target = AEFD1829843980916525923B /* Tuff */;
 			targetProxy = 456C028B4767F48C9E6C06AB /* PBXContainerItemProxy */;
+		};
+		E8D7C6B5A49382716059EED8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AEFD1829843980916525923B /* Tuff */;
+			targetProxy = E8D7C6B5A49382716059EED9 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -748,6 +811,46 @@
 			};
 			name = Release;
 		};
+		E8D7C6B5A49382716059EEDA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TuffShieldAction/TuffShieldAction.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = TuffShieldAction/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff.ShieldAction;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E8D7C6B5A49382716059EEDB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = TuffShieldAction/TuffShieldAction.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = TuffShieldAction/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.collinboler.tuff.ShieldAction;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -774,6 +877,15 @@
 			buildConfigurations = (
 				A02562BA80ED45270B13EE5F /* Debug */,
 				8572F8C53C0822EEB5B71B15 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E8D7C6B5A49382716059EEDC /* Build configuration list for PBXNativeTarget "TuffShieldAction" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E8D7C6B5A49382716059EEDA /* Debug */,
+				E8D7C6B5A49382716059EEDB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

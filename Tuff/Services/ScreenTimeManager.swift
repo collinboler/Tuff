@@ -18,6 +18,9 @@ class ScreenTimeManager: ObservableObject {
     @Published var breakStartDate: Date? = nil    // persisted so refund calc survives restarts
     @Published var isActivelyBlocking: Bool = false
     @Published var liveActivitiesEnabled: Bool = true
+    /// Apps the user chooses to shield (blacklist); everything else stays usable until an unlock session.
+    @Published var blockedAppSelection: FamilyActivitySelection = FamilyActivitySelection()
+    /// League “allowed exemptions” picker still writes here for leaderboard UX; shields no longer use it.
     @Published var allowedAppSelection: FamilyActivitySelection = FamilyActivitySelection()
 
     private var blockTimerTask: Task<Void, Never>?
@@ -39,7 +42,10 @@ class ScreenTimeManager: ObservableObject {
     static let sharedDefaults = UserDefaults(suiteName: "group.com.collinboler.tuff")
     static let breakEndDateKey        = "tuff_breakEndDate"
     static let breakStartDateKey      = "tuff_breakStartDate"
+    /// `true` when the active unlock window came from earning a challenge (no league refunds).
+    static let breakIsEarnedKey       = "tuff_breakIsEarned"
     static let allowedSelectionKey    = "tuff_allowedAppSelection"
+    static let blockedSelectionKey    = "tuff_blockedAppSelection"
 
     private init() {
         store = ManagedSettingsStore()
@@ -80,6 +86,10 @@ class ScreenTimeManager: ObservableObject {
            let decoded = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
             allowedAppSelection = decoded
         }
+        if let data = Self.sharedDefaults?.data(forKey: Self.blockedSelectionKey),
+           let decoded = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
+            blockedAppSelection = decoded
+        }
     }
 
     /// Call this when the app becomes active so the status is always fresh.
@@ -95,6 +105,7 @@ class ScreenTimeManager: ObservableObject {
             breakStartDate = nil
             Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
             Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
+            Self.sharedDefaults?.removeObject(forKey: Self.breakIsEarnedKey)
             DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
             blockSelectedApps()
         }
@@ -127,6 +138,13 @@ class ScreenTimeManager: ObservableObject {
         allowedAppSelection = selection
         guard let data = try? JSONEncoder().encode(selection) else { return }
         Self.sharedDefaults?.set(data, forKey: Self.allowedSelectionKey)
+    }
+
+    /// Persist apps to blacklist (picked via Family Activity picker).
+    func saveBlockedSelection(_ selection: FamilyActivitySelection) {
+        blockedAppSelection = selection
+        guard let data = try? JSONEncoder().encode(selection) else { return }
+        Self.sharedDefaults?.set(data, forKey: Self.blockedSelectionKey)
     }
 
     // MARK: - Break Timer (apps are always locked; a break temporarily unblocks them)
@@ -166,9 +184,12 @@ class ScreenTimeManager: ObservableObject {
     }
 
     /// Start a break: unblock apps for `duration`, then automatically re-lock.
-    func startBlockTimer(duration: TimeInterval) {
+    /// Begin a timed unlock window. When `isEarnedUnlock` is true, cancelling early skips league refunds.
+    func startBlockTimer(duration: TimeInterval, isEarnedUnlock: Bool = false) {
         blockTimerTask?.cancel()
         blockTimerTask = nil
+
+        Self.sharedDefaults?.set(isEarnedUnlock, forKey: Self.breakIsEarnedKey)
 
         let start = Date()
         let end = start.addingTimeInterval(duration)
@@ -205,6 +226,7 @@ class ScreenTimeManager: ObservableObject {
                 self.breakStartDate = nil
                 Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
                 Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
+                Self.sharedDefaults?.removeObject(forKey: Self.breakIsEarnedKey)
                 self.blockSelectedApps()
                 self.ensureLockedLiveActivity()
                 self.startShieldHeartbeat()
@@ -257,6 +279,7 @@ class ScreenTimeManager: ObservableObject {
     func cancelBreakEarly(uid: String, leagues: [League]) async -> Int {
         let endDate   = blockTimerEndDate
         let startDate = breakStartDate ?? Self.sharedDefaults?.object(forKey: Self.breakStartDateKey) as? Date
+        let earned    = Self.sharedDefaults?.bool(forKey: Self.breakIsEarnedKey) ?? false
 
         // Re-lock immediately
         blockTimerTask?.cancel()
@@ -267,11 +290,13 @@ class ScreenTimeManager: ObservableObject {
         Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
         // Cancel the one-shot extension schedule so it doesn't fire spuriously
         DeviceActivityCenter().stopMonitoring([DeviceActivityName("tuff.breakEnd")])
+        Self.sharedDefaults?.removeObject(forKey: Self.breakIsEarnedKey)
         blockSelectedApps()
         ensureLockedLiveActivity()
         startShieldHeartbeat()
 
         guard let endDate, let startDate else { return 0 }
+        if earned { return 0 }
 
         let secondsUsed = max(0, Date().timeIntervalSince(startDate))
 
@@ -328,6 +353,7 @@ class ScreenTimeManager: ObservableObject {
         breakStartDate = nil
         Self.sharedDefaults?.removeObject(forKey: Self.breakEndDateKey)
         Self.sharedDefaults?.removeObject(forKey: Self.breakStartDateKey)
+        Self.sharedDefaults?.removeObject(forKey: Self.breakIsEarnedKey)
         blockSelectedApps()
         ensureLockedLiveActivity()
         startShieldHeartbeat()
@@ -393,7 +419,7 @@ class ScreenTimeManager: ObservableObject {
     /// Purchase a break: unblock for `minutes`, then atomically increment each active league's
     /// ledger entry for this user using FieldValue.increment (no transaction needed).
     func buyBreak(minutes: Int, uid: String, leagues: [League]) async {
-        startBlockTimer(duration: TimeInterval(minutes * 60))
+        startBlockTimer(duration: TimeInterval(minutes * 60), isEarnedUnlock: false)
 
         // `hasEnded` excludes leagues whose scheduled endDate has passed — we
         // shouldn't charge new breaks against a settled league.
@@ -429,6 +455,11 @@ class ScreenTimeManager: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Reward unlock after completing an in-app challenge (no league charge / refund bookkeeping).
+    func grantEarnedUnlock(minutes: Int) {
+        startBlockTimer(duration: TimeInterval(minutes * 60), isEarnedUnlock: true)
     }
 
     // MARK: - Live Activity
@@ -552,23 +583,38 @@ class ScreenTimeManager: ObservableObject {
 
     // MARK: - App Blocking
 
-    /// Blocks all app categories and web domains, exempting any apps the user has
-    /// selected via `allowedAppSelection` (configured by the league creator).
+    /// Applies shields for anything chosen in `FamilyActivityPicker`: individual apps **and**
+    /// category-level picks (those live in `categoryTokens`, so counting only apps looks “empty”).
     func blockSelectedApps() {
         guard let store else {
             print("[Tuff] blockSelectedApps: store is nil")
             return
         }
-        let exemptTokens = allowedAppSelection.applicationTokens
-        if exemptTokens.isEmpty {
-            store.shield.applicationCategories = .all()
+
+        store.shield.webDomainCategories = nil
+
+        let apps = blockedAppSelection.applicationTokens
+        let cats = blockedAppSelection.categoryTokens
+        let hasApps = !apps.isEmpty
+        let hasCats = !cats.isEmpty
+
+        if !hasApps && !hasCats {
+            store.shield.applications = nil
+            store.shield.applicationCategories = nil
+            store.application.denyAppRemoval = false
+            isActivelyBlocking = false
+            print("[Tuff] No blocked apps configured — shields cleared until you pick distracting apps.")
         } else {
-            store.shield.applicationCategories = .all(except: exemptTokens)
+            store.shield.applications = hasApps ? apps : nil
+            if hasCats {
+                store.shield.applicationCategories = ShieldSettings.ActivityCategoryPolicy.specific(cats, except: [])
+            } else {
+                store.shield.applicationCategories = nil
+            }
+            store.application.denyAppRemoval = true
+            isActivelyBlocking = true
+            print("[Tuff] Shield applied — \(apps.count) app(s), \(cats.count) category bucket(s)")
         }
-        store.shield.webDomainCategories = .all()
-        store.application.denyAppRemoval = true
-        isActivelyBlocking = true
-        print("[Tuff] Shield applied — all apps blocked\(exemptTokens.isEmpty ? "" : " (except \(exemptTokens.count) allowed)")")
         ensureLockedLiveActivity()
     }
 
@@ -640,4 +686,17 @@ class ScreenTimeManager: ObservableObject {
                                worstDay: times.max() ?? 0, currentStreak: streak, dailyGoal: goal)
     }
 
+}
+
+extension FamilyActivitySelection {
+    /// The system picker routes **individual apps** through `applicationTokens` and whole **categories**
+    /// (often how people select “everything in …”) through `categoryTokens`. Only counting apps makes the UI look empty.
+    var tuffHasBlockingSelections: Bool {
+        !applicationTokens.isEmpty || !categoryTokens.isEmpty
+    }
+
+    /// Combined count used for summaries (Screen Time exposes apps and categories separately).
+    var tuffBlockingSelectionTotal: Int {
+        applicationTokens.count + categoryTokens.count
+    }
 }

@@ -50,19 +50,33 @@ class TuffDeviceActivityMonitor: DeviceActivityMonitor {
         defaults?.removeObject(forKey: breakStartDateKey)
 
         let store = ManagedSettingsStore()
-        let allowedSelectionKey = "tuff_allowedAppSelection"
-        var exemptTokens: Set<ApplicationToken> = []
-        if let data = defaults?.data(forKey: allowedSelectionKey),
+        let blockedSelectionKey = "tuff_blockedAppSelection"
+        store.shield.webDomainCategories = nil
+
+        var apps: Set<ApplicationToken> = []
+        var categories: Set<ActivityCategoryToken> = []
+        if let data = defaults?.data(forKey: blockedSelectionKey),
            let selection = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) {
-            exemptTokens = selection.applicationTokens
+            apps = selection.applicationTokens
+            categories = selection.categoryTokens
         }
-        if exemptTokens.isEmpty {
-            store.shield.applicationCategories = .all()
+
+        let hasApps = !apps.isEmpty
+        let hasCats = !categories.isEmpty
+
+        if !hasApps && !hasCats {
+            store.shield.applications = nil
+            store.shield.applicationCategories = nil
+            store.application.denyAppRemoval = false
         } else {
-            store.shield.applicationCategories = .all(except: exemptTokens)
+            store.shield.applications = hasApps ? apps : nil
+            if hasCats {
+                store.shield.applicationCategories = ShieldSettings.ActivityCategoryPolicy.specific(categories, except: [])
+            } else {
+                store.shield.applicationCategories = nil
+            }
+            store.application.denyAppRemoval = true
         }
-        store.shield.webDomainCategories   = .all()
-        store.application.denyAppRemoval   = true
 
         endStaleLiveActivities()
     }
